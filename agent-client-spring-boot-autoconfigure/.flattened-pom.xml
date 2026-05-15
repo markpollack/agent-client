@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.markpollack</groupId>
+  <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
+  <version>0.18.0</version>
+  <name>Agent Client Spring Boot Auto-Configuration</name>
+  <description>Spring Boot auto-configuration for AgentClient — provides AgentClient.Builder bean</description>
+  <url>https://github.com/markpollack/agent-client/agent-client-spring-boot-autoconfigure</url>
+  <licenses>
+    <license>
+      <name>Business Source License 1.1</name>
+      <url>https://github.com/markpollack/agent-client/blob/main/LICENSE</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>markpollack</id>
+      <name>Mark Pollack</name>
+      <email>mark.pollack@gmail.com</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:git://github.com/markpollack/agent-client.git/agent-client-spring-boot-autoconfigure</connection>
+    <developerConnection>scm:git:ssh://github.com:markpollack/agent-client.git/agent-client-spring-boot-autoconfigure</developerConnection>
+    <url>https://github.com/markpollack/agent-client/agent-client-spring-boot-autoconfigure</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.markpollack</groupId>
+      <artifactId>agent-client-core</artifactId>
+      <version>0.18.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+      <version>4.0.1</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>spring-snapshots</id>
+      <name>Spring Snapshots</name>
+      <url>https://repo.spring.io/snapshot</url>
+    </repository>
+    <repository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>spring-milestones</id>
+      <name>Spring Milestones</name>
+      <url>https://repo.spring.io/milestone</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>central-snapshots</id>
+      <name>Maven Central Snapshots</name>
+      <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+    </repository>
+  </repositories>
+</project>
