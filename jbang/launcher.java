@@ -2,12 +2,12 @@
 //JAVA 21
 //REPOS central=https://repo1.maven.org/maven2/
 //REPOS central-snapshots=https://central.sonatype.com/repository/maven-snapshots/
-//DEPS org.springaicommunity.agents:spring-ai-agents-core:0.1.0-SNAPSHOT
-//DEPS org.springaicommunity.agents:hello-world-agent:0.1.0-SNAPSHOT
-//DEPS org.springaicommunity.agents:hello-world-agent-ai:0.1.0-SNAPSHOT
-//DEPS org.springaicommunity.agents:code-coverage-agent:0.1.0-SNAPSHOT
+//DEPS io.github.markpollack.agents:spring-ai-agents-core:0.1.0-SNAPSHOT
+//DEPS io.github.markpollack.agents:hello-world-agent:0.1.0-SNAPSHOT
+//DEPS io.github.markpollack.agents:hello-world-agent-ai:0.1.0-SNAPSHOT
+//DEPS io.github.markpollack.agents:code-coverage-agent:0.1.0-SNAPSHOT
 
-import org.springaicommunity.agents.core.*;
+import io.github.markpollack.agents.core.*;
 
 public class launcher {
     public static void main(String[] argv) throws Exception {

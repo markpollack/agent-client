@@ -1,12 +1,12 @@
 # Agent Client
 
-[![Maven Central](https://img.shields.io/maven-central/v/org.springaicommunity.agents/agent-starter-claude.svg)](https://search.maven.org/search?q=g:org.springaicommunity.agents)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.markpollack/agent-starter-claude.svg)](https://search.maven.org/search?q=g:io.github.markpollack)
 
 **What ChatClient did for completion endpoints, AgentClient does for agent CLIs.**
 
 Agent Client provides a unified Java API for autonomous CLI agents — Claude Code, Codex, Gemini, Amazon Q, and Amp — with Spring Boot auto-configuration support.
 
-📖 **[Documentation](https://springaicommunity.mintlify.app/projects/incubating/agent-client)** | [Getting Started](https://springaicommunity.mintlify.app/agent-client/howto/getting-started) | [Reference](https://springaicommunity.mintlify.app/agent-client/reference/portable-options) | [Tutorial](https://springaicommunity.mintlify.app/agent-client/tutorial/index)
+📖 **[Documentation](https://lab.pollack.ai/projects/incubating/agent-client)** | [Getting Started](https://lab.pollack.ai/agent-client/howto/getting-started) | [Reference](https://lab.pollack.ai/agent-client/reference/portable-options) | [Tutorial](https://lab.pollack.ai/agent-client/tutorial/index)
 
 ## Quick Start
 
@@ -14,9 +14,9 @@ Add the dependency for your provider:
 
 ```xml
 <dependency>
-    <groupId>org.springaicommunity.agents</groupId>
+    <groupId>io.github.markpollack</groupId>
     <artifactId>agent-claude</artifactId>
-    <version>0.15.0</version>
+    <version>0.18.0</version>
 </dependency>
 ```
 
@@ -40,9 +40,9 @@ Use a starter for auto-configuration:
 
 ```xml
 <dependency>
-    <groupId>org.springaicommunity.agents</groupId>
+    <groupId>io.github.markpollack</groupId>
     <artifactId>agent-starter-claude</artifactId>
-    <version>0.15.0</version>
+    <version>0.18.0</version>
 </dependency>
 ```
 
@@ -83,7 +83,7 @@ AgentClient client = AgentClient.create(model);
 AgentClientResponse response = client.run("Create hello.txt");
 ```
 
-See [Switching Providers](https://springaicommunity.mintlify.app/agent-client/howto/switching-providers) for the Maven profile pattern.
+See [Switching Providers](https://lab.pollack.ai/agent-client/howto/switching-providers) for the Maven profile pattern.
 
 ## Configuration
 
@@ -104,7 +104,7 @@ spring:
         yolo: true
 ```
 
-See the [Reference](https://springaicommunity.mintlify.app/agent-client/reference/portable-options) pages for all configuration options.
+See the [Reference](https://lab.pollack.ai/agent-client/reference/portable-options) pages for all configuration options.
 
 ## Architecture
 
@@ -135,12 +135,12 @@ Provider selection happens at construction time. Everything after `AgentClient.c
 
 | Type | Link |
 |------|------|
-| Getting Started | [Quick start guide](https://springaicommunity.mintlify.app/agent-client/howto/getting-started) |
-| Tutorial | [Step-by-step lessons](https://springaicommunity.mintlify.app/agent-client/tutorial/index) |
-| Reference | [Configuration options](https://springaicommunity.mintlify.app/agent-client/reference/portable-options) |
-| Provider Reference | [Claude](https://springaicommunity.mintlify.app/agent-client/reference/claude-reference) · [Codex](https://springaicommunity.mintlify.app/agent-client/reference/codex-reference) · [Gemini](https://springaicommunity.mintlify.app/agent-client/reference/gemini-reference) |
-| Defaults Philosophy | [LOOSE vs STRICT modes](https://springaicommunity.mintlify.app/agent-client/explanation/defaults-philosophy) |
-| Sessions | [Multi-turn conversations](https://springaicommunity.mintlify.app/agent-client/reference/sessions) |
+| Getting Started | [Quick start guide](https://lab.pollack.ai/agent-client/howto/getting-started) |
+| Tutorial | [Step-by-step lessons](https://lab.pollack.ai/agent-client/tutorial/index) |
+| Reference | [Configuration options](https://lab.pollack.ai/agent-client/reference/portable-options) |
+| Provider Reference | [Claude](https://lab.pollack.ai/agent-client/reference/claude-reference) · [Codex](https://lab.pollack.ai/agent-client/reference/codex-reference) · [Gemini](https://lab.pollack.ai/agent-client/reference/gemini-reference) |
+| Defaults Philosophy | [LOOSE vs STRICT modes](https://lab.pollack.ai/agent-client/explanation/defaults-philosophy) |
+| Sessions | [Multi-turn conversations](https://lab.pollack.ai/agent-client/reference/sessions) |
 
 ## Building
 
@@ -150,6 +150,24 @@ Provider selection happens at construction time. Everything after `AgentClient.c
 ./mvnw clean verify -Pfailsafe  # Integration tests (requires CLIs + API keys)
 ```
 
-## License
+## Relationship to Agent Judge
 
-Apache 2.0 — see [LICENSE](LICENSE).
+AgentClient runs CLI-delegated agents. [Agent Judge](https://github.com/markpollack/agent-judge) evaluates their outputs. The `agent-judge-bridge` module provides the canonical bridge from AgentClient responses into Agent Judge's `JudgmentContext`.
+
+## Licensing
+
+This project originated from earlier Apache-licensed work in the Spring AI Community.
+
+Beginning with version 0.18.0, new development is licensed under the Business Source License 1.1 (BSL).
+
+Historical Apache-licensed portions remain available under their original terms. See [LICENSE](LICENSE) and [LICENSE-APACHE.txt](LICENSE-APACHE.txt) for details.
+
+## Migration Notes
+
+This project was previously published under `org.springaicommunity.agents`. Beginning with version 0.18.0, the Maven coordinates are:
+
+```xml
+<groupId>io.github.markpollack</groupId>
+```
+
+All Java packages have moved from `org.springaicommunity.agents.*` to `io.github.markpollack.agents.*`.

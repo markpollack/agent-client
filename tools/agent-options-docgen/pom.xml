@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.springaicommunity.agents</groupId>
+    <groupId>io.github.markpollack</groupId>
     <artifactId>agent-options-docgen</artifactId>
     <version>0.1.0</version>
     <packaging>jar</packaging>
@@ -44,7 +44,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>org.springaicommunity.agents.tools.docgen.OptionsDocGenerator</mainClass>
+                    <mainClass>io.github.markpollack.tools.docgen.OptionsDocGenerator</mainClass>
                 </configuration>
             </plugin>
             <!-- Skip deployment — this is a development tool -->

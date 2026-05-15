@@ -6,9 +6,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springaicommunity.agents</groupId>
+        <groupId>io.github.markpollack</groupId>
         <artifactId>agent-starters</artifactId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>agent-starter-amp</artifactId>
@@ -20,20 +20,20 @@
     <dependencies>
         <!-- Agent Client (includes AgentClient.Builder autoconfiguration) -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
 
         <!-- Amp Agent Model (includes autoconfiguration) -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-amp</artifactId>
         </dependency>
 
         <!-- Provider SDK (transitively included) -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>amp-cli-sdk</artifactId>
         </dependency>
     </dependencies>

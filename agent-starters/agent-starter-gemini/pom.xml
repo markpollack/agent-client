@@ -20,9 +20,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springaicommunity.agents</groupId>
+        <groupId>io.github.markpollack</groupId>
         <artifactId>agent-starters</artifactId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -41,28 +41,28 @@
 
         <!-- Agent Client (includes AgentClient autoconfiguration) -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
 
         <!-- Gemini Agent Model (includes Gemini autoconfiguration) -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-gemini</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
 
         <!-- Judge API for verification -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-judge-bridge</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
 
         <!-- Judge Advisor for AgentClient integration -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-advisor-judge</artifactId>
             <version>${project.parent.version}</version>
         </dependency>

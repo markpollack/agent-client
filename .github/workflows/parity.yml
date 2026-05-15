@@ -26,7 +26,7 @@ concurrency:
 jobs:
   parity:
     # Only run in the upstream repo (forks won't have secrets)
-    if: github.repository_owner == 'spring-ai-community'
+    if: github.repository_owner == 'markpollack'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

@@ -1,12 +1,6 @@
-# CI workflow for agent-client
-# Uses centralized reusable workflow from community-workflows
-
 name: CI Build
 
 on:
-  schedule:
-    - cron: '0 9 * * 1-5'    # 9:00 AM UTC weekdays
-    - cron: '0 21 * * 1-5'   # 9:00 PM UTC weekdays
   push:
     branches: [main]
     paths-ignore:
@@ -25,15 +19,6 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository_owner == 'spring-ai-community'
-    uses: spring-ai-community/community-workflows/.github/workflows/ci-build-with-cli.yml@main
+    uses: markpollack/build-tools/.github/workflows/ci-build.yml@main
     with:
-      java-version: '17'
-      install-claude-cli: true
-      install-gemini-cli: true
-      install-vendir-cli: true
-      validate-commits: true
-      maven-goals: 'clean install -B'
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      java-version: '21'

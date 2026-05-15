@@ -194,15 +194,15 @@ client.goal("Research topic").mcpServers("brave-search").run();
   - Direct `Sandbox` dependency injection in test classes
 
 ## Package Structure
-- `org.springaicommunity.agents.model.*` - Core abstractions
-- `org.springaicommunity.agents.model.mcp.*` - Portable MCP server types (McpServerDefinition, McpServerCatalog)
-- `org.springaicommunity.agents.client.*` - High-level client API
-- `org.springaicommunity.agents.claudecode.*` - Claude Code implementation
-- `org.springaicommunity.agents.gemini.*` - Gemini implementation
-- `org.springaicommunity.agents.sweagent.*` - SWE-bench implementation
-- `org.springaicommunity.agents.*.sdk.*` - Provider SDK implementations
-- `org.springaicommunity.agents.core.*` - JBang agent infrastructure
-- `org.springaicommunity.agents.helloworld.*` - Example agent implementations
+- `io.github.markpollack.model.*` - Core abstractions
+- `io.github.markpollack.model.mcp.*` - Portable MCP server types (McpServerDefinition, McpServerCatalog)
+- `io.github.markpollack.client.*` - High-level client API
+- `io.github.markpollack.claudecode.*` - Claude Code implementation
+- `io.github.markpollack.gemini.*` - Gemini implementation
+- `io.github.markpollack.sweagent.*` - SWE-bench implementation
+- `io.github.markpollack.*.sdk.*` - Provider SDK implementations
+- `io.github.markpollack.core.*` - JBang agent infrastructure
+- `io.github.markpollack.helloworld.*` - Example agent implementations
 
 ## JBang Directory Structure
 ```
@@ -563,7 +563,7 @@ Steward knowledge lives in `plans/knowledge/`:
 - [ ] Unit tests pass: `./mvnw clean test`
 - [ ] Integration tests pass: `./mvnw clean verify -Pfailsafe`
 - [ ] Formatting clean: `./mvnw spring-javaformat:validate`
-- [ ] No critical open issues in spring-ai-community/spring-ai-agents
+- [ ] No critical open issues in markpollack/agent-client
 - [ ] Provider SDK versions current (Claude CLI, Gemini CLI)
 - [ ] Upstream dependencies checked (agent-sandbox, spring-ai-judge)
 

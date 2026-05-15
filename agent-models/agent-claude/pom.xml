@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springaicommunity.agents</groupId>
+        <groupId>io.github.markpollack</groupId>
         <artifactId>agent-client-parent</artifactId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -20,13 +20,13 @@
     <dependencies>
         <!-- Agent Model Core -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-model</artifactId>
         </dependency>
 
         <!-- Claude Code SDK (from Maven Central) -->
         <dependency>
-            <groupId>org.springaicommunity</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>claude-code-sdk</artifactId>
         </dependency>
 
@@ -44,7 +44,7 @@
 
         <!-- Testing dependencies -->
         <dependency>
-            <groupId>org.springaicommunity.agents</groupId>
+            <groupId>io.github.markpollack</groupId>
             <artifactId>agent-tck</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -79,12 +79,12 @@
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>journal-core</artifactId>
-            <version>0.9.0</version>
+            <version>0.9.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>claude-code-capture</artifactId>
-            <version>0.9.0</version>
+            <version>0.9.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

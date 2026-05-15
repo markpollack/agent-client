@@ -46,8 +46,8 @@ jobs:
           file: Dockerfile.agents-runtime
           push: true
           tags: |
-            ghcr.io/spring-ai-community/agents-runtime:latest
-            ghcr.io/spring-ai-community/agents-runtime:${{ github.sha }}
+            ghcr.io/markpollack/agents-runtime:latest
+            ghcr.io/markpollack/agents-runtime:${{ github.sha }}
           build-args: |
             MAVEN_VERSION=${{ env.MAVEN_VERSION }}
             CLAUDE_CODE_VERSION=${{ env.CLAUDE_CODE_VERSION }}
@@ -55,5 +55,5 @@ jobs:
 
       - name: Test image
         run: |
-          docker run --rm ghcr.io/spring-ai-community/agents-runtime:${{ github.sha }} \
+          docker run --rm ghcr.io/markpollack/agents-runtime:${{ github.sha }} \
             bash -c "claude --version && gemini --version && mvn --version && java --version"
