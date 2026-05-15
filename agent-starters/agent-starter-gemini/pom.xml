@@ -53,19 +53,6 @@
             <version>${project.parent.version}</version>
         </dependency>
 
-        <!-- Judge API for verification -->
-        <dependency>
-            <groupId>io.github.markpollack</groupId>
-            <artifactId>agent-judge-bridge</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-
-        <!-- Judge Advisor for AgentClient integration -->
-        <dependency>
-            <groupId>io.github.markpollack</groupId>
-            <artifactId>agent-advisor-judge</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
     </dependencies>
 
 </project>

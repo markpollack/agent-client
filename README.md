@@ -150,9 +150,11 @@ Provider selection happens at construction time. Everything after `AgentClient.c
 ./mvnw clean verify -Pfailsafe  # Integration tests (requires CLIs + API keys)
 ```
 
-## Relationship to Agent Judge
+## Evaluation
 
-AgentClient runs CLI-delegated agents. [Agent Judge](https://github.com/markpollack/agent-judge) evaluates their outputs. The `agent-judge-bridge` module provides the canonical bridge from AgentClient responses into Agent Judge's `JudgmentContext`.
+AgentClient focuses on running CLI-delegated agents. Evaluation is provided by [Agent Judge](https://github.com/markpollack/agent-judge).
+
+Use `agent-judge-agent-client` to adapt `AgentClientResponse` into Agent Judge's `JudgmentContext`. Judge advisor modules have been removed from AgentClient's runtime release path so the runtime layer remains independent from the evaluation layer.
 
 ## Licensing
 

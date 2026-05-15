@@ -39,7 +39,6 @@
         <!-- Base modules first -->
         <module>agent-models/agent-model</module>
         <module>agent-models/agent-tck</module>
-        <module>agent-models/agent-judge-bridge</module>
         <module>agent-client-core</module>
         <module>agent-client-spring-boot-autoconfigure</module>
 
@@ -59,9 +58,6 @@
         <module>agent-models/agent-amazon-q</module>
         <module>agent-models/agent-qwen-code</module>
 
-        <!-- Advisor modules -->
-        <module>advisors/agent-advisor-judge</module>
-
         <!-- Spring Boot Starters -->
         <module>agent-starters</module>
 
@@ -69,7 +65,6 @@
         <module>agent-launcher</module>
         <module>agents/hello-world-agent</module>
         <module>agents/hello-world-agent-ai</module>
-        <module>agents/code-coverage-agent</module>
 
         <!-- Documentation and samples last -->
         <!-- docs module removed (Antora replaced by Mintlify) -->
@@ -209,10 +204,9 @@
         <slf4j.version>2.0.9</slf4j.version>
 
         <!-- External SDK versions -->
-        <claude-code-sdk.version>1.1.0-SNAPSHOT</claude-code-sdk.version>
+        <claude-code-sdk.version>1.1.0</claude-code-sdk.version>
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
-        <agent-sandbox.version>0.9.2-SNAPSHOT</agent-sandbox.version>
-        <agent-judge.version>0.10.0-SNAPSHOT</agent-judge.version>
+        <agent-sandbox.version>0.9.2</agent-sandbox.version>
 
         <!-- Agent SDK specific versions -->
         <zt-exec.version>1.12</zt-exec.version>
@@ -297,18 +291,6 @@
                 <groupId>io.github.markpollack</groupId>
                 <artifactId>agent-sandbox-core</artifactId>
                 <version>${agent-sandbox.version}</version>
-            </dependency>
-
-            <!-- Agent Judge for evaluation framework -->
-            <dependency>
-                <groupId>io.github.markpollack</groupId>
-                <artifactId>agent-judge-core</artifactId>
-                <version>${agent-judge.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.github.markpollack</groupId>
-                <artifactId>agent-judge-exec</artifactId>
-                <version>${agent-judge.version}</version>
             </dependency>
 
             <!-- zt-exec for process execution (used by CLI SDKs) -->

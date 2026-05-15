@@ -79,75 +79,6 @@ public record AgentClientResponse(AgentResponse agentResponse, Map<String, Objec
 	}
 
 	/**
-	 * Get the judgment result from JudgeAdvisor evaluation if present.
-	 * <p>
-	 * Provides first-class access to judgment results without requiring magic strings.
-	 * Returns null if no JudgeAdvisor was used in the execution.
-	 * </p>
-	 * <p>
-	 * Example usage:
-	 * </p>
-	 * <pre>{@code
-	 * AgentClientResponse response = agentClient
-	 *     .advisors(JudgeAdvisor.builder().judge(judge).build())
-	 *     .run();
-	 *
-	 * Judgment judgment = response.getJudgment();
-	 * if (judgment != null && judgment.pass()) {
-	 *     // Task passed evaluation
-	 * }
-	 * }</pre>
-	 * @param <T> the judgment type (typically Judgment from spring-ai-agents-judge)
-	 * @return the judgment result, or null if no judgment was performed
-	 */
-	@SuppressWarnings("unchecked")
-	public <T> T getJudgment() {
-		return (T) this.context.get("judgment");
-	}
-
-	/**
-	 * Check if a judgment was performed and passed.
-	 * <p>
-	 * Convenience method that checks for judgment presence and pass status without
-	 * requiring direct access to the Judgment object.
-	 * </p>
-	 * @return true if judgment exists and passed, false otherwise
-	 */
-	public boolean isJudgmentPassed() {
-		Boolean pass = (Boolean) this.context.get("judgment.pass");
-		return pass != null && pass;
-	}
-
-	/**
-	 * Get the verdict from jury evaluation.
-	 * <p>
-	 * Retrieves the verdict object stored by
-	 * {@link io.github.markpollack.agents.advisors.judge.JuryAdvisor} after jury
-	 * evaluation completes. The verdict contains the aggregated judgment and all
-	 * individual judgments from the jury.
-	 * </p>
-	 * <p>
-	 * Example usage:
-	 * </p>
-	 * <pre>{@code
-	 * AgentClientResponse response = agentClient
-	 *     .advisors(JuryAdvisor.builder().jury(jury).build())
-	 *     .run();
-	 *
-	 * Verdict verdict = response.getVerdict();
-	 * if (verdict != null && verdict.aggregated().pass()) {
-	 *     // Task passed jury evaluation
-	 * }
-	 * }</pre>
-	 * @param <T> the verdict type (typically Verdict from spring-ai-agents-judge)
-	 * @return the verdict result, or null if no jury evaluation was performed
-	 */
-	@SuppressWarnings("unchecked")
-	public <T> T getVerdict() {
-		return (T) this.context.get("verdict");
-	}
-
-	/**
 	 * Get the phase capture from agent-journal exhaust capture if present.
 	 * <p>
 	 * Retrieves the {@code PhaseCapture} stored by {@code ClaudeAgentModel} after parsing
@@ -160,19 +91,6 @@ public record AgentClientResponse(AgentResponse agentResponse, Map<String, Objec
 	@SuppressWarnings("unchecked")
 	public <T> T getPhaseCapture() {
 		return (T) this.agentResponse.getMetadata().get("phaseCapture");
-	}
-
-	/**
-	 * Check if a verdict was rendered and the aggregated judgment passed.
-	 * <p>
-	 * Convenience method that checks for verdict presence and aggregated pass status
-	 * without requiring direct access to the Verdict object.
-	 * </p>
-	 * @return true if verdict exists and aggregated judgment passed, false otherwise
-	 */
-	public boolean isVerdictPassed() {
-		Boolean pass = (Boolean) this.context.get("verdict.pass");
-		return pass != null && pass;
 	}
 
 }
