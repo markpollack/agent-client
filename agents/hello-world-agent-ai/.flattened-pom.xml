@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>hello-world-agent-ai</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Hello World AI Agent</name>
   <description>AI-powered file creation agent using AgentClient for Spring AI Agents JBang launcher</description>
   <url>https://github.com/markpollack/agent-client/agents/hello-world-agent-ai</url>
@@ -31,25 +31,25 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-client-core</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-claude</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-gemini</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-launcher</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-client-core</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Client Core</name>
   <description>Client-layer facade for Spring AI Agents - AgentClient, Goal, GoalTemplate following ChatClient patterns</description>
   <url>https://github.com/markpollack/agent-client/agent-client-core</url>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-model</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

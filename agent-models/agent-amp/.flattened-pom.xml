@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-amp</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Amp</name>
   <description>Spring AI Agent Model implementation for Sourcegraph Amp CLI</description>
   <url>https://github.com/markpollack/agent-client/agent-models/agent-amp</url>
@@ -31,13 +31,13 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-model</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>amp-cli-sdk</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

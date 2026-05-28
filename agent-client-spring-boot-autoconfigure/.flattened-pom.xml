@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Client Spring Boot Auto-Configuration</name>
   <description>Spring Boot auto-configuration for AgentClient — provides AgentClient.Builder bean</description>
   <url>https://github.com/markpollack/agent-client/agent-client-spring-boot-autoconfigure</url>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-client-core</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

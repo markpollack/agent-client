@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-launcher</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Launcher</name>
   <description>Core JBang launcher functionality for Spring AI Agents - AgentSpec, RunSpec, LocalConfigLoader</description>
   <url>https://github.com/markpollack/agent-client/agent-launcher</url>

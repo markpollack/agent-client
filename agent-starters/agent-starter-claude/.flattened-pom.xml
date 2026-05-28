@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-starter-claude</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Starter - Claude</name>
   <description>Spring Boot Starter for Spring AI Claude Agent</description>
   <url>https://github.com/markpollack/agent-client/agent-starters/agent-starter-claude</url>
@@ -52,13 +52,13 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-claude</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

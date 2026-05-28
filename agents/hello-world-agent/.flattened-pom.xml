@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>hello-world-agent</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Hello World Agent</name>
   <description>Simple file creation agent for Spring AI Agents JBang launcher</description>
   <url>https://github.com/markpollack/agent-client/agents/hello-world-agent</url>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-launcher</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

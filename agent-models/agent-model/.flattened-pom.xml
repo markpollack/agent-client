@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-model</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Model</name>
   <description>Core abstractions for Spring AI Agents - AgentModel, AgentTaskRequest, AgentCallResult, and AgentOptions</description>
   <url>https://github.com/markpollack/agent-client/agent-models/agent-model</url>

@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-tck</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent TCK</name>
   <description>Technology Compatibility Kit for Spring AI Agent implementations - Provides abstract test classes for validating AgentModel and Sandbox implementations</description>
   <url>https://github.com/markpollack/agent-client/agent-models/agent-tck</url>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-model</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

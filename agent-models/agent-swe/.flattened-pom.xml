@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-swe</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent SWE</name>
   <description>Spring AI Agent Model implementation for SWE-bench Agent CLI</description>
   <url>https://github.com/markpollack/agent-client/agent-models/agent-swe</url>
@@ -31,13 +31,13 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-model</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>swe-agent-sdk</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

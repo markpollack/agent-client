@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-starter-amazon-q</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Starter - Amazon Q</name>
   <description>Spring Boot Starter for Amazon Q Developer CLI Agent</description>
   <url>https://github.com/markpollack/agent-client/agent-starters/agent-starter-amazon-q</url>
@@ -46,7 +46,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-amazon-q</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

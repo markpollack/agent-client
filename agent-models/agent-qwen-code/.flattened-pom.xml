@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-qwen-code</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Qwen Code</name>
   <description>Spring AI AgentModel adapter for Qwen Code CLI</description>
   <url>https://github.com/markpollack/agent-client/agent-models/agent-qwen-code</url>
@@ -46,7 +46,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-model</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>swe-agent-sdk</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>SWE Agent SDK</name>
   <description>Java SDK for interacting with mini-SWE-agent CLI - Low-level binding for autonomous software engineering</description>
   <url>https://github.com/markpollack/agent-client/provider-sdks/swe-agent-sdk</url>

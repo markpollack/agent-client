@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-starters</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <packaging>pom</packaging>
   <name>Agent Starters</name>
   <description>Spring Boot Starters for Spring AI Agents</description>

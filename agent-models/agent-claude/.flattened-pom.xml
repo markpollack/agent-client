@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.markpollack</groupId>
   <artifactId>agent-claude</artifactId>
-  <version>0.18.0</version>
+  <version>0.19.0</version>
   <name>Agent Claude</name>
   <description>Spring AI Agent Model implementation for Claude Code CLI</description>
   <url>https://github.com/markpollack/agent-client/agent-models/agent-claude</url>
@@ -31,7 +31,7 @@
     <dependency>
       <groupId>io.github.markpollack</groupId>
       <artifactId>agent-model</artifactId>
-      <version>0.18.0</version>
+      <version>0.19.0</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
