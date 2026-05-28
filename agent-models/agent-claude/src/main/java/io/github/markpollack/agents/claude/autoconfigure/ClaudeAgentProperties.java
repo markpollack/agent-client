@@ -195,6 +195,13 @@ public class ClaudeAgentProperties {
 	 */
 	private String user;
 
+	/**
+	 * Directory for Claude-specific JSONL trace files. Each agent invocation writes one
+	 * trace file containing events observed during SessionLogParser parsing. Null
+	 * (default) disables tracing.
+	 */
+	private String traceDir;
+
 	public String getModel() {
 		return model;
 	}
@@ -373,6 +380,14 @@ public class ClaudeAgentProperties {
 
 	public void setUser(String user) {
 		this.user = user;
+	}
+
+	public String getTraceDir() {
+		return traceDir;
+	}
+
+	public void setTraceDir(String traceDir) {
+		this.traceDir = traceDir;
 	}
 
 	/**

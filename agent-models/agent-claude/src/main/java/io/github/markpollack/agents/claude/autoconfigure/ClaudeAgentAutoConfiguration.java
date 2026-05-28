@@ -25,7 +25,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.util.StringUtils;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -108,6 +110,11 @@ public class ClaudeAgentAutoConfiguration {
 
 		if (properties.getExecutablePath() != null) {
 			builder.claudePath(properties.getExecutablePath());
+		}
+
+		// Trace directory
+		if (StringUtils.hasText(properties.getTraceDir())) {
+			builder.traceDir(Path.of(properties.getTraceDir()));
 		}
 
 		// Inject hook registry if available (from ClaudeHookAutoConfiguration)
