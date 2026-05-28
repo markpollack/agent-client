@@ -43,14 +43,19 @@ import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -132,6 +137,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	private final Consumer<ParsedMessage> messageListener;
 
+	private final Path traceDir;
+
 	private ClaudeAgentModel(Builder builder) {
 		this.workingDirectory = builder.workingDirectory;
 		this.timeout = builder.timeout;
@@ -140,6 +147,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		this.defaultOptions = builder.defaultOptions != null ? builder.defaultOptions : new ClaudeAgentOptions();
 		this.asyncExecutor = builder.asyncExecutor != null ? builder.asyncExecutor : DEFAULT_EXECUTOR;
 		this.messageListener = builder.messageListener;
+		this.traceDir = builder.traceDir;
 	}
 
 	/**
@@ -234,6 +242,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		Instant startTime = Instant.now();
 		StringBuilder fullText = new StringBuilder();
 
+		// Resolve trace target before client setup — fail fast on config errors
+		TraceTarget traceTarget = resolveTraceTarget();
+
 		Path effectiveWorkingDir = request.workingDirectory() != null ? request.workingDirectory() : workingDirectory;
 		CLIOptions options = buildCLIOptions(request);
 
@@ -254,7 +265,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 				response = new TeeingIterator(response, messageListener);
 			}
 
-			PhaseCapture capture = SessionLogParser.parse(response, "agent-run", prompt);
+			PhaseCapture capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path());
 			// When --json-schema is active, prefer rawResult (the constrained output)
 			// over textOutput (which may contain conversational prose)
 			boolean hasJsonSchema = options.getJsonSchema() != null && !options.getJsonSchema().isEmpty();
@@ -277,6 +288,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			providerFields.put("outputTokens", capture.outputTokens());
 			providerFields.put("thinkingTokens", capture.thinkingTokens());
 			providerFields.put("totalCostUsd", capture.totalCostUsd());
+			if (traceTarget.path() != null) {
+				providerFields.put("tracePath", traceTarget.path().toAbsolutePath().toString());
+			}
 
 			AgentResponseMetadata responseMetadata = AgentResponseMetadata.builder()
 				.model(getEffectiveModel())
@@ -653,6 +667,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 		private Consumer<ParsedMessage> messageListener;
 
+		private Path traceDir;
+
 		private Builder() {
 		}
 
@@ -740,6 +756,20 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 
 		/**
+		 * Sets the directory for JSONL trace files. Each {@code call()} writes one
+		 * Claude-specific JSONL trace file containing events observed during
+		 * SessionLogParser parsing (tool calls, tool results, text, thinking blocks, and
+		 * result events). These are not provider-neutral journal events. Null (default)
+		 * disables tracing.
+		 * @param traceDir the trace output directory (created on first use if absent)
+		 * @return this builder
+		 */
+		public Builder traceDir(Path traceDir) {
+			this.traceDir = traceDir;
+			return this;
+		}
+
+		/**
 		 * Builds the ClaudeAgentModel.
 		 * @return the configured model
 		 */
@@ -750,6 +780,29 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			return new ClaudeAgentModel(this);
 		}
 
+	}
+
+	/**
+	 * Pairs a run identifier with an optional trace file path.
+	 */
+	private record TraceTarget(String runId, Path path) {
+	}
+
+	private TraceTarget resolveTraceTarget() {
+		if (this.traceDir == null) {
+			return new TraceTarget("agent-run", null);
+		}
+		Path absoluteTraceDir = this.traceDir.toAbsolutePath().normalize();
+		try {
+			Files.createDirectories(absoluteTraceDir);
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("Failed to create trace directory: " + absoluteTraceDir, ex);
+		}
+		String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
+			.format(Instant.now().atZone(ZoneOffset.UTC));
+		String runId = "agent-run-" + timestamp + "-" + UUID.randomUUID();
+		return new TraceTarget(runId, absoluteTraceDir.resolve(runId + ".jsonl"));
 	}
 
 	/**

@@ -21,19 +21,24 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import io.github.markpollack.claude.agent.sdk.hooks.HookRegistry;
 import io.github.markpollack.claude.agent.sdk.types.control.HookEvent;
 import io.github.markpollack.claude.agent.sdk.types.control.HookOutput;
 import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.IterableAgentModel;
 import io.github.markpollack.agents.model.StreamingAgentModel;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -439,6 +444,47 @@ class ClaudeAgentModelTest {
 				.build();
 
 			assertThat(model).isNotNull();
+		}
+
+	}
+
+	@Nested
+	@DisplayName("Trace Directory Tests")
+	class TraceDirTests {
+
+		@TempDir
+		Path tempDir;
+
+		@Test
+		@DisplayName("Should build with traceDir")
+		void buildWithTraceDir() {
+			model = ClaudeAgentModel.builder().workingDirectory(TEST_WORKING_DIR).traceDir(tempDir).build();
+
+			assertThat(model).isNotNull();
+		}
+
+		@Test
+		@DisplayName("Should build without traceDir (null-safe default)")
+		void buildWithoutTraceDir() {
+			model = ClaudeAgentModel.builder().workingDirectory(TEST_WORKING_DIR).build();
+
+			assertThat(model).isNotNull();
+		}
+
+		@Test
+		@DisplayName("Should fail fast when traceDir cannot be created")
+		void failFastOnUnwritableTraceDir() throws Exception {
+			// Create a regular file where a directory is expected
+			Path regularFile = tempDir.resolve("not-a-directory");
+			Files.writeString(regularFile, "x");
+			Path impossibleDir = regularFile.resolve("child");
+
+			model = ClaudeAgentModel.builder().workingDirectory(TEST_WORKING_DIR).traceDir(impossibleDir).build();
+
+			AgentTaskRequest request = AgentTaskRequest.builder("test", TEST_WORKING_DIR).build();
+
+			assertThatThrownBy(() -> model.call(request)).isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("trace directory");
 		}
 
 	}
