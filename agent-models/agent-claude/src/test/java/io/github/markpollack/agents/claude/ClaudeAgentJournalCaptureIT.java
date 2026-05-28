@@ -71,6 +71,8 @@ class ClaudeAgentJournalCaptureIT {
 
 	private final List<ParsedMessage> capturedMessages = new CopyOnWriteArrayList<>();
 
+	private Path traceDir;
+
 	@BeforeEach
 	void setUp() throws IOException {
 		assumeTrue(isClaudeCliAvailable(), "Claude CLI must be available for integration tests");
@@ -84,11 +86,14 @@ class ClaudeAgentJournalCaptureIT {
 			.maxTurns(3)
 			.build();
 
+		this.traceDir = this.testWorkspace.resolve(".traces");
+
 		this.claudeAgentModel = ClaudeAgentModel.builder()
 			.workingDirectory(this.testWorkspace)
 			.timeout(Duration.ofMinutes(2))
 			.defaultOptions(options)
 			.messageListener(this.capturedMessages::add)
+			.traceDir(this.traceDir)
 			.build();
 
 		assumeTrue(this.claudeAgentModel.isAvailable(), "Claude agent must be available");
@@ -103,7 +108,7 @@ class ClaudeAgentJournalCaptureIT {
 
 	@Test
 	@DisplayName("Full pipeline: ClaudeAgentModel → messageListener → SessionLogParser → PhaseCapture with thinking, tool calls, tokens")
-	void fullExhaustCapturePipeline() {
+	void fullExhaustCapturePipeline() throws IOException {
 		// Step 1: Invoke Claude with a task that forces tool use
 		AgentTaskRequest request = AgentTaskRequest
 			.builder("Read the file greeting.txt and tell me what it says. Use the Read tool.", this.testWorkspace)
@@ -115,6 +120,20 @@ class ClaudeAgentJournalCaptureIT {
 		assertThat(response).isNotNull();
 		assertThat(response.getResults()).isNotEmpty();
 		logger.info("Agent response: {}", response.getResults().get(0).getOutput());
+
+		// Step 1b: Verify traceDir produced a JSONL trace file
+		String tracePath = (String) response.getMetadata().getProviderFields().get("tracePath");
+		assertThat(tracePath).as("tracePath should be in providerFields").isNotNull();
+		Path traceFile = Path.of(tracePath);
+		assertThat(traceFile).exists();
+		List<String> traceLines = Files.readAllLines(traceFile);
+		logger.info("Trace file: {} ({} events)", traceFile.getFileName(), traceLines.size());
+		assertThat(traceLines).as("Trace file should have events").isNotEmpty();
+		assertThat(traceLines).last().asString().contains("\"type\":\"result\"");
+		// Should have tool_use events since we asked Claude to read a file
+		assertThat(traceLines.stream().anyMatch(l -> l.contains("\"type\":\"tool_use\"")))
+			.as("Should have tool_use trace events")
+			.isTrue();
 
 		// Step 2: Verify raw message capture
 		assertThat(this.capturedMessages).as("messageListener should receive ParsedMessages").isNotEmpty();
