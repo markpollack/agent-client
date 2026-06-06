@@ -112,9 +112,15 @@ public class ClaudeAgentAutoConfiguration {
 			builder.claudePath(properties.getExecutablePath());
 		}
 
-		// Trace directory
+		// Trace directory + content capture policy
 		if (StringUtils.hasText(properties.getTraceDir())) {
 			builder.traceDir(Path.of(properties.getTraceDir()));
+		}
+		if (properties.getTraceContentMode() != null) {
+			builder.traceContentMode(properties.getTraceContentMode());
+		}
+		if (properties.getArchiveTranscript() != null) {
+			builder.archiveTranscript(properties.getArchiveTranscript());
 		}
 
 		// Inject hook registry if available (from ClaudeHookAutoConfiguration)

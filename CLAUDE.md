@@ -67,7 +67,7 @@ The script uses `systemd-run` to escape the process tree. It works for Maven/Gra
 - **IMPORTANT**: All sample modules must include maven-deploy-plugin configuration with `<skip>true</skip>` to exclude them from Maven Central publishing
 
 ### CLI Tool Locations (for this environment)
-- **Claude CLI**: `/home/mark/.nvm/versions/node/v22.15.0/bin/claude` (version 1.0.128)
+- **Claude CLI**: `/usr/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe` (2.1.162 — the single install; every PATH entry including `~/.local/bin/claude` symlinks here. The old `~/.nvm` install no longer exists.)
 - **Gemini CLI**: `/home/mark/.nvm/versions/node/v22.15.0/bin/gemini` (version 0.5.5)
 - **JBang**: `/home/mark/.sdkman/candidates/jbang/current/bin/jbang`
 

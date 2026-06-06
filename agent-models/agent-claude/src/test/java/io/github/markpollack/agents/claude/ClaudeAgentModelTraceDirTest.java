@@ -60,8 +60,12 @@ class ClaudeAgentModelTraceDirTest {
 
 		List<String> lines = Files.readAllLines(traceFile);
 		assertThat(lines).isNotEmpty();
-		assertThat(lines.get(0)).contains("\"type\":\"text\"");
-		assertThat(lines).last().asString().contains("\"type\":\"result\"");
+		// Schema v2: header first (run identity), then data lines with content
+		assertThat(lines.get(0)).contains("\"type\":\"header\"")
+			.contains("\"schemaVersion\":2")
+			.contains("\"runId\":\"test-run\"");
+		assertThat(lines.get(1)).contains("\"type\":\"text\"").contains("\"content\":\"Hello world\"");
+		assertThat(lines).last().asString().contains("\"type\":\"result\"").contains("\"sessionId\":\"sess-test\"");
 	}
 
 	@Test

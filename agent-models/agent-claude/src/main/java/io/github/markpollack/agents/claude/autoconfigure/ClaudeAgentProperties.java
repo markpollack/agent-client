@@ -23,6 +23,7 @@ import java.util.Map;
 
 import io.github.markpollack.claude.agent.sdk.config.PermissionMode;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
+import io.github.markpollack.journal.claude.TraceContentMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -201,6 +202,23 @@ public class ClaudeAgentProperties {
 	 * (default) disables tracing.
 	 */
 	private String traceDir;
+
+	/**
+	 * Content capture policy for trace files: FULL (never truncate), TRUNCATED (default —
+	 * full thinking/text/tool_result content, 60KB per-item cap), or LENGTHS (lengths
+	 * only, pins the pre-content-capture disk footprint). Content-carrying traces may
+	 * include prompts, file contents, and command output — treat them as sensitive local
+	 * artifacts.
+	 */
+	private TraceContentMode traceContentMode;
+
+	/**
+	 * Whether to archive the CLI session transcript verbatim into
+	 * {@code <trace-dir>/transcripts/} after each call. Default true; effective only when
+	 * trace-dir is set. Best-effort — a missing transcript logs a warning, never fails
+	 * the call.
+	 */
+	private Boolean archiveTranscript;
 
 	public String getModel() {
 		return model;
@@ -388,6 +406,22 @@ public class ClaudeAgentProperties {
 
 	public void setTraceDir(String traceDir) {
 		this.traceDir = traceDir;
+	}
+
+	public TraceContentMode getTraceContentMode() {
+		return traceContentMode;
+	}
+
+	public void setTraceContentMode(TraceContentMode traceContentMode) {
+		this.traceContentMode = traceContentMode;
+	}
+
+	public Boolean getArchiveTranscript() {
+		return archiveTranscript;
+	}
+
+	public void setArchiveTranscript(Boolean archiveTranscript) {
+		this.archiveTranscript = archiveTranscript;
 	}
 
 	/**

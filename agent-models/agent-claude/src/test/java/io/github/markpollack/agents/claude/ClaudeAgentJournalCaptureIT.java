@@ -20,8 +20,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.markpollack.journal.Journal;
 import io.github.markpollack.journal.Run;
@@ -207,6 +211,80 @@ class ClaudeAgentJournalCaptureIT {
 		assertThat(llmEvent.cost()).as("LLMCallEvent should have cost").isNotNull();
 
 		logger.info("End-to-end capture pipeline verified successfully!");
+	}
+
+	@Test
+	@DisplayName("Trace v2: valid JSON lines, content capture, >60KB truncation with source pointer, transcript archival")
+	void traceV2ContentCapture() throws IOException {
+		// A >60KB file forces tool_result truncation (the riskiest new behavior)
+		StringBuilder big = new StringBuilder();
+		for (int i = 0; i < 800; i++) {
+			big.append("line-").append(i).append(" ").append("x".repeat(95)).append("\n");
+		}
+		Files.writeString(this.testWorkspace.resolve("big.txt"), big.toString());
+
+		AgentTaskRequest request = AgentTaskRequest
+			.builder("Think hard about this task: read the file big.txt with the Read tool, "
+					+ "then state how many lines it has.", this.testWorkspace)
+			.build();
+
+		AgentResponse response = this.claudeAgentModel.call(request);
+		assertThat(response.getResults()).isNotEmpty();
+
+		String tracePath = (String) response.getMetadata().getProviderFields().get("tracePath");
+		assertThat(tracePath).isNotNull();
+		List<String> lines = Files.readAllLines(Path.of(tracePath));
+
+		// JSON-validity sweep: every line must parse — proves zero silent-skip lines
+		// (the loaders.py malformed-line regression)
+		ObjectMapper mapper = new ObjectMapper();
+		List<JsonNode> nodes = new ArrayList<>();
+		for (String line : lines) {
+			nodes.add(mapper.readTree(line));
+		}
+
+		// Schema v2 header first
+		assertThat(nodes.get(0).get("type").asText()).isEqualTo("header");
+		assertThat(nodes.get(0).get("schemaVersion").asInt()).isEqualTo(2);
+
+		// Result line enrichment
+		JsonNode result = nodes.get(nodes.size() - 1);
+		assertThat(result.get("type").asText()).isEqualTo("result");
+		assertThat(result.get("sessionId").asText()).isNotBlank();
+		assertThat(result.has("cacheReadInputTokens")).isTrue();
+		assertThat(result.has("durationApiMs")).isTrue();
+
+		// Oversized tool_result: head(60KB) + canonical contentLength + source pointer
+		JsonNode truncated = nodes.stream()
+			.filter(n -> "tool_result".equals(n.path("type").asText()) && n.path("truncated").asBoolean())
+			.findFirst()
+			.orElse(null);
+		assertThat(truncated).as("Read of a >60KB file should produce a truncated tool_result").isNotNull();
+		assertThat(truncated.get("contentLength").asInt()).isGreaterThan(60_000);
+		assertThat(truncated.get("content").asText()).hasSize(60_000);
+		assertThat(truncated.get("source").get("kind").asText()).isEqualTo("file_path");
+		assertThat(truncated.get("source").get("value").asText()).endsWith("big.txt");
+
+		// Thinking faithfulness: structural assertions only — content may legitimately
+		// be redacted upstream (thinking:"" + signature); we record what arrived
+		List<JsonNode> thinking = nodes.stream().filter(n -> "thinking".equals(n.path("type").asText())).toList();
+		logger.info("Thinking lines: {}", thinking.size());
+		for (JsonNode n : thinking) {
+			assertThat(n.has("length")).isTrue();
+			assertThat(n.has("content")).isTrue();
+			assertThat(n.has("hasSignature")).isTrue();
+		}
+
+		// Transcript archival is best-effort: when reported, the archive must exist;
+		// when absent, log only (CI must never require archive success)
+		Object transcriptPath = response.getMetadata().getProviderFields().get("transcriptPath");
+		if (transcriptPath != null) {
+			assertThat(Path.of((String) transcriptPath)).exists();
+			logger.info("Transcript archived: {}", transcriptPath);
+		}
+		else {
+			logger.warn("Transcript not archived (best-effort) — check slug/session resolution diagnostics above");
+		}
 	}
 
 	/**
