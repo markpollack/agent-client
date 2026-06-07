@@ -136,6 +136,60 @@ class ClaudeAgentModelPortableOptionsTest {
 	}
 
 	@Test
+	@DisplayName("Portable effort maps to CLI --effort via extraArgs")
+	void portableEffortPassedToCli() {
+		PortableAgentOptions options = new PortableAgentOptions(null, true, null, null, "high");
+
+		AgentTaskRequest request = new AgentTaskRequest("test goal", Path.of("/tmp"), options);
+
+		CLIOptions cliOptions = this.model.buildCLIOptions(request);
+
+		assertThat(cliOptions.getExtraArgs()).as("Portable effort should map to CLI --effort")
+			.containsEntry("effort", "high");
+	}
+
+	@Test
+	@DisplayName("Claude-specific effort on the request maps to CLI --effort (full native range)")
+	void claudeEffortOnRequestPassedToCli() {
+		ClaudeAgentOptions claudeOptions = ClaudeAgentOptions.builder().effort("xhigh").build();
+
+		AgentTaskRequest request = new AgentTaskRequest("test goal", Path.of("/tmp"), claudeOptions);
+
+		CLIOptions cliOptions = this.model.buildCLIOptions(request);
+
+		assertThat(cliOptions.getExtraArgs()).containsEntry("effort", "xhigh");
+	}
+
+	@Test
+	@DisplayName("Claude-specific default effort takes precedence over portable effort")
+	void claudeEffortTakesPrecedenceOverPortable() {
+		try (ClaudeAgentModel nativeModel = ClaudeAgentModel.builder()
+			.defaultOptions(ClaudeAgentOptions.builder().effort("max").build())
+			.build()) {
+
+			PortableAgentOptions options = new PortableAgentOptions(null, true, null, null, "low");
+			AgentTaskRequest request = new AgentTaskRequest("test goal", Path.of("/tmp"), options);
+
+			CLIOptions cliOptions = nativeModel.buildCLIOptions(request);
+
+			assertThat(cliOptions.getExtraArgs()).as("Claude-native effort should win over the portable effort value")
+				.containsEntry("effort", "max");
+		}
+	}
+
+	@Test
+	@DisplayName("No effort configured leaves the CLI without an --effort flag")
+	void noEffortMeansNoEffortFlag() {
+		PortableAgentOptions options = new PortableAgentOptions(null, true, null);
+
+		AgentTaskRequest request = new AgentTaskRequest("test goal", Path.of("/tmp"), options);
+
+		CLIOptions cliOptions = this.model.buildCLIOptions(request);
+
+		assertThat(cliOptions.getExtraArgs()).doesNotContainKey("effort");
+	}
+
+	@Test
 	@DisplayName("Null portable options do not cause NPE")
 	void nullPortableOptionsDoNotCauseNpe() {
 		AgentTaskRequest request = new AgentTaskRequest("test goal", Path.of("/tmp"), null);

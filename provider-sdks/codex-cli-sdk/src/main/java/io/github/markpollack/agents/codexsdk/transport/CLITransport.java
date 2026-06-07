@@ -187,7 +187,9 @@ public class CLITransport {
 		}
 	}
 
-	private List<String> buildCommand(String prompt, ExecuteOptions options, String sessionId) {
+	// Package-private for CLI-flag validation tests (mirrors
+	// ClaudeAgentModel.buildCLIOptions)
+	List<String> buildCommand(String prompt, ExecuteOptions options, String sessionId) {
 		List<String> command = new ArrayList<>();
 
 		// Base command + exec subcommand
@@ -198,6 +200,13 @@ public class CLITransport {
 		if (options.getModel() != null && !options.getModel().isEmpty()) {
 			command.add("--model");
 			command.add(options.getModel());
+		}
+
+		// Reasoning effort: no dedicated flag — uses the -c config override. The value
+		// is quoted so it parses as a TOML string.
+		if (options.getReasoningEffort() != null && !options.getReasoningEffort().isEmpty()) {
+			command.add("-c");
+			command.add("model_reasoning_effort=\"" + options.getReasoningEffort() + "\"");
 		}
 
 		// Execution mode

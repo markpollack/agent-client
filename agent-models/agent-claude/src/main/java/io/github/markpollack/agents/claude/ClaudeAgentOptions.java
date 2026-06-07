@@ -101,6 +101,14 @@ public class ClaudeAgentOptions implements AgentOptions {
 	private boolean includePartialMessages = false;
 
 	/**
+	 * Reasoning effort level for the session. Maps to the {@code --effort} CLI flag.
+	 * Claude-native values: {@code low}, {@code medium}, {@code high}, {@code xhigh},
+	 * {@code max} (a wider range than the portable {@code AgentOptions#getEffort()}
+	 * values). Null uses the CLI default.
+	 */
+	private String effort;
+
+	/**
 	 * Maximum thinking tokens for extended thinking mode.
 	 */
 	private Integer maxThinkingTokens;
@@ -243,6 +251,22 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 	public void setIncludePartialMessages(boolean includePartialMessages) {
 		this.includePartialMessages = includePartialMessages;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * Claude-native override: accepts the full CLI range ({@code low}, {@code medium},
+	 * {@code high}, {@code xhigh}, {@code max}), a superset of the portable values.
+	 */
+	@Override
+	public String getEffort() {
+		return effort;
+	}
+
+	public void setEffort(String effort) {
+		this.effort = effort;
 	}
 
 	public Integer getMaxThinkingTokens() {
@@ -415,6 +439,15 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 		public Builder extras(Map<String, Object> extras) {
 			options.setExtras(extras);
+			return this;
+		}
+
+		/**
+		 * Sets the reasoning effort level ({@code --effort}). Claude-native values:
+		 * {@code low}, {@code medium}, {@code high}, {@code xhigh}, {@code max}.
+		 */
+		public Builder effort(String effort) {
+			options.setEffort(effort);
 			return this;
 		}
 

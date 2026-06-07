@@ -150,6 +150,7 @@ public class CodexAgentModel implements AgentModel {
 		// Start with defaults
 		CodexAgentOptions.Builder builder = CodexAgentOptions.builder()
 			.model(defaultOptions.getModel())
+			.reasoningEffort(defaultOptions.getReasoningEffort())
 			.timeout(defaultOptions.getTimeout())
 			.fullAuto(defaultOptions.isFullAuto())
 			.skipGitCheck(defaultOptions.isSkipGitCheck())
@@ -167,12 +168,20 @@ public class CodexAgentModel implements AgentModel {
 		// Portable option fallbacks (when request is not CodexAgentOptions)
 		if (request.options() != null && !(request.options() instanceof CodexAgentOptions)) {
 			builder.fullAuto(request.options().isAutoApprove());
+			// Portable effort values (low/medium/high) are all valid Codex
+			// model_reasoning_effort values — direct passthrough
+			if (request.options().getEffort() != null) {
+				builder.reasoningEffort(request.options().getEffort());
+			}
 		}
 
 		// Override with request-specific options if present
 		if (request.options() != null && request.options() instanceof CodexAgentOptions requestOptions) {
 			if (requestOptions.getModel() != null) {
 				builder.model(requestOptions.getModel());
+			}
+			if (requestOptions.getReasoningEffort() != null) {
+				builder.reasoningEffort(requestOptions.getReasoningEffort());
 			}
 			if (requestOptions.getTimeout() != null) {
 				builder.timeout(requestOptions.getTimeout());
@@ -196,6 +205,7 @@ public class CodexAgentModel implements AgentModel {
 	private ExecuteOptions toExecuteOptions(CodexAgentOptions options, AgentTaskRequest request) {
 		ExecuteOptions.Builder builder = ExecuteOptions.builder()
 			.model(options.getModel())
+			.reasoningEffort(options.getReasoningEffort())
 			.timeout(options.getTimeout())
 			.fullAuto(options.isFullAuto())
 			.skipGitCheck(options.isSkipGitCheck())

@@ -61,11 +61,11 @@ public class OptionsDocGenerator {
 
 		List<ProviderConfig> providers = List.of(
 				new ProviderConfig("Claude", "claude-reference",
-						projectRoot.resolve("agent-models/agent-claude/src/main/java/org/springaicommunity/agents/claude/autoconfigure/ClaudeAgentProperties.java")),
+						projectRoot.resolve("agent-models/agent-claude/src/main/java/io/github/markpollack/agents/claude/autoconfigure/ClaudeAgentProperties.java")),
 				new ProviderConfig("Codex", "codex-reference",
-						projectRoot.resolve("agent-models/agent-codex/src/main/java/org/springaicommunity/agents/codex/autoconfigure/CodexAgentProperties.java")),
+						projectRoot.resolve("agent-models/agent-codex/src/main/java/io/github/markpollack/agents/codex/autoconfigure/CodexAgentProperties.java")),
 				new ProviderConfig("Gemini", "gemini-reference",
-						projectRoot.resolve("agent-models/agent-gemini/src/main/java/org/springaicommunity/agents/gemini/autoconfigure/GeminiAgentProperties.java")));
+						projectRoot.resolve("agent-models/agent-gemini/src/main/java/io/github/markpollack/agents/gemini/autoconfigure/GeminiAgentProperties.java")));
 
 		for (ProviderConfig provider : providers) {
 			String markdown = generateTable(provider);

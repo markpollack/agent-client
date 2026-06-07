@@ -29,6 +29,8 @@ public class ExecuteOptions {
 
 	private final String model;
 
+	private final String reasoningEffort;
+
 	private final Duration timeout;
 
 	private final Path workingDirectory;
@@ -49,6 +51,7 @@ public class ExecuteOptions {
 
 	private ExecuteOptions(Builder builder) {
 		this.model = builder.model;
+		this.reasoningEffort = builder.reasoningEffort;
 		this.timeout = builder.timeout;
 		this.workingDirectory = builder.workingDirectory;
 		this.sandboxMode = builder.sandboxMode;
@@ -70,6 +73,17 @@ public class ExecuteOptions {
 
 	public String getModel() {
 		return model;
+	}
+
+	/**
+	 * Gets the model reasoning effort. Maps to the {@code model_reasoning_effort} config
+	 * override ({@code -c model_reasoning_effort="<value>"} — the CLI has no dedicated
+	 * flag). Codex-native values: {@code minimal}, {@code low}, {@code medium},
+	 * {@code high}, {@code xhigh}. Null uses the CLI/config default.
+	 * @return the reasoning effort, or null if not set
+	 */
+	public String getReasoningEffort() {
+		return reasoningEffort;
 	}
 
 	public Duration getTimeout() {
@@ -112,6 +126,8 @@ public class ExecuteOptions {
 
 		private String model = "gpt-5.4-mini";
 
+		private String reasoningEffort;
+
 		private Duration timeout = Duration.ofMinutes(3);
 
 		private Path workingDirectory;
@@ -132,6 +148,15 @@ public class ExecuteOptions {
 
 		public Builder model(String model) {
 			this.model = model;
+			return this;
+		}
+
+		/**
+		 * Sets the model reasoning effort ({@code minimal}, {@code low}, {@code medium},
+		 * {@code high}, {@code xhigh}).
+		 */
+		public Builder reasoningEffort(String reasoningEffort) {
+			this.reasoningEffort = reasoningEffort;
 			return this;
 		}
 

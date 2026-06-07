@@ -45,6 +45,7 @@ public class CodexAgentAutoConfiguration {
 	public CodexClient codexClient(CodexAgentProperties properties) {
 		ExecuteOptions options = ExecuteOptions.builder()
 			.model(properties.getModel())
+			.reasoningEffort(properties.getReasoningEffort())
 			.timeout(properties.getTimeout())
 			.fullAuto(properties.isFullAuto())
 			.skipGitCheck(properties.isSkipGitCheck())
@@ -61,6 +62,7 @@ public class CodexAgentAutoConfiguration {
 
 		CodexAgentOptions options = CodexAgentOptions.builder()
 			.model(properties.getModel())
+			.reasoningEffort(properties.getReasoningEffort())
 			.timeout(properties.getTimeout())
 			.fullAuto(properties.isFullAuto())
 			.skipGitCheck(properties.isSkipGitCheck())

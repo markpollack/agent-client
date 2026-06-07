@@ -101,6 +101,12 @@ public class ClaudeAgentProperties {
 	private String executablePath;
 
 	/**
+	 * Reasoning effort level for the session ({@code --effort}). Claude-native values:
+	 * low, medium, high, xhigh, max. Null uses the CLI default.
+	 */
+	private String effort;
+
+	/**
 	 * Maximum thinking tokens for extended thinking mode.
 	 */
 	private Integer maxThinkingTokens;
@@ -250,6 +256,14 @@ public class ClaudeAgentProperties {
 
 	public void setExecutablePath(String executablePath) {
 		this.executablePath = executablePath;
+	}
+
+	public String getEffort() {
+		return effort;
+	}
+
+	public void setEffort(String effort) {
+		this.effort = effort;
 	}
 
 	public Integer getMaxThinkingTokens() {
@@ -504,9 +518,17 @@ public class ClaudeAgentProperties {
 			builder.permissionPromptToolName(permissionPromptToolName);
 		}
 
-		// Extra CLI arguments
-		if (extraArgs != null && !extraArgs.isEmpty()) {
-			builder.extraArgs(extraArgs);
+		// Extra CLI arguments — effort rides along as "--effort <level>" until the SDK
+		// grows first-class support; an explicit extra-args "effort" entry wins
+		Map<String, String> mergedExtraArgs = new java.util.LinkedHashMap<>();
+		if (effort != null && !effort.isBlank()) {
+			mergedExtraArgs.put("effort", effort);
+		}
+		if (extraArgs != null) {
+			mergedExtraArgs.putAll(extraArgs);
+		}
+		if (!mergedExtraArgs.isEmpty()) {
+			builder.extraArgs(mergedExtraArgs);
 		}
 
 		// Environment variables

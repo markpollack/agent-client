@@ -68,6 +68,11 @@ public class ClaudeAgentAutoConfiguration {
 			.yolo(properties.isYolo())
 			.executablePath(properties.getExecutablePath());
 
+		// Reasoning effort
+		if (properties.getEffort() != null && !properties.getEffort().isBlank()) {
+			optionsBuilder.effort(properties.getEffort());
+		}
+
 		// Extended thinking
 		if (properties.getMaxThinkingTokens() != null) {
 			optionsBuilder.maxThinkingTokens(properties.getMaxThinkingTokens());

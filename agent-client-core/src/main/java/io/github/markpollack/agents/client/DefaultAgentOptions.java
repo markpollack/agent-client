@@ -51,6 +51,8 @@ public class DefaultAgentOptions implements AgentOptions {
 
 	private String systemInstructions;
 
+	private String effort;
+
 	public DefaultAgentOptions() {
 	}
 
@@ -153,6 +155,15 @@ public class DefaultAgentOptions implements AgentOptions {
 		this.systemInstructions = systemInstructions;
 	}
 
+	@Override
+	public String getEffort() {
+		return this.effort;
+	}
+
+	public void setEffort(String effort) {
+		this.effort = effort;
+	}
+
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -178,6 +189,8 @@ public class DefaultAgentOptions implements AgentOptions {
 		private boolean autoApprove = true;
 
 		private String systemInstructions;
+
+		private String effort;
 
 		public Builder workingDirectory(String workingDirectory) {
 			this.workingDirectory = workingDirectory;
@@ -230,6 +243,17 @@ public class DefaultAgentOptions implements AgentOptions {
 			return this;
 		}
 
+		/**
+		 * Sets the portable reasoning effort level: {@code "low"}, {@code "medium"}, or
+		 * {@code "high"}. Translated per provider (Claude {@code --effort}, Codex
+		 * {@code model_reasoning_effort}); ignored by providers without an effort knob.
+		 * Provider-specific options take precedence.
+		 */
+		public Builder effort(String effort) {
+			this.effort = effort;
+			return this;
+		}
+
 		// IMPORTANT: When adding fields to DefaultAgentOptions, update this method.
 		public Builder from(AgentOptions agentOptions) {
 			if (agentOptions != null) {
@@ -247,6 +271,7 @@ public class DefaultAgentOptions implements AgentOptions {
 				this.maxTurns = agentOptions.getMaxTurns();
 				this.autoApprove = agentOptions.isAutoApprove();
 				this.systemInstructions = agentOptions.getSystemInstructions();
+				this.effort = agentOptions.getEffort();
 			}
 			return this;
 		}
@@ -263,6 +288,7 @@ public class DefaultAgentOptions implements AgentOptions {
 			options.setMaxTurns(this.maxTurns);
 			options.setAutoApprove(this.autoApprove);
 			options.setSystemInstructions(this.systemInstructions);
+			options.setEffort(this.effort);
 			return options;
 		}
 

@@ -45,16 +45,24 @@ public final class PortableAgentOptions implements AgentOptions {
 
 	private final Map<String, Object> jsonSchema;
 
+	private final String effort;
+
 	public PortableAgentOptions(Integer maxTurns, boolean autoApprove, String systemInstructions) {
-		this(maxTurns, autoApprove, systemInstructions, null);
+		this(maxTurns, autoApprove, systemInstructions, null, null);
 	}
 
 	public PortableAgentOptions(Integer maxTurns, boolean autoApprove, String systemInstructions,
 			Map<String, Object> jsonSchema) {
+		this(maxTurns, autoApprove, systemInstructions, jsonSchema, null);
+	}
+
+	public PortableAgentOptions(Integer maxTurns, boolean autoApprove, String systemInstructions,
+			Map<String, Object> jsonSchema, String effort) {
 		this.maxTurns = maxTurns;
 		this.autoApprove = autoApprove;
 		this.systemInstructions = systemInstructions;
 		this.jsonSchema = jsonSchema;
+		this.effort = effort;
 	}
 
 	@Override
@@ -95,6 +103,11 @@ public final class PortableAgentOptions implements AgentOptions {
 	@Override
 	public String getModel() {
 		return null;
+	}
+
+	@Override
+	public String getEffort() {
+		return this.effort;
 	}
 
 }

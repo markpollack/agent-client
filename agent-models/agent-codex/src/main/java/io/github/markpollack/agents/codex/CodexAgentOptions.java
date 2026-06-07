@@ -34,6 +34,8 @@ public class CodexAgentOptions implements AgentOptions {
 
 	private String model = "gpt-5.4-mini";
 
+	private String reasoningEffort;
+
 	private Duration timeout = Duration.ofMinutes(10);
 
 	private SandboxMode sandboxMode = SandboxMode.WORKSPACE_WRITE;
@@ -61,6 +63,18 @@ public class CodexAgentOptions implements AgentOptions {
 
 	public String getModel() {
 		return model;
+	}
+
+	/**
+	 * Gets the model reasoning effort. Maps to Codex's {@code model_reasoning_effort}
+	 * config override. Codex-native values: {@code minimal}, {@code low}, {@code medium},
+	 * {@code high}, {@code xhigh} (a wider range than the portable
+	 * {@code AgentOptions#getEffort()} values). Takes precedence over the portable effort
+	 * when both are set.
+	 * @return the reasoning effort, or null to use the CLI/config default
+	 */
+	public String getReasoningEffort() {
+		return reasoningEffort;
 	}
 
 	public Duration getTimeout() {
@@ -123,6 +137,15 @@ public class CodexAgentOptions implements AgentOptions {
 
 		public Builder model(String model) {
 			options.model = model;
+			return this;
+		}
+
+		/**
+		 * Sets the model reasoning effort ({@code minimal}, {@code low}, {@code medium},
+		 * {@code high}, {@code xhigh}).
+		 */
+		public Builder reasoningEffort(String reasoningEffort) {
+			options.reasoningEffort = reasoningEffort;
 			return this;
 		}
 

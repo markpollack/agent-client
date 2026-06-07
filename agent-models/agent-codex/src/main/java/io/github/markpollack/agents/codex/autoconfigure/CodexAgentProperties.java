@@ -44,6 +44,13 @@ public class CodexAgentProperties {
 	private String model = "gpt-5.4-mini";
 
 	/**
+	 * Model reasoning effort ({@code model_reasoning_effort} config override).
+	 * Codex-native values: minimal, low, medium, high, xhigh. Null uses the CLI/config
+	 * default.
+	 */
+	private String reasoningEffort;
+
+	/**
 	 * Timeout for agent task execution.
 	 */
 	private Duration timeout = Duration.ofMinutes(5);
@@ -78,6 +85,14 @@ public class CodexAgentProperties {
 
 	public void setModel(String model) {
 		this.model = model;
+	}
+
+	public String getReasoningEffort() {
+		return reasoningEffort;
+	}
+
+	public void setReasoningEffort(String reasoningEffort) {
+		this.reasoningEffort = reasoningEffort;
 	}
 
 	public Duration getTimeout() {

@@ -117,4 +117,18 @@ public interface AgentOptions extends ModelOptions {
 		return null;
 	}
 
+	/**
+	 * Get the requested reasoning effort level. Portable values are {@code "low"},
+	 * {@code "medium"}, and {@code "high"} — the intersection supported across providers.
+	 * Maps to provider-specific mechanisms (Claude's {@code --effort} flag, Codex's
+	 * {@code model_reasoning_effort} config); providers without an effort knob (e.g.,
+	 * Gemini) ignore it. Provider-specific options take precedence and may accept a wider
+	 * native range (e.g., Claude {@code xhigh}/{@code max}, Codex
+	 * {@code minimal}/{@code xhigh}).
+	 * @return the effort level, or {@code null} to use the provider's default
+	 */
+	default String getEffort() {
+		return null;
+	}
+
 }

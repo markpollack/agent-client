@@ -523,6 +523,18 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 					io.github.markpollack.claude.agent.sdk.config.PermissionMode.DANGEROUSLY_SKIP_PERMISSIONS);
 		}
 
+		// Reasoning effort: Claude-native effort (full CLI range) wins; otherwise the
+		// portable AgentOptions effort (low/medium/high). Reaches the CLI as
+		// "--effort <level>" via extraArgs (first-class SDK CLIOptions support TBD —
+		// the flag is in CLIFlagParityIT's EXCLUDED_FLAGS for this reason).
+		String effort = options.getEffort();
+		if (effort == null && !(request.options() instanceof ClaudeAgentOptions) && request.options() != null) {
+			effort = request.options().getEffort();
+		}
+		if (effort != null && !effort.isBlank()) {
+			builder.extraArgs(Map.of("effort", effort));
+		}
+
 		// Extended thinking
 		if (options.getMaxThinkingTokens() != null) {
 			builder.maxThinkingTokens(options.getMaxThinkingTokens());

@@ -44,7 +44,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>io.github.markpollack.tools.docgen.OptionsDocGenerator</mainClass>
+                    <mainClass>io.github.markpollack.agents.tools.docgen.OptionsDocGenerator</mainClass>
                 </configuration>
             </plugin>
             <!-- Skip deployment — this is a development tool -->
