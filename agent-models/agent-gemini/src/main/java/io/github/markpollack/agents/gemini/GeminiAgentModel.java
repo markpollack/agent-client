@@ -173,6 +173,14 @@ public class GeminiAgentModel implements AgentModel {
 		Map<String, String> environment = new java.util.HashMap<>();
 		environment.put("GEMINI_CLI_ENTRYPOINT", "sdk-java");
 
+		// Yolo means "skip all permission gates" — including the trusted-folder gate
+		// newer Gemini CLIs enforce in headless runs (exit 55 in untrusted dirs
+		// otherwise). Env var rather than --skip-trust: older CLIs ignore unknown env
+		// vars but reject unknown flags.
+		if (cliOptions.isYoloMode()) {
+			environment.put("GEMINI_CLI_TRUST_WORKSPACE", "true");
+		}
+
 		// Add API key - prefer GEMINI_API_KEY over GOOGLE_API_KEY
 		String apiKey = System.getenv("GEMINI_API_KEY");
 		if (apiKey == null) {

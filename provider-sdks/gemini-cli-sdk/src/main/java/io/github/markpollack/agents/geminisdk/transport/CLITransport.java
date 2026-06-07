@@ -134,12 +134,21 @@ public class CLITransport {
 			String[] commandArray = GeminiCliDiscovery.getGeminiCommand(geminiCommand,
 					command.subList(1, command.size()).toArray(new String[0]));
 
-			ProcessResult result = new ProcessExecutor().command(commandArray)
+			ProcessExecutor executor = new ProcessExecutor().command(commandArray)
 				.directory(effectiveWorkDir.toFile())
 				.timeout(options.getTimeout().toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
 				.readOutput(true)
-				.exitValueNormal()
-				.execute();
+				.exitValueNormal();
+
+			// Yolo means "skip all permission gates" — including the trusted-folder
+			// gate newer Gemini CLIs enforce in headless runs (exit 55 in untrusted
+			// dirs otherwise). Env var rather than --skip-trust: older CLIs ignore
+			// unknown env vars but reject unknown flags.
+			if (options.isYoloMode()) {
+				executor.environment("GEMINI_CLI_TRUST_WORKSPACE", "true");
+			}
+
+			ProcessResult result = executor.execute();
 
 			String output = result.outputUTF8();
 			logger.debug("Gemini CLI output length: {}", output.length());
