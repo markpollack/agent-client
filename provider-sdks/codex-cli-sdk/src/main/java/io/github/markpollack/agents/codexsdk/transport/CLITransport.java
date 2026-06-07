@@ -78,7 +78,7 @@ public class CLITransport {
 			options = ExecuteOptions.defaultOptions();
 		}
 
-		List<String> command = buildCommand(prompt, options, null);
+		List<String> command = buildCommand(codexCliPath, prompt, options, null);
 		return executeCommand(command, options);
 	}
 
@@ -101,7 +101,7 @@ public class CLITransport {
 			options = ExecuteOptions.defaultOptions();
 		}
 
-		List<String> command = buildCommand(prompt, options, sessionId);
+		List<String> command = buildCommand(codexCliPath, prompt, options, sessionId);
 		return executeCommand(command, options);
 	}
 
@@ -187,9 +187,10 @@ public class CLITransport {
 		}
 	}
 
-	// Package-private for CLI-flag validation tests (mirrors
-	// ClaudeAgentModel.buildCLIOptions)
-	List<String> buildCommand(String prompt, ExecuteOptions options, String sessionId) {
+	// Static and package-private for CLI-flag validation tests (mirrors
+	// ClaudeAgentModel.buildCLIOptions): command construction is testable without a
+	// functional Codex CLI on the machine
+	static List<String> buildCommand(String codexCliPath, String prompt, ExecuteOptions options, String sessionId) {
 		List<String> command = new ArrayList<>();
 
 		// Base command + exec subcommand
