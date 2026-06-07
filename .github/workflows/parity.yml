@@ -1,6 +1,10 @@
 # Provider Parity Matrix
 # Runs ProviderParityTCK scenarios across Claude, Codex, and Gemini
 # to catch behavioral parity regressions (e.g., Codex skipGitCheck issue)
+#
+# The weekly scheduled run doubles as the latest-CLI drift canary: the CLIs are
+# installed at their latest published versions, so upstream changes (new flags,
+# payload fields, behavior shifts) surface here before they bite users.
 
 name: Provider Parity
 
@@ -17,6 +21,8 @@ on:
       - 'agent-models/**'
       - 'provider-sdks/**'
       - 'agent-client-core/**'
+  schedule:
+    - cron: '0 7 * * 1'  # Weekly Mondays, after the agents-runtime image rebuild (06:00)
   workflow_dispatch:
 
 concurrency:
@@ -47,7 +53,7 @@ jobs:
           - name: gemini
             module: agent-models/agent-gemini
             test-class: GeminiProviderParityIT
-            cli-install: npm install -g @anthropic-ai/gemini-cli
+            cli-install: npm install -g @google/gemini-cli
             secret-env: GEMINI_API_KEY
 
     name: Parity - ${{ matrix.provider.name }}
@@ -67,9 +73,17 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Verify API key secret is configured
+        env:
+          PROVIDER_KEY: ${{ secrets[matrix.provider.secret-env] }}
+        run: |
+          if [ -z "$PROVIDER_KEY" ]; then
+            echo "::error::Repository secret ${{ matrix.provider.secret-env }} is not configured — parity for ${{ matrix.provider.name }} cannot authenticate. This is a configuration gap, not a code regression."
+            exit 1
+          fi
+
       - name: Install CLI
         run: ${{ matrix.provider.cli-install }}
-        continue-on-error: true
 
       - name: Run parity tests
         env:
@@ -79,29 +93,10 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           ./mvnw test \
-            -pl ${{ matrix.provider.module }} \
+            -pl ${{ matrix.provider.module }} -am \
             -Dtest="${{ matrix.provider.test-class }}" \
-            -B --no-transfer-progress \
-            2>&1 | tail -50
-        continue-on-error: true
-
-      - name: Parse surefire results
-        if: always()
-        id: results
-        run: |
-          REPORT_DIR="${{ matrix.provider.module }}/target/surefire-reports"
-          if [ -d "$REPORT_DIR" ]; then
-            PASSED=$(grep -l 'tests="[^0]"' "$REPORT_DIR"/*.xml 2>/dev/null | xargs grep -c 'failures="0" errors="0"' 2>/dev/null | grep -c ':1$' || echo 0)
-            FAILED=$(grep -rl 'failures="[^0]"\|errors="[^0]"' "$REPORT_DIR"/*.xml 2>/dev/null | wc -l || echo 0)
-            SKIPPED=$(grep -rl 'skipped="[^0]"' "$REPORT_DIR"/*.xml 2>/dev/null | wc -l || echo 0)
-            echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
-            echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
-            echo "skipped=$SKIPPED" >> "$GITHUB_OUTPUT"
-          else
-            echo "passed=0" >> "$GITHUB_OUTPUT"
-            echo "failed=0" >> "$GITHUB_OUTPUT"
-            echo "skipped=0" >> "$GITHUB_OUTPUT"
-          fi
+            -Dsurefire.failIfNoSpecifiedTests=false \
+            -B --no-transfer-progress
 
       - name: Upload surefire reports
         if: always()
@@ -120,10 +115,4 @@ jobs:
         run: |
           echo "## Provider Parity Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Provider | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|----------|--------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Claude | ${{ needs.parity.result == 'success' && 'PASS' || 'CHECK ARTIFACTS' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Codex | ${{ needs.parity.result == 'success' && 'PASS' || 'CHECK ARTIFACTS' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Gemini | ${{ needs.parity.result == 'success' && 'PASS' || 'CHECK ARTIFACTS' }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "See surefire artifacts for PASS/FAIL/NOT_APPLICABLE per scenario." >> "$GITHUB_STEP_SUMMARY"
+          echo "Overall: **${{ needs.parity.result }}** — per-provider pass/fail is on the matrix jobs; surefire reports are attached as artifacts." >> "$GITHUB_STEP_SUMMARY"

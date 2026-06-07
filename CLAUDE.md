@@ -517,8 +517,8 @@ New prefix: `agent-client.*` (was `spring.ai.agents.*`). Old prefix still works 
 ### Known Gaps
 
 - **Global `agent-client.mode`** not implemented — only per-provider mode works (e.g. `agent-client.codex.mode`)
-- **No CLI arg validation tests** — SDK flag mappings drift as CLIs update
-- **No daily CI** against latest CLI versions
+- **CLI arg validation tests** — started (Claude `--effort` via `ClaudeAgentModelPortableOptionsTest`, Codex argument list via `CLITransportCommandTest`); broader flag coverage still to grow
+- **Latest-CLI canary**: weekly scheduled Provider Parity run (Mondays 07:00, after the agents-runtime image rebuild at 06:00) installs latest CLIs — drift surfaces there. No *daily* run yet.
 - **JSON abstraction** — core modules still use Jackson directly; need `JsonCodec` facade for Quarkus/Micronaut (see `plans/CROSS-FRAMEWORK-DESIGN.md`)
 
 ### Remaining

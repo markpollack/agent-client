@@ -3,13 +3,14 @@ name: Build Agents Runtime Image
 on:
   push:
     branches: [ main ]
+    # The image contains only the toolchain + agent CLIs (no project code), so
+    # only Dockerfile/workflow changes warrant a rebuild — plus the weekly
+    # schedule that refreshes the CLIs to latest.
     paths:
       - 'Dockerfile.agents-runtime'
-      - 'agent-models/Dockerfile.agents-runtime'
-      - 'provider-sdks/**'
-      - 'agent-models/**'
+      - '.github/workflows/image.yml'
   schedule:
-    - cron: '0 6 * * 1'  # Weekly on Mondays
+    - cron: '0 6 * * 1'  # Weekly on Mondays (parity canary follows at 07:00)
   workflow_dispatch:
 
 jobs:
@@ -28,6 +29,7 @@ jobs:
           # Use latest for now, but can pin later
           echo "CLAUDE_CODE_VERSION=latest" >> $GITHUB_ENV
           echo "GEMINI_CLI_VERSION=latest" >> $GITHUB_ENV
+          echo "CODEX_VERSION=latest" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,8 +54,9 @@ jobs:
             MAVEN_VERSION=${{ env.MAVEN_VERSION }}
             CLAUDE_CODE_VERSION=${{ env.CLAUDE_CODE_VERSION }}
             GEMINI_CLI_VERSION=${{ env.GEMINI_CLI_VERSION }}
+            CODEX_VERSION=${{ env.CODEX_VERSION }}
 
       - name: Test image
         run: |
           docker run --rm ghcr.io/markpollack/agents-runtime:${{ github.sha }} \
-            bash -c "claude --version && gemini --version && mvn --version && java --version"
+            bash -c "claude --version && gemini --version && codex --version && vendir --version && mvn --version && java --version"

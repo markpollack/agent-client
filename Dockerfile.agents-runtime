@@ -20,12 +20,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
 # Updated for Claude Code 2.0 release (October 2025)
 ARG CLAUDE_CODE_VERSION=latest
 ARG GEMINI_CLI_VERSION=latest
+ARG CODEX_VERSION=latest
 ARG VENDIR_VERSION=0.44.0
 
 # Install Claude Code CLI from npm globally
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} --silent
 # Install official Gemini CLI from npm
 RUN npm install -g @google/gemini-cli@${GEMINI_CLI_VERSION} --silent
+# Install OpenAI Codex CLI from npm
+RUN npm install -g @openai/codex@${CODEX_VERSION} --silent
 
 # Install vendir CLI for context engineering
 RUN curl -fsSL https://github.com/vmware-tanzu/carvel-vendir/releases/download/v${VENDIR_VERSION}/vendir-linux-amd64 \
@@ -40,6 +43,7 @@ WORKDIR /work
 RUN echo "=== Verifying CLI installations ===" && \
     claude --version && echo "✅ Claude CLI verified" && \
     gemini --version && echo "✅ Gemini CLI verified" && \
+    codex --version && echo "✅ Codex CLI verified" && \
     vendir --version && echo "✅ Vendir CLI verified"
 
 CMD ["sleep", "infinity"]
