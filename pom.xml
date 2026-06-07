@@ -6,7 +6,7 @@
 
     <groupId>io.github.markpollack</groupId>
     <artifactId>agent-client-parent</artifactId>
-    <version>0.21.0-SNAPSHOT</version>
+    <version>0.21.0</version>
     <packaging>pom</packaging>
 
     <name>Agent Client</name>
@@ -204,7 +204,7 @@
         <slf4j.version>2.0.9</slf4j.version>
 
         <!-- External SDK versions -->
-        <claude-code-sdk.version>1.2.0</claude-code-sdk.version>
+        <claude-code-sdk.version>1.3.0</claude-code-sdk.version>
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
         <agent-sandbox.version>0.9.3</agent-sandbox.version>
 
