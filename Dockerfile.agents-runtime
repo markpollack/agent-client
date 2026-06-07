@@ -6,10 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git python3 python3-pip ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
-# Maven installation
-ARG MAVEN_VERSION=3.9.12
-RUN curl -fsSL https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
- | tar -xz -C /opt && ln -s /opt/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/local/bin/mvn
+# Maven installation — dlcdn purges superseded point releases, so fall back to
+# the permanent archive when the pinned version rotates off the CDN
+ARG MAVEN_VERSION=3.9.16
+RUN (curl -fsSL https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o /tmp/maven.tgz \
+  || curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o /tmp/maven.tgz) \
+ && tar -xzf /tmp/maven.tgz -C /opt && rm /tmp/maven.tgz \
+ && ln -s /opt/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/local/bin/mvn
 
 # Node LTS (matching GitHub runners)
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
