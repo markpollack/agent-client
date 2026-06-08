@@ -63,7 +63,7 @@ class GeminiProviderParityIT extends ProviderParityTCK {
 			GeminiClient geminiClient = GeminiClient.create(cliOptions, tempDir);
 
 			GeminiAgentOptions options = GeminiAgentOptions.builder()
-				.model("gemini-2.5-flash")
+				.model("gemini-3-flash-preview")
 				.timeout(Duration.ofMinutes(3))
 				.yolo(true)
 				.build();
@@ -80,7 +80,7 @@ class GeminiProviderParityIT extends ProviderParityTCK {
 	@Override
 	protected AgentOptions createShortTimeoutOptions() {
 		return GeminiAgentOptions.builder()
-			.model("gemini-2.5-flash")
+			.model("gemini-3-flash-preview")
 			.timeout(Duration.ofSeconds(10))
 			.yolo(true)
 			.build();

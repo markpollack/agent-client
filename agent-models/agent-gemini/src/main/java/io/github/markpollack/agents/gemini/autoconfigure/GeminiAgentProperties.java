@@ -50,7 +50,7 @@ public class GeminiAgentProperties {
 	/**
 	 * Gemini model to use for agent tasks.
 	 */
-	private String model = "gemini-2.5-flash";
+	private String model = "gemini-3-flash-preview";
 
 	/**
 	 * Timeout for agent task execution.
