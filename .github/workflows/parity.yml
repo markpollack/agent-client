@@ -27,7 +27,10 @@ on:
 
 concurrency:
   group: parity-${{ github.ref }}
-  cancel-in-progress: true
+  # Let in-flight runs finish: the live-agent suite takes minutes, and a push
+  # burst (e.g. release + snapshot bump) would otherwise cancel every run before
+  # it reports. The drift canary is only useful if it actually completes.
+  cancel-in-progress: false
 
 jobs:
   parity:
