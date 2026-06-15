@@ -267,6 +267,15 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Jackson 3 BOM (tools.jackson) - converges transitive jackson-core 3.x to CVE-clear 3.1.4 -->
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>3.1.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
