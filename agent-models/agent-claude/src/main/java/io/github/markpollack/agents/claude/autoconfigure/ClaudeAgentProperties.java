@@ -23,7 +23,7 @@ import java.util.Map;
 
 import io.github.markpollack.claude.agent.sdk.config.PermissionMode;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
-import io.github.markpollack.journal.claude.TraceContentMode;
+import io.github.markpollack.journal.trace.TraceContentMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**

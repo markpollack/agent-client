@@ -90,12 +90,12 @@
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>journal-core</artifactId>
-            <version>1.4.0</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>claude-code-capture</artifactId>
-            <version>1.4.0</version>
+            <version>1.6.0</version>
         </dependency>
     </dependencies>
 </project>

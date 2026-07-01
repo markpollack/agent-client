@@ -30,7 +30,7 @@ import io.github.markpollack.claude.agent.sdk.types.Message;
 import io.github.markpollack.claude.agent.sdk.types.ResultMessage;
 import io.github.markpollack.journal.claude.PhaseCapture;
 import io.github.markpollack.journal.claude.SessionLogParser;
-import io.github.markpollack.journal.claude.TraceContentMode;
+import io.github.markpollack.journal.trace.TraceContentMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
