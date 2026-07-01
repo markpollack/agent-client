@@ -1,2 +1,2 @@
-org.springaicommunity.agents.claude.autoconfigure.ClaudeHookAutoConfiguration
-org.springaicommunity.agents.claude.autoconfigure.ClaudeAgentAutoConfiguration
+io.github.markpollack.agents.claude.autoconfigure.ClaudeHookAutoConfiguration
+io.github.markpollack.agents.claude.autoconfigure.ClaudeAgentAutoConfiguration

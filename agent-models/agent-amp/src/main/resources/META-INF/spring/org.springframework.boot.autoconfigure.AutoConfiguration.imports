@@ -1,1 +1,1 @@
-org.springaicommunity.agents.amp.autoconfigure.AmpAgentAutoConfiguration
+io.github.markpollack.agents.amp.autoconfigure.AmpAgentAutoConfiguration
