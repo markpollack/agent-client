@@ -31,7 +31,7 @@ import io.github.markpollack.agents.client.AgentClientResponse;
  * <p>
  * Example use cases:
  * <ul>
- * <li>Pre-processing: Inject context (vendir sync, git clone)
+ * <li>Pre-processing: Inject context
  * <li>Post-processing: Evaluate results (judges, validators)
  * <li>Monitoring: Collect metrics and logs
  * <li>Transformation: Modify requests or responses

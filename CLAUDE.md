@@ -25,7 +25,6 @@ The script uses `systemd-run` to escape the process tree. It works for Maven/Gra
 - `./mvnw clean verify -Pfailsafe` - Run integration tests with failsafe profile
 - `./mvnw clean install -Pfailsafe` - **Use for CI/multi-module builds** - installs artifacts to local repository ensuring dependencies are available for later modules
 - Integration tests follow the `*IT.java` naming convention
-- `./mvnw test -Dsandbox.integration.test=true -Dtest="*DockerInfraIT"` - Run Docker infrastructure tests
 
 ### Important: Maven Lifecycle Phases for CI
 - **Use `install` not `verify`** when running integration tests in CI or multi-module environments
@@ -36,7 +35,7 @@ The script uses `systemd-run` to escape the process tree. It works for Maven/Gra
 ### Documentation
 - `./mvnw antora:antora -pl docs` - Build Antora documentation site
 - Output location: `docs/target/antora/site/`
-- Open `file:///home/mark/community/spring-ai-agents/docs/target/antora/site/index.html` to view locally
+- Open `docs/target/antora/site/index.html` to view locally
 
 ### Code Quality
 - Code formatting is enforced via `spring-javaformat-maven-plugin`
@@ -66,12 +65,6 @@ The script uses `systemd-run` to escape the process tree. It works for Maven/Gra
 - Authentication: Uses Claude CLI session authentication (recommended) or ANTHROPIC_API_KEY
 - **IMPORTANT**: All sample modules must include maven-deploy-plugin configuration with `<skip>true</skip>` to exclude them from Maven Central publishing
 
-### CLI Tool Locations (for this environment)
-- **Claude CLI**: `/usr/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe` (2.1.162 — the single install; every PATH entry including `~/.local/bin/claude` symlinks here. The old `~/.nvm` install no longer exists.)
-- **Gemini CLI**: `/home/mark/.nvm/versions/node/v22.15.0/bin/gemini` (version 0.5.5)
-- **JBang**: `/home/mark/.sdkman/candidates/jbang/current/bin/jbang`
-
-These paths are automatically discovered by the respective CLI discovery utilities, but documenting them here helps avoid repeated discovery overhead during development.
 - Note: Session authentication (from `claude auth login`) is preferred over API keys to avoid conflicts
 
 ## Architecture Overview
@@ -123,7 +116,7 @@ These paths are automatically discovered by the respective CLI discovery utiliti
 - Ultra-thin launcher script for zero-build development experience
 
 **CLI Integration Pattern**
-- All provider SDKs wrap external CLI tools (claude, gemini, swe-agent, vendir)
+- Provider SDKs wrap their corresponding external CLI tools.
 - **MANDATORY**: Use zt-exec library for all process management (see Process Management section below)
 - Unix-style `--` separator for complex prompts to prevent shell parsing issues
 - Comprehensive permission handling with `--dangerously-skip-permissions` for autonomous mode
@@ -131,18 +124,15 @@ These paths are automatically discovered by the respective CLI discovery utiliti
 - JSON-based communication with CLI tools
 - Runtime exception-only design (no checked exceptions in codebase)
 
-**Sandbox Infrastructure** (`agent-models/spring-ai-agent-model/`)
-- `Sandbox` - Core interface for secure command execution (runtime exceptions only)
-- `DockerSandbox` - Docker container-based isolation (preferred)
-- `LocalSandbox` - Local process execution with zt-exec (fallback, enhanced logging)
-- `ExecSpec`/`ExecResult` - Command specification and results
-- `SandboxException` - Runtime exception wrapper for all sandbox errors
-- `TimeoutException` - Runtime exception for command timeouts
+**Sandbox Infrastructure**
+- Agent Client consumes the core `Sandbox`, `ExecSpec`, and `ExecResult` abstractions
+  from Agent Sandbox.
+- Container-specific sandbox implementations and images are not distributed by this
+  repository.
 
 **Spring Integration**
 - Uses Spring Boot auto-configuration patterns
 - Direct dependency injection of `Sandbox` implementations
-- Conditional beans for Docker vs Local sandbox selection
 - Micrometer metrics integration
 - Externalized configuration support
 
@@ -256,7 +246,7 @@ import org.zeroturnaround.exec.ProcessResult;
 
 // Execute a command with timeout
 ProcessResult result = new ProcessExecutor()
-    .command("vendir", "--version")
+    .command("claude", "--version")
     .timeout(5, TimeUnit.SECONDS)
     .readOutput(true)
     .execute();
@@ -270,9 +260,9 @@ boolean success = exitCode == 0;
 ```java
 // Execute with working directory and environment
 ProcessResult result = new ProcessExecutor()
-    .command("vendir", "sync", "--file", "vendir.yml")
+    .command("some-cli", "arg1", "arg2")
     .directory(workingDir.toFile())
-    .environment("VENDIR_CACHE_DIR", "/tmp/cache")
+    .environment("CLI_CONFIG_DIR", "/tmp/config")
     .timeout(300, TimeUnit.SECONDS)
     .readOutput(true)
     .execute();
@@ -301,33 +291,9 @@ try {
 #### Examples in Codebase
 - `LocalSandbox.java` - Sandbox command execution
 - `ClaudeCliDiscovery.java` - CLI discovery with version check
-- `VendirContextAdvisor.java` - Context engineering with vendir
 - `CLITransport.java` - Claude/Gemini CLI communication
 
 ## CI/CD
-
-### Docker Image for CI
-The project maintains a pre-built Docker image (`ghcr.io/spring-ai-community/agents-runtime:latest`) with all required CLIs pre-installed:
-- JDK 17 (Temurin)
-- Maven 3.9.11
-- Node.js LTS
-- Claude Code CLI (latest)
-- Gemini CLI (latest)
-- Vendir CLI v0.44.0
-
-**Building the image locally:**
-```bash
-docker build -f Dockerfile.agents-runtime -t agents-runtime:local .
-```
-
-**Using the image in CI:**
-The CI workflow installs CLIs directly on GitHub Actions runners for now. Future optimization will use the pre-built Docker container to speed up builds.
-
-**Triggering image rebuild:**
-The image is automatically rebuilt:
-- Weekly on Mondays (scheduled)
-- When Dockerfile changes are pushed to main
-- Manually via workflow_dispatch
 
 ## Troubleshooting
 
@@ -358,20 +324,9 @@ unset ANTHROPIC_API_KEY  # Avoid conflicts
 - Enhanced logging for debugging
 - Suitable for development and trusted environments
 
-**DockerSandbox** (optional, recommended for production):
-- Complete container isolation
-- Requires Docker daemon
-- Automatic container lifecycle management
-- Enable via `spring.ai.agents.sandbox.docker.enabled=true`
-- Safer for untrusted code execution
-
 **Configuration:**
 ```properties
-# Use Docker sandbox (recommended for production)
-spring.ai.agents.sandbox.docker.enabled=true
-spring.ai.agents.sandbox.docker.image-tag=ghcr.io/spring-ai-community/agents-runtime:latest
-
-# Use Local sandbox (default, faster for development)
+# Configure the local sandbox supplied by Agent Sandbox
 spring.ai.agents.sandbox.docker.enabled=false
 spring.ai.agents.sandbox.local.working-directory=/path/to/workspace
 ```
@@ -518,7 +473,7 @@ New prefix: `agent-client.*` (was `spring.ai.agents.*`). Old prefix still works 
 
 - **Global `agent-client.mode`** not implemented — only per-provider mode works (e.g. `agent-client.codex.mode`)
 - **CLI arg validation tests** — started (Claude `--effort` via `ClaudeAgentModelPortableOptionsTest`, Codex argument list via `CLITransportCommandTest`); broader flag coverage still to grow
-- **Latest-CLI canary**: weekly scheduled Provider Parity run (Mondays 07:00, after the agents-runtime image rebuild at 06:00) installs latest CLIs — drift surfaces there. No *daily* run yet.
+- **Latest-CLI canary**: weekly scheduled Provider Parity installs the latest CLIs so upstream drift surfaces in CI. No *daily* run yet.
 - **JSON abstraction** — core modules still use Jackson directly; need `JsonCodec` facade for Quarkus/Micronaut (see `plans/CROSS-FRAMEWORK-DESIGN.md`)
 
 ### Remaining
@@ -579,10 +534,5 @@ Steward knowledge lives in `plans/knowledge/`:
 ### Does NOT Own
 - Upstream SDK changes (agent-sandbox, spring-ai-judge — can monitor, cannot fix)
 - spring-ai-bench integration or experiment-driver work
-- Tuvium private projects
 - Spring AI framework internals
 - Strategic product decisions (reports to human)
-
-## DevNexus Connection
-
-This project is a key component of the DevNexus 2026 talk. The AgentClient portable abstraction and "native options" gap (U8) are central discussion points. See `~/tuvium/projects/tuvium-devnexus-2026/CLAUDE.md` for talk prep alignment.

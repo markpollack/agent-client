@@ -19,6 +19,7 @@ package io.github.markpollack.agents.sweagent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi;
+import io.github.markpollack.agents.sweagentsdk.util.SweCliDiscovery;
 import io.github.markpollack.agents.tck.AbstractAgentModelTCK;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.sandbox.LocalSandbox;
@@ -61,7 +62,7 @@ class SweAgentLocalSandboxIT extends AbstractAgentModelTCK {
 			executablePath = System.getenv("SWE_CLI_PATH");
 		}
 		if (executablePath == null) {
-			executablePath = "/home/mark/.local/bin/mini"; // Hardcoded fallback path
+			executablePath = SweCliDiscovery.findSweCommand();
 		}
 
 		// Create SWE CLI API

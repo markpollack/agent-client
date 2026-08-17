@@ -203,8 +203,7 @@ public abstract class AbstractSandboxTCK {
 		// Assert: Command executes (isolation level depends on sandbox implementation)
 		assertThat(result.success()).isTrue();
 		assertThat(result.mergedLog()).isNotNull();
-		// Note: The exact isolation behavior will vary between LocalSandbox and
-		// DockerSandbox
+		// Note: The exact isolation behavior varies by sandbox implementation.
 	}
 
 	/**

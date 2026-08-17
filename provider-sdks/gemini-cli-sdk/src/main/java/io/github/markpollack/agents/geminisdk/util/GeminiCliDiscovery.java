@@ -62,12 +62,6 @@ public class GeminiCliDiscovery {
 
 		// Potential Gemini CLI locations
 		String[] possibleCommands = { "gemini", // Standard PATH lookup
-				"/home/mark/.nvm/versions/node/v22.15.0/bin/gemini", // Specific nvm
-																		// location for
-																		// development
-				System.getProperty("user.home") + "/.nvm/versions/node/v22.15.0/bin/gemini", // Dynamic
-																								// user
-																								// home
 				"/usr/local/bin/gemini", // Common global install location
 				"/opt/homebrew/bin/gemini", // Homebrew on macOS
 				System.getProperty("user.home") + "/.local/bin/gemini", // User local bin

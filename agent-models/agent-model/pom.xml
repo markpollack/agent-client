@@ -30,13 +30,6 @@
             <artifactId>agent-sandbox-core</artifactId>
         </dependency>
 
-        <!-- Docker sandbox (optional, for container-based isolation) -->
-        <dependency>
-            <groupId>io.github.markpollack</groupId>
-            <artifactId>agent-sandbox-docker</artifactId>
-            <optional>true</optional>
-        </dependency>
-
         <!-- SLF4J for logging -->
         <dependency>
             <groupId>org.slf4j</groupId>

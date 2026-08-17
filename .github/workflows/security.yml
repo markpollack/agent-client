@@ -1,7 +1,5 @@
 name: Security Scan
 
-# OWASP dependency-check CVE gate (fails on CVSS >= 7.0). Direct-to-main workflow:
-# runs on dependency changes, nightly (newly-disclosed CVEs), and on demand.
 on:
   push:
     branches: [main]
@@ -10,7 +8,54 @@ on:
     - cron: '0 7 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   scan:
-    uses: markpollack/build-tools/.github/workflows/security-scan.yml@main
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Cache OWASP NVD data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: owasp-nvd-${{ runner.os }}-v1
+          restore-keys: |
+            owasp-nvd-${{ runner.os }}-
+      - name: Complete dependency inventory (report only)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          ./mvnw -B -Powasp install -DskipTests \
+            -Ddependency-check.failBuildOnCVSS=11 \
+            ${NVD_API_KEY:+-DnvdApiKey=$NVD_API_KEY}
+      - name: Upload complete dependency inventory
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-full-inventory
+          path: '**/target/dependency-check-report.*'
+          retention-days: 14
+      - name: Published production-closure gate (CVSS 7+)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          ./mvnw -B -Powasp verify -DskipTests \
+            -DskipTestScope=true \
+            -Ddependency-check.failBuildOnCVSS=7 \
+            -pl '!agent-models/agent-tck,!agents/hello-world-agent,!agents/hello-world-agent-ai' \
+            ${NVD_API_KEY:+-DnvdApiKey=$NVD_API_KEY}
+      - name: Upload published production-closure reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-production-gate
+          path: '**/target/dependency-check-report.*'
+          retention-days: 14

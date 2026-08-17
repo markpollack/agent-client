@@ -78,15 +78,10 @@ public class SweCliDiscovery {
 
 		// Potential SWE Agent CLI locations
 		String[] possibleCommands = { "mini", // Standard PATH lookup
-				"/home/mark/.local/bin/mini", // Common installation location
 				System.getProperty("user.home") + "/.local/bin/mini", // Dynamic user home
 				"/usr/local/bin/mini", // Common global install location
 				"/opt/homebrew/bin/mini", // Homebrew on macOS
-				"/usr/bin/mini", // System bin
-				System.getProperty("user.home") + "/.nvm/versions/node/v22.15.0/bin/mini", // NVM
-																							// specific
-				"/home/mark/.nvm/versions/node/v22.15.0/bin/mini" // Development
-																	// environment
+				"/usr/bin/mini" // System bin
 		};
 
 		for (String command : possibleCommands) {

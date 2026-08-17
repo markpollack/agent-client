@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi;
+import io.github.markpollack.agents.sweagentsdk.util.SweCliDiscovery;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 
@@ -58,14 +59,13 @@ class SweAgentLocalExecutionIT {
 
 	@BeforeEach
 	void setUp() {
-		// First try system property, then environment variable, then hardcoded fallback
+		// First try system property, then environment variable, then portable discovery
 		executablePath = System.getProperty("swe.cli.path");
 		if (executablePath == null) {
 			executablePath = System.getenv("SWE_CLI_PATH");
 		}
 		if (executablePath == null) {
-			executablePath = "/home/mark/.local/bin/mini"; // Hardcoded fallback path
-			System.out.println("Using hardcoded path: " + executablePath);
+			executablePath = SweCliDiscovery.findSweCommand();
 		}
 
 		// Set system property for other components

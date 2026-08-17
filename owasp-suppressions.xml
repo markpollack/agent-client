@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes><![CDATA[
+        Agent Client's io.github.markpollack *-cli-sdk artifacts are not GitHub CLI.
+        Dependency-Check inferred cpe:2.3:a:github:cli from their generic artifact names,
+        which incorrectly attached GitHub CLI vulnerabilities to these project-owned JARs.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.github\.markpollack/(gemini|codex|amp|amazon-q)-cli-sdk@.*$</packageUrl>
+        <cve>CVE-2024-52308</cve>
+        <cve>CVE-2026-48501</cve>
+    </suppress>
+</suppressions>

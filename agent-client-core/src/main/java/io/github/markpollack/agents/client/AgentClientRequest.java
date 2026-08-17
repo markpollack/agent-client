@@ -33,7 +33,7 @@ import io.github.markpollack.agents.model.AgentOptions;
  * @param goal the goal to execute
  * @param workingDirectory the working directory for execution
  * @param options the agent configuration options
- * @param context mutable context map for advisors (vendir config, judge params, etc.)
+ * @param context mutable context map for advisors (judge parameters, metrics, etc.)
  * @author Mark Pollack
  * @since 0.1.0
  */

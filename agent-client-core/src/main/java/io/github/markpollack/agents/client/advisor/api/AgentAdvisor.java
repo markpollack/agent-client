@@ -26,7 +26,7 @@ import org.springframework.core.Ordered;
  * Advisors allow intercepting and augmenting agent execution flow, enabling use cases
  * like:
  * <ul>
- * <li>Context injection (vendir, git repos, etc.)
+ * <li>Context injection
  * <li>Post-execution evaluation (judges, validators)
  * <li>Metrics collection and logging
  * <li>Request/response transformation

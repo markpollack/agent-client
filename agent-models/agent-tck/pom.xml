@@ -24,13 +24,6 @@
             <artifactId>agent-model</artifactId>
         </dependency>
 
-        <!-- Docker sandbox for Docker infrastructure TCK -->
-        <dependency>
-            <groupId>io.github.markpollack</groupId>
-            <artifactId>agent-sandbox-docker</artifactId>
-            <optional>true</optional>
-        </dependency>
-
         <!-- JUnit Jupiter - TCK uses JUnit 5 (compile scope for TCK API) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
