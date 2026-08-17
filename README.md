@@ -13,7 +13,7 @@ provider guides, configuration reference, tutorials, and migration notes.
 <dependency>
     <groupId>io.github.markpollack</groupId>
     <artifactId>agent-claude</artifactId>
-    <version>0.25.0</version>
+    <version>0.26.0</version>
 </dependency>
 ```
 
