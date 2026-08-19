@@ -283,6 +283,13 @@ def main() -> int:
     repository = Path(__file__).resolve().parent.parent
     wrapper = repository / "mvnw"
     output = (args.output_dir or repository / "target" / "published-consumer-gate").resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    consumers_output = output / "consumers"
+    matrix_output = output / "matrix.json"
+    if consumers_output.exists():
+        shutil.rmtree(consumers_output)
+    if matrix_output.exists():
+        matrix_output.unlink()
     with tempfile.TemporaryDirectory(prefix="agent-client-consumer-gate-") as scratch_text:
         scratch = Path(scratch_text)
         local_repo = Path(os.environ.get("MAVEN_REPO_LOCAL", scratch / "m2")).resolve()
@@ -311,10 +318,6 @@ def main() -> int:
                 sys.stderr.write(error.stdout or "")
                 raise GateError(f"release-profile install failed; log: {install_log}") from error
 
-        output.mkdir(parents=True)
-        consumers_output = output / "consumers"
-        if consumers_output.exists():
-            shutil.rmtree(consumers_output)
         rows: list[dict] = []
         all_failures: list[str] = []
         group_path = GROUP_ID.replace(".", "/")
@@ -420,8 +423,8 @@ def main() -> int:
             "failures": all_failures,
             "result": "pass" if not all_failures else "fail",
         }
-        (output / "matrix.json").write_text(json.dumps(matrix, indent=2) + "\n", encoding="utf-8")
-        print(f"matrix: {output / 'matrix.json'}")
+        matrix_output.write_text(json.dumps(matrix, indent=2) + "\n", encoding="utf-8")
+        print(f"matrix: {matrix_output}")
         if all_failures:
             print(f"published-consumer gate failed with {len(all_failures)} finding(s)", file=sys.stderr)
             for failure in all_failures:
