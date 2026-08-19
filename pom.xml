@@ -144,11 +144,44 @@
                         <configuration>
                             <failOnError>false</failOnError>
                             <quiet>true</quiet>
+                            <javadocDirectory>${project.build.directory}/javadoc-resources</javadocDirectory>
+                            <docfilessubdirs>true</docfilessubdirs>
+                            <bottom><![CDATA[Agent Client is licensed under the project-specific Business Source License terms in the repository root LICENSE file.]]></bottom>
                         </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
                                 <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- One release-shaped aggregate SBOM, attached to the parent only. -->
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>${cyclonedx-maven-plugin.version}</version>
+                        <inherited>false</inherited>
+                        <configuration>
+                            <projectType>library</projectType>
+                            <schemaVersion>1.6</schemaVersion>
+                            <includeBomSerialNumber>true</includeBomSerialNumber>
+                            <includeCompileScope>true</includeCompileScope>
+                            <includeProvidedScope>true</includeProvidedScope>
+                            <includeRuntimeScope>true</includeRuntimeScope>
+                            <includeSystemScope>true</includeSystemScope>
+                            <includeTestScope>false</includeTestScope>
+                            <includeLicenseText>false</includeLicenseText>
+                            <outputReactorProjects>false</outputReactorProjects>
+                            <skipNotDeployed>false</skipNotDeployed>
+                            <outputFormat>json</outputFormat>
+                            <outputName>${project.artifactId}-${project.version}-cyclonedx</outputName>
+                            <classifier>cyclonedx</classifier>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>aggregate-cyclonedx-sbom</id>
+                                <phase>verify</phase>
+                                <goals><goal>makeAggregateBom</goal></goals>
                             </execution>
                         </executions>
                     </plugin>
@@ -236,13 +269,15 @@
         <slf4j.version>2.0.9</slf4j.version>
 
         <!-- External SDK versions -->
-        <claude-code-sdk.version>1.4.0</claude-code-sdk.version>
+        <claude-code-sdk.version>1.5.0</claude-code-sdk.version>
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
-        <agent-sandbox.version>0.9.3</agent-sandbox.version>
+        <agent-sandbox.version>0.10.0</agent-sandbox.version>
+        <agent-journal.version>1.7.0</agent-journal.version>
 
         <!-- Agent SDK specific versions -->
         <zt-exec.version>1.12</zt-exec.version>
         <jackson.version>2.21.6</jackson.version>
+        <jackson3.version>3.1.6</jackson3.version>
         <mcp-sdk.version>2.0.0</mcp-sdk.version>
 
         <!-- Test dependency versions -->
@@ -259,8 +294,10 @@
         <maven-source-plugin.version>3.3.0</maven-source-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.6.0</maven-javadoc-plugin.version>
+        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
+        <cyclonedx-maven-plugin.version>2.9.2</cyclonedx-maven-plugin.version>
         <spring-javaformat-maven-plugin.version>0.0.47</spring-javaformat-maven-plugin.version>
     </properties>
 
@@ -279,7 +316,7 @@
             <dependency>
                 <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>3.1.6</version>
+                <version>${jackson3.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -501,6 +538,22 @@
     </dependencies>
 
     <build>
+        <resources>
+            <!-- Embed the current BSL text and retained Apache history in every archive. -->
+            <resource>
+                <directory>${maven.multiModuleProjectDirectory}</directory>
+                <includes>
+                    <include>LICENSE</include>
+                    <include>LICENSE-APACHE.txt</include>
+                </includes>
+                <targetPath>META-INF</targetPath>
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -557,52 +610,33 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven-resources-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>stage-javadoc-licenses</id>
+                        <phase>generate-resources</phase>
+                        <goals><goal>copy-resources</goal></goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/javadoc-resources/resources</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${maven.multiModuleProjectDirectory}</directory>
+                                    <includes>
+                                        <include>LICENSE</include>
+                                        <include>LICENSE-APACHE.txt</include>
+                                    </includes>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
-
-    <repositories>
-        <repository>
-            <id>spring-snapshots</id>
-            <name>Spring Snapshots</name>
-            <url>https://repo.spring.io/snapshot</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>central-snapshots</id>
-            <name>Maven Central Snapshots</name>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>spring-snapshots</id>
-            <name>Spring Snapshots</name>
-            <url>https://repo.spring.io/snapshot</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </pluginRepository>
-    </pluginRepositories>
 
     <distributionManagement>
         <snapshotRepository>

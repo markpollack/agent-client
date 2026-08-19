@@ -13,7 +13,7 @@ provider guides, configuration reference, tutorials, and migration notes.
 <dependency>
     <groupId>io.github.markpollack</groupId>
     <artifactId>agent-claude</artifactId>
-    <version>0.26.0</version>
+    <version>0.27.0</version>
 </dependency>
 ```
 
@@ -24,6 +24,20 @@ corresponding live integration.
 
 ```bash
 ./mvnw clean verify
+```
+
+The published-consumer gate installs the release-profile/flattened artifacts into an isolated
+repository and verifies every runtime-bearing module without a parent or BOM:
+
+```bash
+scripts/published-consumer-gate.py
+```
+
+Maintainers can run the reproducible offline vulnerability inventory after that gate with a
+validated Trivy cache:
+
+```bash
+TRIVY_CACHE_DIR=/path/to/validated-trivy-cache scripts/security-scan.sh all
 ```
 
 ## License

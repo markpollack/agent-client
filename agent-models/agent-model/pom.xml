@@ -42,6 +42,18 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Consumer-visible Jackson 3 floors. The parent BOM is removed from flattened POMs. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson3.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson3.version}</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
