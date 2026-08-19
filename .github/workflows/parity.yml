@@ -46,16 +46,19 @@ jobs:
           - name: claude
             module: agent-models/agent-claude
             test-class: ClaudeProviderParityIT
+            report: agent-models/agent-claude/target/surefire-reports/TEST-io.github.markpollack.agents.claude.ClaudeProviderParityIT.xml
             cli-install: npm install -g @anthropic-ai/claude-code
             secret-env: ANTHROPIC_API_KEY
           - name: codex
             module: agent-models/agent-codex
             test-class: CodexProviderParityIT
+            report: agent-models/agent-codex/target/surefire-reports/TEST-io.github.markpollack.agents.codex.CodexProviderParityIT.xml
             cli-install: npm install -g @openai/codex
             secret-env: OPENAI_API_KEY
           - name: gemini
             module: agent-models/agent-gemini
             test-class: GeminiProviderParityIT
+            report: agent-models/agent-gemini/target/surefire-reports/TEST-io.github.markpollack.agents.gemini.GeminiProviderParityIT.xml
             cli-install: npm install -g @google/gemini-cli
             secret-env: GEMINI_API_KEY
 
@@ -100,6 +103,9 @@ jobs:
             -Dtest="${{ matrix.provider.test-class }}" \
             -Dsurefire.failIfNoSpecifiedTests=false \
             -B --no-transfer-progress
+
+      - name: Verify parity test counts
+        run: python3 scripts/check-provider-parity-report.py "${{ matrix.provider.report }}"
 
       - name: Upload surefire reports
         if: always()

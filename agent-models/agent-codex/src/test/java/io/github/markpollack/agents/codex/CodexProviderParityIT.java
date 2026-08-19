@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.time.Duration;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
+
 import io.github.markpollack.agents.codexsdk.CodexClient;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
 import io.github.markpollack.agents.model.AgentOptions;
@@ -28,8 +28,6 @@ import io.github.markpollack.sandbox.LocalSandbox;
  * @author Spring AI Community
  * @since 0.14.0
  */
-@DisabledIfEnvironmentVariable(named = "CI", matches = "true",
-		disabledReason = "Codex CLI not available in CI environment")
 class CodexProviderParityIT extends ProviderParityTCK {
 
 	@Override
