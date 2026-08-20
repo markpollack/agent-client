@@ -27,6 +27,7 @@
         <module>agent-starter-amp</module>
         <module>agent-starter-codex</module>
         <module>agent-starter-grok</module>
+        <module>agent-starter-antigravity</module>
         <module>agent-starter-amazon-q</module>
         <module>agent-starter-qwen-code</module>
     </modules>
