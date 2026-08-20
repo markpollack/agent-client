@@ -47,6 +47,7 @@
         <module>provider-sdks/swe-agent-sdk</module>
         <module>provider-sdks/amp-cli-sdk</module>
         <module>provider-sdks/codex-cli-sdk</module>
+        <module>provider-sdks/grok-cli-sdk</module>
         <module>provider-sdks/amazon-q-cli-sdk</module>
 
         <!-- Agent models that depend on base + SDKs -->
@@ -55,6 +56,7 @@
         <module>agent-models/agent-swe</module>
         <module>agent-models/agent-amp</module>
         <module>agent-models/agent-codex</module>
+        <module>agent-models/agent-grok</module>
         <module>agent-models/agent-amazon-q</module>
         <module>agent-models/agent-qwen-code</module>
 
@@ -453,7 +455,17 @@
             </dependency>
             <dependency>
                 <groupId>io.github.markpollack</groupId>
+                <artifactId>grok-cli-sdk</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.markpollack</groupId>
                 <artifactId>agent-codex</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.markpollack</groupId>
+                <artifactId>agent-grok</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

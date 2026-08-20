@@ -30,6 +30,10 @@ public enum Provider {
 
 	QWEN_CODE,
 
+	GROK,
+
+	ANTIGRAVITY,
+
 	SWE_AGENT
 
 }
