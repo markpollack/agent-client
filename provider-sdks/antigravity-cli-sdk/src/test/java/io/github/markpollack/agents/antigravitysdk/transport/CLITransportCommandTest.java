@@ -48,12 +48,29 @@ class CLITransportCommandTest {
 	}
 
 	@Test
-	void thereIsNoCwdFlagSoTheWorkingDirectoryNeverAppearsInTheArgv() {
+	void thereIsNoCwdFlagButTheWorkingDirectoryIsDeclaredAsTheWorkspace() {
 		List<String> command = command(ExecuteOptions.builder().workingDirectory(Path.of("/tmp/packet")).build());
 
-		// agy takes its workspace from the process working directory, which the transport
-		// sets. A --cwd here would be silently ignored.
-		assertThat(command).doesNotContain("--cwd", "/tmp/packet");
+		// agy has no --cwd, so a --cwd here would be silently ignored.
+		assertThat(command).doesNotContain("--cwd");
+
+		// Setting the process working directory is necessary but not sufficient: agy
+		// only writes into a directory that is part of the workspace. Verified against
+		// agy 1.1.17 — omit this flag and the CLI answers "I placed it in your scratch
+		// directory ... since there wasn't an active workspace", writes to the shared
+		// ~/.gemini/antigravity-cli/scratch, and still reports the task done.
+		assertThat(command).containsSequence("--add-dir", "/tmp/packet");
+	}
+
+	@Test
+	void theWorkingDirectoryIsNotDeclaredTwiceWhenAlsoListedAsAnAdditionalDirectory() {
+		List<String> command = command(ExecuteOptions.builder()
+			.workingDirectory(Path.of("/tmp/packet"))
+			.additionalDirectories(List.of(Path.of("/tmp/packet"), Path.of("/tmp/other")))
+			.build());
+
+		assertThat(command.stream().filter("/tmp/packet"::equals)).hasSize(1);
+		assertThat(command).containsSequence("--add-dir", "/tmp/other");
 	}
 
 	@Test
