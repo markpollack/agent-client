@@ -44,6 +44,15 @@ jobs:
 
     strategy:
       fail-fast: false
+      # Grok and Antigravity are deliberately absent. Both suites exist, and both pass
+      # 10/10 with zero skips against live CLIs on a developer machine — but neither CLI
+      # can authenticate here. They sign in interactively and cache credentials under
+      # ~/.grok and ~/.gemini/antigravity-cli; neither reads an API key from the
+      # environment, so there is no secret to hand a matrix row. Adding rows would only
+      # trip the credential guard below and turn the job permanently red. Wiring them up
+      # needs a self-hosted runner holding those cached credentials, or non-interactive
+      # auth from the vendors. Until then both stay outside the support claim stated in
+      # README.md.
       matrix:
         provider:
           - name: claude
