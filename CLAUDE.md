@@ -425,7 +425,7 @@ Key requirements:
 - **AgentClientMode enum** in `agent-models/agent-model/.../AgentClientMode.java` (LOOSE/STRICT). Placed in agent-model (not agent-client-core) because provider auto-configs depend on agent-model.
 - **SDK layer stays neutral** — `ExecuteOptions.skipGitCheck` keeps its CLI-native default (`false`). Mode translation happens exclusively in `CodexAgentProperties.isSkipGitCheck()`.
 - **Nullable for explicit-vs-derived** — `CodexAgentProperties.skipGitCheck` is `Boolean` (nullable) so explicit user overrides are distinguishable from mode-derived defaults.
-- **No speculative wiring** — only Codex has mode-dependent behavior. Claude/Gemini properties untouched until a real STRICT knob is identified.
+- **No speculative wiring** — Codex, Grok and Antigravity have mode-dependent behavior. Claude/Gemini properties untouched until a real STRICT knob is identified.
 - **Defaults philosophy**: STRICT is a baseline, not a lock. Explicit property overrides always win.
 
 ### Completed
@@ -458,6 +458,13 @@ Run `./mvnw -f tools/agent-options-docgen/pom.xml compile exec:java -Dexec.args=
 | Codex | `dangerouslyBypassSandbox` | `true` | `false` |
 | Claude | `yolo` | `true` (default) | — |
 | Gemini | `yolo` | `true` (default) | — |
+| Grok | `permissionMode` | `BYPASS_PERMISSIONS` | `DEFAULT` |
+| Antigravity | `dangerouslySkipPermissions` | `true` | `false` |
+
+Grok and Antigravity follow the nullable explicit-vs-derived rule: `agent-client.grok.permission-mode`
+and `agent-client.antigravity.dangerously-skip-permissions` are nullable, an explicit value always
+wins, and the mode only supplies the default. Both derive off STRICT rather than onto LOOSE
+(`mode != STRICT` yields the permissive value), so an unset mode behaves as LOOSE — matching Codex.
 
 ### Property Prefix
 
