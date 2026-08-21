@@ -78,7 +78,8 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 * should pass this.
 	 */
 	@Test
-	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI })
+	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
+			Provider.ANTIGRAVITY })
 	void testSimpleFileCreationInGitDirectory() throws Exception {
 		// Initialize git in tempDir
 		new ProcessBuilder("git", "init").directory(tempDir.toFile()).start().waitFor();
@@ -105,7 +106,8 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 * With LOOSE-mode defaults, all three providers should pass this.
 	 */
 	@Test
-	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI })
+	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
+			Provider.ANTIGRAVITY })
 	void testSimpleFileCreationInNonGitDirectory() throws IOException {
 		// tempDir is NOT a git repo — this is intentional
 
@@ -128,7 +130,8 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 * working directory itself should still be writable.
 	 */
 	@Test
-	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI })
+	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
+			Provider.ANTIGRAVITY })
 	void testSimpleFileCreationInReadOnlyParent() throws IOException {
 		// Create a writable subdirectory inside tempDir
 		Path workDir = tempDir.resolve("writable-child");
@@ -153,7 +156,8 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 * agent respects the working directory parameter.
 	 */
 	@Test
-	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI })
+	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
+			Provider.ANTIGRAVITY })
 	void testSimpleFileCreationInNestedWorkspace() throws IOException {
 		Path nestedDir = tempDir.resolve("level1").resolve("level2").resolve("workspace");
 		Files.createDirectories(nestedDir);
