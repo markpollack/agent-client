@@ -21,6 +21,9 @@ on:
       - 'agent-models/**'
       - 'provider-sdks/**'
       - 'agent-client-core/**'
+      # The gate must re-run when its own harness changes, or a broken
+      # credential/CLI wiring can land without any live provider evidence.
+      - '.github/workflows/parity.yml'
   schedule:
     - cron: '0 7 * * 1'  # Weekly Mondays
   workflow_dispatch:
@@ -95,6 +98,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # `codex exec` does not use OPENAI_API_KEY as its bearer credential; the
+          # env var it reads is CODEX_API_KEY. OPENAI_API_KEY stays because
+          # CodexProviderParityIT gates on it, but without this line Codex reaches
+          # the Responses API unauthenticated and every behavioral scenario 401s.
+          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
