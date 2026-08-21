@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -73,7 +74,10 @@ public class CLITransport {
 			ProcessExecutor executor = new ProcessExecutor().command(command)
 				.readOutput(true)
 				.redirectError(stderr)
-				// agy has no --cwd; the process working directory IS the workspace.
+				// agy has no --cwd. Setting the process working directory is necessary
+				// but NOT sufficient: in print mode agy only treats a directory as the
+				// workspace if it was declared with --add-dir (see buildCommand). Without
+				// that the run silently retargets to ~/.gemini/antigravity-cli/scratch.
 				.directory(resolveWorkingDirectory(options).toFile())
 				// The zt-exec timeout is the outer bound. --print-timeout below is the
 				// CLI's own, and both are set: the CLI's default is five minutes, far
@@ -126,9 +130,11 @@ public class CLITransport {
 	 * wrong:
 	 *
 	 * <ul>
-	 * <li><b>There is no {@code --cwd}.</b> The workspace is the process working
-	 * directory, set by the transport; {@code --add-dir} only widens it. A caller that
-	 * expects a flag to move the workspace gets a run against the wrong tree.</li>
+	 * <li><b>There is no {@code --cwd}, and the process working directory alone does
+	 * not establish a workspace.</b> The transport sets the process directory AND
+	 * declares it with {@code --add-dir}. Omit the flag and agy reports "there wasn't an
+	 * active workspace", writes into a shared {@code ~/.gemini/antigravity-cli/scratch}
+	 * that every caller sees, and still returns a response that reads like success.</li>
 	 * <li><b>{@code --print-timeout} defaults to five minutes</b>, well short of a real
 	 * task, so it is always set from the caller's timeout rather than left alone.</li>
 	 * <li><b>Permissions default to soft-deny.</b> Without
@@ -169,9 +175,23 @@ public class CLITransport {
 		if (options.isSandbox()) {
 			command.add("--sandbox");
 		}
+		// The working directory must be declared explicitly. agy resolves reads against
+		// the process working directory but will not WRITE into it unless it is part of
+		// the workspace; with no active workspace it diverts writes to a shared
+		// ~/.gemini/antigravity-cli/scratch and still reports the task done. Verified
+		// against agy 1.1.17: without this flag the CLI answers "I placed it in your
+		// scratch directory ... since there wasn't an active workspace".
+		LinkedHashSet<String> workspaceDirs = new LinkedHashSet<>();
+		Path workingDirectory = options.getWorkingDirectory();
+		if (workingDirectory != null) {
+			workspaceDirs.add(workingDirectory.toAbsolutePath().toString());
+		}
 		for (Path dir : options.getAdditionalDirectories()) {
+			workspaceDirs.add(dir.toAbsolutePath().toString());
+		}
+		for (String dir : workspaceDirs) {
 			command.add("--add-dir");
-			command.add(dir.toString());
+			command.add(dir);
 		}
 		if (options.getJsonSchema() != null && !options.getJsonSchema().isEmpty()) {
 			command.add("--json-schema");
