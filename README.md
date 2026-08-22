@@ -1,8 +1,11 @@
 # Agent Client
 
 Agent Client provides a portable Java API and Spring Boot integration for autonomous CLI agents.
-CI actively verifies the Claude Code, Codex, and Gemini CLI adapters; other adapters are
-experimental and are not part of the current support claim.
+The Claude Code, Codex, Gemini CLI, Grok, and Antigravity adapters all pass the provider parity
+TCK — ten scenarios each, zero skips, against live CLIs. CI re-verifies the first three on every
+commit; Grok and Antigravity are verified against live CLIs but cannot run in CI, because both
+authenticate interactively and cache credentials rather than reading an API key. The remaining
+adapters carry no parity coverage and are experimental.
 
 See the [Agent Client documentation](https://lab.pollack.ai/projects/agent-client) for architecture,
 provider guides, configuration reference, tutorials, and migration notes.
