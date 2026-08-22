@@ -5,10 +5,14 @@
 
 package io.github.markpollack.agents.antigravity;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.markpollack.agents.antigravitysdk.AntigravityClient;
@@ -20,6 +24,8 @@ import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
+import io.github.markpollack.journal.antigravity.AntigravityPhaseCapture;
+import io.github.markpollack.journal.antigravity.AntigravitySessionParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +74,8 @@ public class AntigravityAgentModel implements AgentModel {
 		try {
 			ExecuteResult result = this.antigravityClient.execute(goal,
 					toExecuteOptions(mergeOptions(request), request));
-			return toAgentResponse(result);
+			AntigravityPhaseCapture capture = parseCapture(result, goal);
+			return toAgentResponse(result, capture);
 		}
 		catch (Exception ex) {
 			logger.warn("Antigravity agent execution failed: {}", ex.getMessage());
@@ -111,7 +118,7 @@ public class AntigravityAgentModel implements AgentModel {
 			if (request.options().getTimeout() != null) {
 				builder.timeout(request.options().getTimeout());
 			}
-			if (!request.options().getJsonSchema().isEmpty()) {
+			if (request.options().getJsonSchema() != null && !request.options().getJsonSchema().isEmpty()) {
 				builder.jsonSchema(request.options().getJsonSchema());
 			}
 			builder.dangerouslySkipPermissions(request.options().isAutoApprove());
@@ -172,7 +179,14 @@ public class AntigravityAgentModel implements AgentModel {
 		}
 	}
 
-	private AgentResponse toAgentResponse(ExecuteResult result) {
+	private AntigravityPhaseCapture parseCapture(ExecuteResult result, String prompt) throws IOException {
+		String rawOutput = result.getRawOutput() != null ? result.getRawOutput() : "";
+		try (BufferedReader reader = new BufferedReader(new StringReader(rawOutput))) {
+			return AntigravitySessionParser.parse(reader, UUID.randomUUID().toString(), prompt);
+		}
+	}
+
+	private AgentResponse toAgentResponse(ExecuteResult result, AntigravityPhaseCapture capture) {
 		String finishReason = result.isSuccessful() ? "SUCCESS" : "ERROR";
 		String conversationId = (result.getConversationId() != null) ? result.getConversationId() : "";
 
@@ -193,9 +207,9 @@ public class AntigravityAgentModel implements AgentModel {
 		providerFields.put("cacheReadTokens", result.getCacheReadTokens());
 		providerFields.put("totalTokens", result.getTotalTokens());
 		providerFields.put("numTurns", result.getNumTurns());
-
 		AgentGeneration generation = new AgentGeneration(result.getResponse(),
 				new AgentGenerationMetadata(finishReason, Map.copyOf(providerFields)));
+		providerFields.put("phaseCapture", capture);
 		AgentResponseMetadata metadata = AgentResponseMetadata.builder()
 			.model((this.defaultOptions.getModel() != null) ? this.defaultOptions.getModel() : "antigravity-default")
 			.duration(result.getDuration())

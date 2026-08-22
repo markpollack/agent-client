@@ -11,6 +11,7 @@ import io.github.markpollack.agents.model.AgentOptions;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,6 +43,8 @@ public class CodexAgentOptions implements AgentOptions {
 	private Path outputSchema;
 
 	private String workingDirectory;
+
+	private List<Path> additionalDirectories = List.of();
 
 	private Map<String, String> environmentVariables = Map.of();
 
@@ -108,6 +111,10 @@ public class CodexAgentOptions implements AgentOptions {
 		return workingDirectory;
 	}
 
+	public List<Path> getAdditionalDirectories() {
+		return additionalDirectories;
+	}
+
 	@Override
 	public Map<String, Object> getExtras() {
 		return extras;
@@ -145,11 +152,17 @@ public class CodexAgentOptions implements AgentOptions {
 
 		public Builder sandboxMode(SandboxMode sandboxMode) {
 			options.sandboxMode = sandboxMode;
+			if (sandboxMode != SandboxMode.WORKSPACE_WRITE) {
+				options.fullAuto = false;
+			}
 			return this;
 		}
 
 		public Builder approvalPolicy(ApprovalPolicy approvalPolicy) {
 			options.approvalPolicy = approvalPolicy;
+			if (approvalPolicy != ApprovalPolicy.NEVER) {
+				options.fullAuto = false;
+			}
 			return this;
 		}
 
@@ -159,6 +172,7 @@ public class CodexAgentOptions implements AgentOptions {
 				// Full-auto implies workspace-write and never approval
 				options.sandboxMode = SandboxMode.WORKSPACE_WRITE;
 				options.approvalPolicy = ApprovalPolicy.NEVER;
+				options.dangerouslyBypassSandbox = false;
 			}
 			return this;
 		}
@@ -170,6 +184,15 @@ public class CodexAgentOptions implements AgentOptions {
 
 		public Builder dangerouslyBypassSandbox(boolean dangerouslyBypassSandbox) {
 			options.dangerouslyBypassSandbox = dangerouslyBypassSandbox;
+			if (dangerouslyBypassSandbox) {
+				options.fullAuto = false;
+			}
+			return this;
+		}
+
+		public Builder additionalDirectories(List<Path> additionalDirectories) {
+			options.additionalDirectories = additionalDirectories != null ? List.copyOf(additionalDirectories)
+					: List.of();
 			return this;
 		}
 

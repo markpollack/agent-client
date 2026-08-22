@@ -9,6 +9,7 @@ import io.github.markpollack.agents.model.AgentClientMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Configuration properties for Codex Agent Model.
@@ -57,11 +58,15 @@ public class CodexAgentProperties {
 	private Boolean skipGitCheck;
 
 	/**
-	 * Bypass all sandbox restrictions and approval prompts. When not explicitly set,
-	 * derived from mode: LOOSE defaults to true (no sandbox restrictions), STRICT
-	 * defaults to false (uses workspace-write sandbox).
+	 * Bypass all sandbox restrictions and approval prompts. This is stronger than
+	 * full-auto and is disabled unless explicitly configured.
 	 */
 	private Boolean dangerouslyBypassSandbox;
+
+	/**
+	 * Additional directories Codex may write alongside the primary workspace.
+	 */
+	private List<String> additionalDirectories = List.of();
 
 	/**
 	 * Path to the Codex CLI executable. If null, auto-discovery is used.
@@ -130,24 +135,27 @@ public class CodexAgentProperties {
 	}
 
 	/**
-	 * Returns whether to bypass sandbox restrictions. If explicitly set via
-	 * {@code spring.ai.agents.codex.dangerously-bypass-sandbox}, that value wins.
-	 * Otherwise, derived from mode: LOOSE -> true (no sandbox friction), STRICT -> false
-	 * (uses workspace-write sandbox), unset -> true (LOOSE is the default mode).
+	 * Returns whether to bypass all sandbox and approval restrictions. This stronger
+	 * level is never inferred from the portable mode; LOOSE uses full-auto
+	 * (workspace-write plus never approval). It must be enabled explicitly.
 	 */
 	public boolean isDangerouslyBypassSandbox() {
 		if (this.dangerouslyBypassSandbox != null) {
 			return this.dangerouslyBypassSandbox;
 		}
-		if (this.mode == AgentClientMode.STRICT) {
-			return false;
-		}
-		// Default: LOOSE behavior — bypass sandbox for frictionless operation
-		return true;
+		return false;
 	}
 
 	public void setDangerouslyBypassSandbox(Boolean dangerouslyBypassSandbox) {
 		this.dangerouslyBypassSandbox = dangerouslyBypassSandbox;
+	}
+
+	public List<String> getAdditionalDirectories() {
+		return additionalDirectories;
+	}
+
+	public void setAdditionalDirectories(List<String> additionalDirectories) {
+		this.additionalDirectories = additionalDirectories != null ? List.copyOf(additionalDirectories) : List.of();
 	}
 
 	public String getExecutablePath() {

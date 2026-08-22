@@ -27,6 +27,12 @@ class ExecuteResultTest {
 			"cache_read_tokens":0,"total_tokens":14382}}
 			""";
 
+	private static final String STREAM = """
+			{"event":"init","conversation_id":"fc8e2caf-a03f-4fdb-b738-a49745a1207b","init":{"model":"gemini-3.1-pro-high"}}
+			{"event":"step_update","step_update":{"step_type":"tool","step_index":0,"state":"SUCCESS","tool_info":{"name":"run_command","parameters":{"command":"pwd"},"output":"/tmp/work"}}}
+			{"event":"result","result":{"conversation_id":"fc8e2caf-a03f-4fdb-b738-a49745a1207b","status":"SUCCESS","response":"OK\\n","duration_seconds":8.957684329,"num_turns":1,"usage":{"input_tokens":14106,"output_tokens":276,"thinking_tokens":275,"cache_read_tokens":0,"total_tokens":14382}}}
+			""";
+
 	@Test
 	void readsResponseConversationAndUsage() {
 		ExecuteResult result = ExecuteResult.parse(ENVELOPE, "", 0, Duration.ofSeconds(9));
@@ -40,6 +46,17 @@ class ExecuteResultTest {
 		assertThat(result.getThinkingTokens()).isEqualTo(275);
 		assertThat(result.getTotalTokens()).isEqualTo(14382);
 		assertThat(result.isSuccessful()).isTrue();
+	}
+
+	@Test
+	void readsTheSameTerminalContractFromStreamJson() {
+		ExecuteResult result = ExecuteResult.parseStreaming(STREAM, "", 0, Duration.ofSeconds(9));
+
+		assertThat(result.isStructured()).isTrue();
+		assertThat(result.getResponse()).isEqualTo("OK\n");
+		assertThat(result.getConversationId()).isEqualTo("fc8e2caf-a03f-4fdb-b738-a49745a1207b");
+		assertThat(result.getInputTokens()).isEqualTo(14106);
+		assertThat(result.getRawOutput()).isEqualTo(STREAM);
 	}
 
 	@Test

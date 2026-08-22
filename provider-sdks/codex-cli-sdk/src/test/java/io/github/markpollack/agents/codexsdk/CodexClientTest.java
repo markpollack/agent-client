@@ -63,18 +63,29 @@ class CodexClientTest {
 	}
 
 	@Test
-	void testExplicitSandboxDoesNotAffectFullAuto() {
+	void fullAutoAndDangerousBypassAreMutuallyExclusive() {
+		ExecuteOptions fullAuto = ExecuteOptions.builder().dangerouslyBypassSandbox(true).fullAuto(true).build();
+		ExecuteOptions dangerous = ExecuteOptions.builder().fullAuto(true).dangerouslyBypassSandbox(true).build();
+
+		assertThat(fullAuto.isFullAuto()).isTrue();
+		assertThat(fullAuto.isDangerouslyBypassSandbox()).isFalse();
+		assertThat(dangerous.isFullAuto()).isFalse();
+		assertThat(dangerous.isDangerouslyBypassSandbox()).isTrue();
+	}
+
+	@Test
+	void customSandboxLeavesFullAutoLevel() {
 		ExecuteOptions options = ExecuteOptions.builder().fullAuto(true).sandboxMode(SandboxMode.READ_ONLY).build();
 
-		assertThat(options.isFullAuto()).isTrue();
+		assertThat(options.isFullAuto()).isFalse();
 		assertThat(options.getSandboxMode()).isEqualTo(SandboxMode.READ_ONLY);
 	}
 
 	@Test
-	void testExplicitApprovalDoesNotAffectFullAuto() {
+	void customApprovalLeavesFullAutoLevel() {
 		ExecuteOptions options = ExecuteOptions.builder().fullAuto(true).approvalPolicy(ApprovalPolicy.ALWAYS).build();
 
-		assertThat(options.isFullAuto()).isTrue();
+		assertThat(options.isFullAuto()).isFalse();
 		assertThat(options.getApprovalPolicy()).isEqualTo(ApprovalPolicy.ALWAYS);
 	}
 

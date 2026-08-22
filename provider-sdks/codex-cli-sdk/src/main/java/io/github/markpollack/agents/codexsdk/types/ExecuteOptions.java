@@ -7,6 +7,7 @@ package io.github.markpollack.agents.codexsdk.types;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Configuration options for Codex CLI execution.
@@ -23,6 +24,8 @@ public class ExecuteOptions {
 	private final Duration timeout;
 
 	private final Path workingDirectory;
+
+	private final List<Path> additionalDirectories;
 
 	private final SandboxMode sandboxMode;
 
@@ -43,6 +46,7 @@ public class ExecuteOptions {
 		this.reasoningEffort = builder.reasoningEffort;
 		this.timeout = builder.timeout;
 		this.workingDirectory = builder.workingDirectory;
+		this.additionalDirectories = List.copyOf(builder.additionalDirectories);
 		this.sandboxMode = builder.sandboxMode;
 		this.approvalPolicy = builder.approvalPolicy;
 		this.fullAuto = builder.fullAuto;
@@ -83,6 +87,10 @@ public class ExecuteOptions {
 		return workingDirectory;
 	}
 
+	public List<Path> getAdditionalDirectories() {
+		return additionalDirectories;
+	}
+
 	public SandboxMode getSandboxMode() {
 		return sandboxMode;
 	}
@@ -120,6 +128,8 @@ public class ExecuteOptions {
 		private Duration timeout = Duration.ofMinutes(3);
 
 		private Path workingDirectory;
+
+		private List<Path> additionalDirectories = List.of();
 
 		private SandboxMode sandboxMode = SandboxMode.WORKSPACE_WRITE;
 
@@ -159,13 +169,24 @@ public class ExecuteOptions {
 			return this;
 		}
 
+		public Builder additionalDirectories(List<Path> additionalDirectories) {
+			this.additionalDirectories = additionalDirectories != null ? List.copyOf(additionalDirectories) : List.of();
+			return this;
+		}
+
 		public Builder sandboxMode(SandboxMode sandboxMode) {
 			this.sandboxMode = sandboxMode;
+			if (sandboxMode != SandboxMode.WORKSPACE_WRITE) {
+				this.fullAuto = false;
+			}
 			return this;
 		}
 
 		public Builder approvalPolicy(ApprovalPolicy approvalPolicy) {
 			this.approvalPolicy = approvalPolicy;
+			if (approvalPolicy != ApprovalPolicy.NEVER) {
+				this.fullAuto = false;
+			}
 			return this;
 		}
 
@@ -175,6 +196,7 @@ public class ExecuteOptions {
 				// Full-auto implies workspace-write and never approval
 				this.sandboxMode = SandboxMode.WORKSPACE_WRITE;
 				this.approvalPolicy = ApprovalPolicy.NEVER;
+				this.dangerouslyBypassSandbox = false;
 			}
 			return this;
 		}
@@ -196,6 +218,9 @@ public class ExecuteOptions {
 
 		public Builder dangerouslyBypassSandbox(boolean dangerouslyBypassSandbox) {
 			this.dangerouslyBypassSandbox = dangerouslyBypassSandbox;
+			if (dangerouslyBypassSandbox) {
+				this.fullAuto = false;
+			}
 			return this;
 		}
 

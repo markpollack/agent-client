@@ -28,11 +28,11 @@ class CLITransportCommandTest {
 	}
 
 	@Test
-	void theDefaultInvocationIsPrintModeWithJsonOutput() {
+	void theDefaultInvocationIsPrintModeWithStreamJsonOutput() {
 		List<String> command = command(ExecuteOptions.defaults());
 
 		assertThat(command.get(0)).isEqualTo(CLI);
-		assertThat(command).containsSequence("--output-format", "json");
+		assertThat(command).containsSequence("--output-format", "stream-json");
 		assertThat(command).containsSequence("--print", "review this");
 		assertThat(command.get(command.size() - 1)).isEqualTo("review this");
 	}

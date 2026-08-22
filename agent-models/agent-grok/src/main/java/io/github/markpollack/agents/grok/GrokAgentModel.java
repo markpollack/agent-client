@@ -5,10 +5,14 @@
 
 package io.github.markpollack.agents.grok;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.markpollack.agents.groksdk.GrokClient;
@@ -21,6 +25,8 @@ import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
+import io.github.markpollack.journal.grok.GrokPhaseCapture;
+import io.github.markpollack.journal.grok.GrokSessionParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +66,8 @@ public class GrokAgentModel implements AgentModel {
 
 		try {
 			ExecuteResult result = this.grokClient.execute(goal, toExecuteOptions(mergeOptions(request), request));
-			return toAgentResponse(result);
+			GrokPhaseCapture capture = parseCapture(result, goal);
+			return toAgentResponse(result, capture);
 		}
 		catch (Exception ex) {
 			logger.warn("Grok agent execution failed: {}", ex.getMessage());
@@ -109,7 +116,7 @@ public class GrokAgentModel implements AgentModel {
 			if (request.options().getMaxTurns() != null) {
 				builder.maxTurns(request.options().getMaxTurns());
 			}
-			if (!request.options().getJsonSchema().isEmpty()) {
+			if (request.options().getJsonSchema() != null && !request.options().getJsonSchema().isEmpty()) {
 				builder.jsonSchema(request.options().getJsonSchema());
 			}
 			if (request.options().isAutoApprove()) {
@@ -183,7 +190,14 @@ public class GrokAgentModel implements AgentModel {
 		}
 	}
 
-	private AgentResponse toAgentResponse(ExecuteResult result) {
+	private GrokPhaseCapture parseCapture(ExecuteResult result, String prompt) throws IOException {
+		String rawOutput = result.getRawOutput() != null ? result.getRawOutput() : "";
+		try (BufferedReader reader = new BufferedReader(new StringReader(rawOutput))) {
+			return GrokSessionParser.parse(reader, UUID.randomUUID().toString(), prompt);
+		}
+	}
+
+	private AgentResponse toAgentResponse(ExecuteResult result, GrokPhaseCapture capture) {
 		String finishReason = result.isSuccessful() ? "SUCCESS" : "ERROR";
 		String model = (result.getModel() != null) ? result.getModel() : "grok-default";
 		String sessionId = (result.getSessionId() != null) ? result.getSessionId() : "";
@@ -203,9 +217,9 @@ public class GrokAgentModel implements AgentModel {
 		providerFields.put("cacheCreationTokens", result.getCacheCreationInputTokens());
 		providerFields.put("totalTokens", result.getTotalTokens());
 		providerFields.put("numTurns", result.getNumTurns());
-
 		AgentGeneration generation = new AgentGeneration(result.getText(),
 				new AgentGenerationMetadata(finishReason, Map.copyOf(providerFields)));
+		providerFields.put("phaseCapture", capture);
 		AgentResponseMetadata metadata = AgentResponseMetadata.builder()
 			.model(model)
 			.duration(result.getDuration())

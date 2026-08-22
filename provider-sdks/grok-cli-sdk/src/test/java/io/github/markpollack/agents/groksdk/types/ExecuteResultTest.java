@@ -50,6 +50,14 @@ class ExecuteResultTest {
 			}
 			""";
 
+	private static final String STREAM = """
+			{"type":"text","data":"O"}
+			{"type":"tool_call","toolCallId":"call-1","toolName":"Read","rawInput":{"path":"README.md"}}
+			{"type":"tool_call_update","toolCallId":"call-1","status":"completed","rawOutput":{"text":"ok"}}
+			{"type":"text","data":"K"}
+			{"type":"end","stopReason":"end_turn","sessionId":"01a020d9-e9cf-7da1-b70e-a6ef6781c75d","usage":{"input_tokens":13115,"cache_read_input_tokens":2944,"cache_creation_input_tokens":0,"output_tokens":27,"reasoning_tokens":22,"total_tokens":16086},"num_turns":1,"total_cost_usd":0.00473688,"modelUsage":{"grok-4.6-build":{}}}
+			""";
+
 	@Test
 	void readsTextSessionAndUsageFromTheEnvelope() {
 		ExecuteResult result = ExecuteResult.parse(ENVELOPE, 0, Duration.ofSeconds(9));
@@ -65,6 +73,18 @@ class ExecuteResultTest {
 		assertThat(result.getTotalTokens()).isEqualTo(16086);
 		assertThat(result.getNumTurns()).isEqualTo(1);
 		assertThat(result.isSuccessful()).isTrue();
+	}
+
+	@Test
+	void readsTheSameTerminalContractFromStreamingJson() {
+		ExecuteResult result = ExecuteResult.parseStreaming(STREAM, 0, Duration.ofSeconds(9));
+
+		assertThat(result.isStructured()).isTrue();
+		assertThat(result.getText()).isEqualTo("OK");
+		assertThat(result.getSessionId()).isEqualTo("01a020d9-e9cf-7da1-b70e-a6ef6781c75d");
+		assertThat(result.getModel()).isEqualTo("grok-4.6-build");
+		assertThat(result.getInputTokens()).isEqualTo(13115);
+		assertThat(result.getRawOutput()).isEqualTo(STREAM);
 	}
 
 	@Test

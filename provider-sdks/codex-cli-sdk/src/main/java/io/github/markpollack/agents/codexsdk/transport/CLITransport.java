@@ -8,8 +8,10 @@ package io.github.markpollack.agents.codexsdk.transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.codexsdk.exceptions.CodexSDKException;
+import io.github.markpollack.agents.codexsdk.types.ApprovalPolicy;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
 import io.github.markpollack.agents.codexsdk.types.ExecuteResult;
+import io.github.markpollack.agents.codexsdk.types.SandboxMode;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
@@ -204,9 +206,9 @@ public class CLITransport {
 		command.add(codexCliPath);
 		if (options.isFullAuto() && !options.isDangerouslyBypassSandbox()) {
 			command.add("--sandbox");
-			command.add(options.getSandboxMode().getValue());
+			command.add(SandboxMode.WORKSPACE_WRITE.getValue());
 			command.add("--ask-for-approval");
-			command.add(options.getApprovalPolicy().getValue());
+			command.add(ApprovalPolicy.NEVER.getValue());
 		}
 
 		command.add("exec");
@@ -237,6 +239,10 @@ public class CLITransport {
 		if (options.getWorkingDirectory() != null) {
 			command.add("-C");
 			command.add(options.getWorkingDirectory().toString());
+		}
+		for (Path additionalDirectory : options.getAdditionalDirectories()) {
+			command.add("--add-dir");
+			command.add(additionalDirectory.toString());
 		}
 
 		// Git check skip

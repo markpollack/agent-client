@@ -18,6 +18,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
+import java.nio.file.Path;
+
 /**
  * Spring Boot auto-configuration for Codex agent model.
  *
@@ -39,6 +41,7 @@ public class CodexAgentAutoConfiguration {
 			.fullAuto(properties.isFullAuto())
 			.skipGitCheck(properties.isSkipGitCheck())
 			.dangerouslyBypassSandbox(properties.isDangerouslyBypassSandbox())
+			.additionalDirectories(properties.getAdditionalDirectories().stream().map(Path::of).toList())
 			.build();
 
 		return CodexClient.create(options);
@@ -56,6 +59,7 @@ public class CodexAgentAutoConfiguration {
 			.fullAuto(properties.isFullAuto())
 			.skipGitCheck(properties.isSkipGitCheck())
 			.dangerouslyBypassSandbox(properties.isDangerouslyBypassSandbox())
+			.additionalDirectories(properties.getAdditionalDirectories().stream().map(Path::of).toList())
 			.executablePath(properties.getExecutablePath())
 			.build();
 

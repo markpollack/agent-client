@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,6 +72,30 @@ class CLITransportCommandTest {
 		assertThat(command.get(sandboxIndex + 1)).isEqualTo("workspace-write");
 		assertThat(approvalIndex).isBetween(1, execIndex - 1);
 		assertThat(command.get(approvalIndex + 1)).isEqualTo("never");
+	}
+
+	@Test
+	@DisplayName("dangerous bypass is distinct from full auto")
+	void dangerousBypassUsesOnlyTheExplicitUnrestrictedFlag() {
+		ExecuteOptions options = ExecuteOptions.builder().dangerouslyBypassSandbox(true).build();
+
+		List<String> command = CLITransport.buildCommand("codex", "test goal", options, null);
+
+		assertThat(command).contains("--dangerously-bypass-approvals-and-sandbox");
+		assertThat(command).doesNotContain("--ask-for-approval", "--sandbox", "--full-auto");
+	}
+
+	@Test
+	@DisplayName("additional directories map to repeated --add-dir flags")
+	void additionalDirectoriesMapToRepeatedFlags() {
+		ExecuteOptions options = ExecuteOptions.builder()
+			.additionalDirectories(List.of(Path.of("/tmp/one"), Path.of("/tmp/two")))
+			.build();
+
+		List<String> command = CLITransport.buildCommand("codex", "test goal", options, null);
+
+		assertThat(command).containsSequence("--add-dir", "/tmp/one");
+		assertThat(command).containsSequence("--add-dir", "/tmp/two");
 	}
 
 	@Test

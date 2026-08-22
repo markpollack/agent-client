@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Key LOOSE derivations validated:
  * <ul>
  * <li>Claude: yolo=true (already default, no new derivation)</li>
- * <li>Codex: skipGitCheck=true + dangerouslyBypassSandbox=true</li>
+ * <li>Codex: skipGitCheck=true + fullAuto=true (workspace-write + never approval)</li>
  * <li>Gemini: yolo=true (already default, no new derivation)</li>
  * </ul>
  *
@@ -114,7 +114,7 @@ class LoosePermissionIT {
 
 			try {
 				ExecuteOptions executeOptions = ExecuteOptions.builder()
-					.dangerouslyBypassSandbox(true)
+					.fullAuto(true)
 					.skipGitCheck(true)
 					.timeout(Duration.ofMinutes(3))
 					.build();
@@ -122,7 +122,7 @@ class LoosePermissionIT {
 				CodexClient codexClient = CodexClient.create(executeOptions, tempDir);
 
 				CodexAgentOptions options = CodexAgentOptions.builder()
-					.dangerouslyBypassSandbox(true)
+					.fullAuto(true)
 					.skipGitCheck(true)
 					.timeout(Duration.ofMinutes(3))
 					.build();

@@ -72,7 +72,7 @@ public class CLITransport {
 			}
 			ProcessResult result = executor.execute();
 			Duration duration = Duration.ofMillis(System.currentTimeMillis() - started);
-			return ExecuteResult.parse(result.outputUTF8(), result.getExitValue(), duration);
+			return ExecuteResult.parseStreaming(result.outputUTF8(), result.getExitValue(), duration);
 		}
 		catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
@@ -167,7 +167,7 @@ public class CLITransport {
 		}
 
 		command.add("--output-format");
-		command.add("json");
+		command.add("streaming-json");
 		command.add("--verbatim");
 		command.add("--single");
 		command.add(prompt);

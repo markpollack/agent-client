@@ -15,11 +15,18 @@ import io.github.markpollack.agents.model.*;
 import io.github.markpollack.sandbox.Sandbox;
 
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+
+import io.github.markpollack.journal.codex.CodexPhaseCapture;
+import io.github.markpollack.journal.codex.CodexSessionParser;
 
 /**
  * Implementation of {@link AgentModel} for OpenAI Codex CLI-based agents.
@@ -79,14 +86,18 @@ public class CodexAgentModel implements AgentModel {
 		Path jsonSchemaTempFile = null;
 		try {
 			if (options.getOutputSchema() == null && request.options() != null
-					&& request.options().getJsonSchema() != null) {
+					&& request.options().getJsonSchema() != null && !request.options().getJsonSchema().isEmpty()) {
 				jsonSchemaTempFile = writeJsonSchemaToTempFile(request.options().getJsonSchema());
 				options = CodexAgentOptions.builder()
 					.model(options.getModel())
+					.reasoningEffort(options.getReasoningEffort())
 					.timeout(options.getTimeout())
 					.fullAuto(options.isFullAuto())
+					.sandboxMode(options.getSandboxMode())
+					.approvalPolicy(options.getApprovalPolicy())
 					.skipGitCheck(options.isSkipGitCheck())
 					.dangerouslyBypassSandbox(options.isDangerouslyBypassSandbox())
+					.additionalDirectories(options.getAdditionalDirectories())
 					.executablePath(options.getExecutablePath())
 					.outputSchema(jsonSchemaTempFile)
 					.build();
@@ -97,9 +108,10 @@ public class CodexAgentModel implements AgentModel {
 
 			// Execute via SDK
 			ExecuteResult result = codexClient.execute(goal, executeOptions);
+			CodexPhaseCapture capture = parseCapture(result, goal);
 
 			// Convert to AgentResponse
-			return toAgentResponse(result);
+			return toAgentResponse(result, capture);
 		}
 		catch (Exception e) {
 			logger.warn("Codex agent execution failed: {}", e.getMessage());
@@ -144,6 +156,7 @@ public class CodexAgentModel implements AgentModel {
 			.fullAuto(defaultOptions.isFullAuto())
 			.skipGitCheck(defaultOptions.isSkipGitCheck())
 			.dangerouslyBypassSandbox(defaultOptions.isDangerouslyBypassSandbox())
+			.additionalDirectories(defaultOptions.getAdditionalDirectories())
 			.executablePath(defaultOptions.getExecutablePath());
 
 		if (defaultOptions.getSandboxMode() != null) {
@@ -186,6 +199,10 @@ public class CodexAgentModel implements AgentModel {
 			}
 			builder.fullAuto(requestOptions.isFullAuto());
 			builder.skipGitCheck(requestOptions.isSkipGitCheck());
+			builder.dangerouslyBypassSandbox(requestOptions.isDangerouslyBypassSandbox());
+			if (!requestOptions.getAdditionalDirectories().isEmpty()) {
+				builder.additionalDirectories(requestOptions.getAdditionalDirectories());
+			}
 		}
 
 		return builder.build();
@@ -199,6 +216,7 @@ public class CodexAgentModel implements AgentModel {
 			.fullAuto(options.isFullAuto())
 			.skipGitCheck(options.isSkipGitCheck())
 			.dangerouslyBypassSandbox(options.isDangerouslyBypassSandbox());
+		builder.additionalDirectories(options.getAdditionalDirectories());
 
 		if (!options.isFullAuto() && !options.isDangerouslyBypassSandbox()) {
 			if (options.getSandboxMode() != null) {
@@ -229,7 +247,14 @@ public class CodexAgentModel implements AgentModel {
 		return new AgentResponse(List.of(generation), metadata);
 	}
 
-	private AgentResponse toAgentResponse(ExecuteResult result) {
+	private CodexPhaseCapture parseCapture(ExecuteResult result, String prompt) throws IOException {
+		String rollout = String.join("\n", result.getRolloutLines());
+		try (BufferedReader reader = new BufferedReader(new StringReader(rollout))) {
+			return CodexSessionParser.parse(reader, UUID.randomUUID().toString(), prompt);
+		}
+	}
+
+	private AgentResponse toAgentResponse(ExecuteResult result, CodexPhaseCapture capture) {
 		String finishReason = result.isSuccessful() ? "SUCCESS" : "ERROR";
 
 		// Create generation with output
@@ -239,12 +264,17 @@ public class CodexAgentModel implements AgentModel {
 						result.getActivityLog() != null ? result.getActivityLog() : "")));
 
 		// Create response metadata with sessionId
+		Map<String, Object> providerFields = new LinkedHashMap<>();
+		providerFields.put("exitCode", result.getExitCode());
+		providerFields.put("successful", result.isSuccessful());
+		providerFields.put("activityLog", result.getActivityLog() != null ? result.getActivityLog() : "");
+		providerFields.put("phaseCapture", capture);
+
 		AgentResponseMetadata metadata = AgentResponseMetadata.builder()
 			.model(result.getModel() != null ? result.getModel() : "codex-default")
 			.duration(result.getDuration())
 			.sessionId(result.getSessionId() != null ? result.getSessionId() : "")
-			.providerFields(Map.of("exitCode", result.getExitCode(), "successful", result.isSuccessful(), "activityLog",
-					result.getActivityLog() != null ? result.getActivityLog() : ""))
+			.providerFields(Map.copyOf(providerFields))
 			.build();
 
 		return new AgentResponse(List.of(generation), metadata);

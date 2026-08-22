@@ -31,11 +31,11 @@ class CLITransportCommandTest {
 	}
 
 	@Test
-	void theDefaultInvocationIsHeadlessJsonAndVerbatim() {
+	void theDefaultInvocationIsHeadlessStreamingJsonAndVerbatim() {
 		List<String> command = command(ExecuteOptions.defaults());
 
 		assertThat(command.get(0)).isEqualTo(CLI);
-		assertThat(command).containsSequence("--output-format", "json");
+		assertThat(command).containsSequence("--output-format", "streaming-json");
 		// The prompt must reach the model exactly as written, or two providers were not
 		// given the same instruction.
 		assertThat(command).contains("--verbatim");
@@ -66,7 +66,7 @@ class CLITransportCommandTest {
 		List<String> command = command(ExecuteOptions.builder().jsonSchema(schema).build());
 
 		assertThat(command).containsSequence("--json-schema", schema);
-		assertThat(command).containsSequence("--output-format", "json");
+		assertThat(command).containsSequence("--output-format", "streaming-json");
 	}
 
 	@Test

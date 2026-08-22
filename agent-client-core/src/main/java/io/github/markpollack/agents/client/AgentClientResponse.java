@@ -68,14 +68,14 @@ public record AgentClientResponse(AgentResponse agentResponse, Map<String, Objec
 	}
 
 	/**
-	 * Get the phase capture from agent-journal exhaust capture if present.
+	 * Get the parsed provider trajectory from Agent Journal capture if present.
 	 * <p>
-	 * Retrieves the {@code PhaseCapture} stored by {@code ClaudeAgentModel} after parsing
-	 * the full SDK response via {@code SessionLogParser}. Contains tokens, cost, thinking
-	 * blocks, tool uses, and session metadata.
+	 * Retrieves the provider-specific phase capture stored after parsing the CLI's
+	 * richest available run surface. Capture is not gated on raw trace-file
+	 * configuration.
 	 * </p>
 	 * @param <T> the phase capture type
-	 * @return the phase capture, or null if exhaust capture was not enabled
+	 * @return the phase capture, or null when the provider does not publish one
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> T getPhaseCapture() {

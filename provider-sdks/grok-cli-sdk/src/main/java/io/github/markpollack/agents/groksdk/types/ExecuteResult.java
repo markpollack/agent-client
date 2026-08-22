@@ -148,6 +148,68 @@ public class ExecuteResult {
 		}
 	}
 
+	/**
+	 * Parse the CLI's {@code streaming-json} output while preserving the same terminal
+	 * result contract exposed by {@link #parse(String, int, Duration)}.
+	 * @param stdout raw NDJSON stdout from the CLI
+	 * @param exitCode process exit code
+	 * @param duration wall-clock duration
+	 * @return the parsed terminal result with raw streaming output retained
+	 */
+	public static ExecuteResult parseStreaming(String stdout, int exitCode, Duration duration) {
+		Builder builder = new Builder().rawOutput(stdout).exitCode(exitCode).duration(duration);
+		if (stdout == null || stdout.isBlank()) {
+			return builder.text("").structured(false).build();
+		}
+
+		StringBuilder text = new StringBuilder();
+		JsonNode end = null;
+		try {
+			for (String line : stdout.split("\\R")) {
+				if (line.isBlank()) {
+					continue;
+				}
+				JsonNode event = MAPPER.readTree(line);
+				String type = event.path("type").asText("");
+				if ("text".equals(type)) {
+					text.append(event.path("data").asText(""));
+				}
+				else if ("end".equals(type)) {
+					end = event;
+				}
+			}
+		}
+		catch (Exception ex) {
+			logger.debug("Grok output was not streaming-json: {}", ex.getMessage());
+			return parse(stdout, exitCode, duration);
+		}
+
+		if (end == null) {
+			return parse(stdout, exitCode, duration);
+		}
+
+		builder.text(text.toString())
+			.sessionId(nullIfEmpty(end.path("sessionId").asText("")))
+			.stopReason(nullIfEmpty(end.path("stopReason").asText("")))
+			.numTurns(end.path("num_turns").asInt(0))
+			.totalCostUsd(end.path("total_cost_usd").asDouble(0.0))
+			.structured(true);
+
+		JsonNode usage = end.path("usage");
+		builder.inputTokens(usage.path("input_tokens").asInt(0))
+			.outputTokens(usage.path("output_tokens").asInt(0))
+			.reasoningTokens(usage.path("reasoning_tokens").asInt(0))
+			.cacheReadInputTokens(usage.path("cache_read_input_tokens").asInt(0))
+			.cacheCreationInputTokens(usage.path("cache_creation_input_tokens").asInt(0))
+			.totalTokens(usage.path("total_tokens").asInt(0));
+
+		JsonNode modelUsage = end.path("modelUsage");
+		if (modelUsage.isObject() && modelUsage.fieldNames().hasNext()) {
+			builder.model(modelUsage.fieldNames().next());
+		}
+		return builder.build();
+	}
+
 	private static String nullIfEmpty(String value) {
 		return (value == null || value.isEmpty()) ? null : value;
 	}

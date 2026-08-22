@@ -88,8 +88,8 @@ public class CLITransport {
 				.destroyOnExit();
 			ProcessResult result = executor.execute();
 			Duration duration = Duration.ofMillis(System.currentTimeMillis() - started);
-			ExecuteResult parsed = ExecuteResult.parse(result.outputUTF8(), stderr.toString(StandardCharsets.UTF_8),
-					result.getExitValue(), duration);
+			ExecuteResult parsed = ExecuteResult.parseStreaming(result.outputUTF8(),
+					stderr.toString(StandardCharsets.UTF_8), result.getExitValue(), duration);
 			if (parsed.isSoftDenied()) {
 				logger.warn("Antigravity refused {} tool call(s) and still reported status={}: {}",
 						parsed.getPermissionNotices().size(), parsed.getStatus(), parsed.getPermissionNotices());
@@ -205,7 +205,7 @@ public class CLITransport {
 		command.add("--print-timeout");
 		command.add(formatTimeout(options.getTimeout()));
 		command.add("--output-format");
-		command.add("json");
+		command.add("stream-json");
 		command.add("--print");
 		command.add(prompt);
 		return command;

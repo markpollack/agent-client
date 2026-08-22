@@ -35,6 +35,13 @@
             <artifactId>codex-cli-sdk</artifactId>
         </dependency>
 
+        <!-- Agent Journal trajectory capture -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>codex-cli-capture</artifactId>
+            <version>${agent-journal.version}</version>
+        </dependency>
+
         <!-- Spring Boot AutoConfiguration -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

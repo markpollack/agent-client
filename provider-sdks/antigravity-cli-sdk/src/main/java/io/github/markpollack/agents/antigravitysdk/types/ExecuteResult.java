@@ -133,40 +133,94 @@ public class ExecuteResult {
 	 * @return the parsed result
 	 */
 	public static ExecuteResult parse(String stdout, String stderr, int exitCode, Duration duration) {
-		Builder builder = new Builder().rawOutput(stdout).stderr(stderr).exitCode(exitCode).duration(duration);
-
 		if (stdout == null || stdout.isBlank()) {
-			return builder.response("").structured(false).permissionNotices(scanForDenials(stderr)).build();
+			return new Builder().rawOutput(stdout)
+				.stderr(stderr)
+				.exitCode(exitCode)
+				.duration(duration)
+				.response("")
+				.structured(false)
+				.permissionNotices(scanForDenials(stderr))
+				.build();
 		}
 		try {
 			JsonNode root = MAPPER.readTree(stdout);
-			if (!root.isObject() || !root.has("response")) {
-				return builder.response(stdout).structured(false).build();
-			}
-			builder.response(root.path("response").asText(""))
-				.conversationId(nullIfEmpty(root.path("conversation_id").asText("")))
-				.status(root.path("status").asText(""))
-				// Present only on a failed run, and the only place the reason appears —
-				// stderr stays empty for a rejected invocation.
-				.error(nullIfEmpty(root.path("error").asText("")))
-				.numTurns(root.path("num_turns").asInt(0))
-				.structured(true);
-
-			JsonNode usage = root.path("usage");
-			builder.inputTokens(usage.path("input_tokens").asInt(0))
-				.outputTokens(usage.path("output_tokens").asInt(0))
-				.thinkingTokens(usage.path("thinking_tokens").asInt(0))
-				.cacheReadTokens(usage.path("cache_read_tokens").asInt(0))
-				.totalTokens(usage.path("total_tokens").asInt(0));
-
-			String envelopeError = root.path("error").asText("");
-			builder.permissionNotices(scanForDenials(envelopeError + "\n" + ((stderr != null) ? stderr : "")));
-			return builder.build();
+			return parseEnvelope(root, stdout, stderr, exitCode, duration);
 		}
 		catch (Exception ex) {
 			logger.debug("Antigravity output was not the expected JSON envelope: {}", ex.getMessage());
-			return builder.response(stdout).structured(false).permissionNotices(scanForDenials(stderr)).build();
+			return unstructured(stdout, stderr, exitCode, duration);
 		}
+	}
+
+	/**
+	 * Parse Antigravity {@code stream-json}, using its final {@code result} event for the
+	 * existing terminal-envelope fields while retaining the full stream for trajectory
+	 * capture.
+	 */
+	public static ExecuteResult parseStreaming(String stdout, String stderr, int exitCode, Duration duration) {
+		if (stdout == null || stdout.isBlank()) {
+			return parse(stdout, stderr, exitCode, duration);
+		}
+		try {
+			JsonNode result = null;
+			for (String line : stdout.split("\\R")) {
+				if (line.isBlank()) {
+					continue;
+				}
+				JsonNode event = MAPPER.readTree(line);
+				if ("result".equals(event.path("event").asText(""))) {
+					result = event.path("result");
+				}
+			}
+			return result != null ? parseEnvelope(result, stdout, stderr, exitCode, duration)
+					: unstructured(stdout, stderr, exitCode, duration);
+		}
+		catch (Exception ex) {
+			logger.debug("Antigravity output was not stream-json: {}", ex.getMessage());
+			return unstructured(stdout, stderr, exitCode, duration);
+		}
+	}
+
+	private static ExecuteResult parseEnvelope(JsonNode root, String rawOutput, String stderr, int exitCode,
+			Duration duration) {
+		if (!root.isObject() || !root.has("response")) {
+			return unstructured(rawOutput, stderr, exitCode, duration);
+		}
+		Builder builder = new Builder().rawOutput(rawOutput)
+			.stderr(stderr)
+			.exitCode(exitCode)
+			.duration(duration)
+			.response(root.path("response").asText(""))
+			.conversationId(nullIfEmpty(root.path("conversation_id").asText("")))
+			.status(root.path("status").asText(""))
+			// Present only on a failed run, and the only place the reason appears —
+			// stderr stays empty for a rejected invocation.
+			.error(nullIfEmpty(root.path("error").asText("")))
+			.numTurns(root.path("num_turns").asInt(0))
+			.structured(true);
+
+		JsonNode usage = root.path("usage");
+		builder.inputTokens(usage.path("input_tokens").asInt(0))
+			.outputTokens(usage.path("output_tokens").asInt(0))
+			.thinkingTokens(usage.path("thinking_tokens").asInt(0))
+			.cacheReadTokens(usage.path("cache_read_tokens").asInt(0))
+			.totalTokens(usage.path("total_tokens").asInt(0));
+
+		String envelopeError = root.path("error").asText("");
+		builder.permissionNotices(scanForDenials(envelopeError + "\n" + ((stderr != null) ? stderr : "")));
+		return builder.build();
+	}
+
+	private static ExecuteResult unstructured(String stdout, String stderr, int exitCode, Duration duration) {
+		return new Builder().rawOutput(stdout)
+			.stderr(stderr)
+			.exitCode(exitCode)
+			.duration(duration)
+			.response(stdout)
+			.structured(false)
+			.permissionNotices(scanForDenials(stderr))
+			.build();
 	}
 
 	private static List<String> scanForDenials(String text) {
