@@ -95,6 +95,7 @@ samples/pr-review-demo/pr-*-assessment.md
 samples/pr-review-demo/pr-*-analysis.md
 
 # Plans directory - contains implementation notes and learnings
+# Planning is owned by markpollack/agent-client-steward, not this repository.
 plans/
 
 # Application logs
