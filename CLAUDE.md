@@ -418,7 +418,21 @@ Key requirements:
 
 ## Active Roadmap: Multi-Provider Hardening
 
-`plans/HARDENING-ROADMAP.md` is the source of truth for the multi-provider hardening initiative (Tracks 0-4). Execute steps individually with learnings captured at each step. Read `plans/learnings/LEARNINGS.md` before starting any new step.
+**This section is the source of truth for the multi-provider hardening initiative.** The stage
+history, architectural decisions, known gaps, and remaining work are recorded below — there is no
+separate roadmap file. (An earlier version of this line pointed at `plans/HARDENING-ROADMAP.md`,
+which has never existed in this repository.)
+
+Active work items are dated briefs in `plans/inbox/`. Completed initiatives keep their own
+`plans/*-ROADMAP.md` — `plans/ROADMAP.md` is the finished org-migration roadmap and
+`plans/TRACE-ROADMAP.md` the finished traceDir one; neither tracks hardening. Execute steps
+individually with learnings captured at each step, and read `plans/learnings/LEARNINGS.md` before
+starting any new step.
+
+> **`plans/` is gitignored and does not exist in a fresh clone.** Everything under it — inbox,
+> learnings, roadmaps — is local to a working copy. Do not assume a collaborator, a CI job, or a new
+> agent session can read a path under `plans/`; anything that must survive belongs in this file, the
+> code, or a commit message.
 
 ### Key architectural decisions (implemented)
 
