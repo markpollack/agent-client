@@ -20,6 +20,13 @@ package io.github.markpollack.agents.model;
  * AgentResponse response = agent.call(request);
  * }</pre>
  *
+ * <p>
+ * This low-level SPI returns the provider response, but it does not expose the trajectory
+ * convenience API. Consumers that need a provider's parsed trajectory should invoke
+ * through the {@code AgentClient} facade in {@code agent-client-core} and read it from
+ * {@code AgentClientResponse.getPhaseCapture()}. Capture is produced on every supported
+ * provider call and is not gated by raw trace-file configuration.
+ *
  * @author Mark Pollack
  * @since 0.16.0
  * @see AgentModel
@@ -29,7 +36,8 @@ public interface AgentApi {
 
 	/**
 	 * Execute a development task using the agent. This is a blocking operation that waits
-	 * for the agent to complete the task.
+	 * for the agent to complete the task. Prefer the {@code AgentClient} facade when the
+	 * parsed execution trajectory is required; this SPI has no trajectory accessor.
 	 * @param request the task request containing goal, workspace, and constraints
 	 * @return the result of the agent execution
 	 */

@@ -57,6 +57,23 @@ class CLITransportCommandTest {
 	}
 
 	@Test
+	@DisplayName("full auto uses global sandbox and approval options, never an exec --full-auto flag")
+	void fullAutoUsesGlobalEquivalentBeforeExec() {
+		ExecuteOptions options = ExecuteOptions.builder().fullAuto(true).build();
+
+		List<String> command = CLITransport.buildCommand("codex", "test goal", options, null);
+
+		int execIndex = command.indexOf("exec");
+		int sandboxIndex = command.indexOf("--sandbox");
+		int approvalIndex = command.indexOf("--ask-for-approval");
+		assertThat(command).doesNotContain("--full-auto");
+		assertThat(sandboxIndex).isBetween(1, execIndex - 1);
+		assertThat(command.get(sandboxIndex + 1)).isEqualTo("workspace-write");
+		assertThat(approvalIndex).isBetween(1, execIndex - 1);
+		assertThat(command.get(approvalIndex + 1)).isEqualTo("never");
+	}
+
+	@Test
 	@DisplayName("prompt follows the -- separator as the final argument")
 	void promptIsFinalArgumentAfterSeparator() {
 		ExecuteOptions options = ExecuteOptions.builder().reasoningEffort("minimal").build();

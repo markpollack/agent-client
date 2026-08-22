@@ -60,6 +60,16 @@ class CodexClientIT {
 	}
 
 	@Test
+	void testFullAutoReachesModelAndHarvestsRollout() {
+		ExecuteResult result = client.execute("Reply with exactly CODEX_REACHED");
+
+		assertThat(result.isSuccessful()).isTrue();
+		assertThat(result.getOutput()).contains("CODEX_REACHED");
+		assertThat(result.getSessionId()).isNotNull();
+		assertThat(result.getRolloutLines()).isNotEmpty();
+	}
+
+	@Test
 	void testSimpleFileCreation() throws Exception {
 		// Act
 		ExecuteResult result = client.execute("Create a file named test.txt with content 'Hello from Codex'");
@@ -72,6 +82,7 @@ class CodexClientIT {
 		assertThat(result.getDuration()).isNotNull();
 		assertThat(result.getModel()).isNotNull();
 		assertThat(result.getSessionId()).isNotNull(); // Codex provides session ID
+		assertThat(result.getRolloutLines()).isNotEmpty();
 
 		// Verify file was created
 		Path testFile = tempDir.resolve("test.txt");

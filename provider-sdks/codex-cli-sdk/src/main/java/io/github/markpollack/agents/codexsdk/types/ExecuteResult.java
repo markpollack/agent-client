@@ -6,6 +6,7 @@
 package io.github.markpollack.agents.codexsdk.types;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,13 +32,21 @@ public class ExecuteResult {
 
 	private final String sessionId;
 
+	private final List<String> rolloutLines;
+
 	public ExecuteResult(String output, String activityLog, int exitCode, Duration duration, String model) {
+		this(output, activityLog, exitCode, duration, model, List.of());
+	}
+
+	public ExecuteResult(String output, String activityLog, int exitCode, Duration duration, String model,
+			List<String> rolloutLines) {
 		this.output = output;
 		this.activityLog = activityLog;
 		this.exitCode = exitCode;
 		this.duration = duration;
 		this.model = model;
 		this.sessionId = extractSessionId(activityLog);
+		this.rolloutLines = rolloutLines != null ? List.copyOf(rolloutLines) : List.of();
 	}
 
 	/**
@@ -80,6 +89,17 @@ public class ExecuteResult {
 
 	public String getSessionId() {
 		return sessionId;
+	}
+
+	/**
+	 * Gets the raw persisted Codex rollout JSONL for this run. Codex writes the
+	 * trajectory to its session store rather than to the ordinary {@code exec} output.
+	 * The list is empty when no matching, flushed rollout could be found within the
+	 * transport's bounded wait.
+	 * @return immutable raw rollout lines, possibly empty
+	 */
+	public List<String> getRolloutLines() {
+		return rolloutLines;
 	}
 
 	public boolean isSuccessful() {

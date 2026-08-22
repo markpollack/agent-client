@@ -32,6 +32,10 @@ public class CLITransport {
 
 	private static final Logger logger = LoggerFactory.getLogger(CLITransport.class);
 
+	private static final Duration ROLLOUT_WAIT = Duration.ofSeconds(2);
+
+	private static final Duration ROLLOUT_POLL_INTERVAL = Duration.ofMillis(100);
+
 	private final Path workingDirectory;
 
 	private final String codexCliPath;
@@ -156,7 +160,19 @@ public class CLITransport {
 			// Extract model from activity log
 			String model = extractModel(activityLog);
 
-			return new ExecuteResult(finalMessage, activityLog, exitCode, duration, model);
+			ExecuteResult execution = new ExecuteResult(finalMessage, activityLog, exitCode, duration, model);
+			CodexRolloutHarvester harvester = new CodexRolloutHarvester(CodexRolloutHarvester.defaultSessionsRoot(),
+					ROLLOUT_WAIT, ROLLOUT_POLL_INTERVAL);
+			Path effectiveWorkingDirectory = options.getWorkingDirectory() != null ? options.getWorkingDirectory()
+					: workingDirectory;
+			List<String> rolloutLines = harvester.harvest(execution.getSessionId(), effectiveWorkingDirectory,
+					startTime);
+			if (rolloutLines.isEmpty()) {
+				logger.warn("No flushed Codex rollout found for session {} in {}", execution.getSessionId(),
+						effectiveWorkingDirectory);
+			}
+
+			return new ExecuteResult(finalMessage, activityLog, exitCode, duration, model, rolloutLines);
 		}
 		catch (IOException e) {
 			Duration duration = Duration.between(startTime, Instant.now());
@@ -182,8 +198,17 @@ public class CLITransport {
 	static List<String> buildCommand(String codexCliPath, String prompt, ExecuteOptions options, String sessionId) {
 		List<String> command = new ArrayList<>();
 
-		// Base command + exec subcommand
+		// Base command. Full-auto used to have a convenience flag, but current Codex
+		// versions express that contract with global sandbox and approval options. Global
+		// options must precede the exec subcommand.
 		command.add(codexCliPath);
+		if (options.isFullAuto() && !options.isDangerouslyBypassSandbox()) {
+			command.add("--sandbox");
+			command.add(options.getSandboxMode().getValue());
+			command.add("--ask-for-approval");
+			command.add(options.getApprovalPolicy().getValue());
+		}
+
 		command.add("exec");
 
 		// Model is an exec-specific option (not a global flag)
@@ -203,10 +228,7 @@ public class CLITransport {
 		if (options.isDangerouslyBypassSandbox()) {
 			command.add("--dangerously-bypass-approvals-and-sandbox");
 		}
-		else if (options.isFullAuto()) {
-			command.add("--full-auto");
-		}
-		else {
+		else if (!options.isFullAuto()) {
 			command.add("--sandbox");
 			command.add(options.getSandboxMode().getValue());
 		}

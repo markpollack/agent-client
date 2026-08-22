@@ -23,6 +23,12 @@
     <description>Low-level Java SDK for OpenAI Codex CLI subprocess communication</description>
 
     <dependencies>
+        <!-- Parse rollout session metadata for post-run capture discovery -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <!-- zt-exec for robust process management -->
         <dependency>
             <groupId>org.zeroturnaround</groupId>
