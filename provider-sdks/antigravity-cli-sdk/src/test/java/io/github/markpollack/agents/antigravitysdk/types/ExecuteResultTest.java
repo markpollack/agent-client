@@ -5,6 +5,9 @@
 
 package io.github.markpollack.agents.antigravitysdk.types;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
@@ -81,36 +84,44 @@ class ExecuteResultTest {
 	}
 
 	@Test
-	void aDeniedToolCallIsAlsoDetectedFromStderr() {
-		// Kept so the detector survives a build that follows the documented behaviour.
-		String stderr = """
-				Tool `run_command` requires approval and was not run.
-				Re-run with --dangerously-skip-permissions to allow it.
-				""";
+	void successWithARefusedToolCallIsNotSuccess() throws IOException {
+		String stream = fixture("success-with-refusal.jsonl");
+		String stderr = "jetski: no output produced — a tool required the \"command\" permission "
+				+ "that headless mode cannot prompt for, so it was auto-denied. Add an allow-rule under "
+				+ "permissions.allow in settings.json (e.g. command(<target>)). Alternatively, re-run "
+				+ "with --dangerously-skip-permissions to auto-approve all tools.";
 
-		ExecuteResult result = ExecuteResult.parse(ENVELOPE, stderr, 0, Duration.ofSeconds(9));
+		ExecuteResult result = ExecuteResult.parseStreaming(stream, stderr, 0, Duration.ofSeconds(10));
 
 		assertThat(result.getStatus()).isEqualTo("SUCCESS");
 		assertThat(result.getExitCode()).isZero();
 		assertThat(result.isSoftDenied()).isTrue();
-		assertThat(result.getPermissionNotices()).hasSize(2);
+		assertThat(result.isSuccessful()).isFalse();
 	}
 
 	@Test
-	void anErrorStatusWithACompleteResponseStillCountsAsWorkDone() {
-		// Verbatim shape from agy 1.1.13: a correct answer alongside an unrelated
-		// internal
-		// complaint that poisons the status field. Trusting the status here would discard
-		// a
-		// perfectly good run.
-		String noisy = "{\"conversation_id\": \"c180a1a2-f453-49ec-993f-8b25fc87f159\", \"status\": \"ERROR\", \"response\": \"{\\\"answer\\\":\\\"the answer is 42\\\"}\\n\", \"error\": \"search directory /workspace does not exist\", \"duration_seconds\": 40.0, \"num_turns\": 1, \"usage\": {\"input_tokens\": 26000, \"output_tokens\": 619, \"thinking_tokens\": 400, \"cache_read_tokens\": 0, \"total_tokens\": 26619}}";
-
-		ExecuteResult result = ExecuteResult.parse(noisy, "", 0, Duration.ofSeconds(40));
+	void errorAfterRecoveryAndRealWorkStillCountsAsSuccess() throws IOException {
+		ExecuteResult result = ExecuteResult.parseStreaming(fixture("error-after-recovery.jsonl"), "", 0,
+				Duration.ofSeconds(18));
 
 		assertThat(result.isReportedSuccessful()).isFalse();
-		assertThat(result.getError()).contains("/workspace does not exist");
+		assertThat(result.getError()).contains("file:///workspace does not exist");
 		assertThat(result.hasResponse()).isTrue();
+		assertThat(result.hasUnrecoveredError()).isFalse();
 		assertThat(result.isSuccessful()).isTrue();
+	}
+
+	@Test
+	void errorWithoutLaterSuccessfulWorkIsNotSuccess() throws IOException {
+		ExecuteResult result = ExecuteResult.parseStreaming(fixture("error-without-recovery.jsonl"), "", 0,
+				Duration.ofSeconds(14));
+
+		assertThat(result.getStatus()).isEqualTo("ERROR");
+		assertThat(result.getExitCode()).isZero();
+		assertThat(result.hasResponse()).isTrue();
+		assertThat(result.isSoftDenied()).isFalse();
+		assertThat(result.hasUnrecoveredError()).isTrue();
+		assertThat(result.isSuccessful()).isFalse();
 	}
 
 	@Test
@@ -152,6 +163,15 @@ class ExecuteResultTest {
 		assertThat(result.isStructured()).isFalse();
 		assertThat(result.getResponse()).isEqualTo("authentication required");
 		assertThat(result.isSuccessful()).isFalse();
+	}
+
+	private static String fixture(String name) throws IOException {
+		try (InputStream stream = ExecuteResultTest.class.getResourceAsStream(name)) {
+			if (stream == null) {
+				throw new IOException("Missing fixture " + name);
+			}
+			return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+		}
 	}
 
 }

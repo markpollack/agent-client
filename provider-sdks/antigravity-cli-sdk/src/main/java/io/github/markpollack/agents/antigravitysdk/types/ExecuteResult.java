@@ -105,6 +105,8 @@ public class ExecuteResult {
 
 	private final List<String> permissionNotices;
 
+	private final boolean unrecoveredError;
+
 	private ExecuteResult(Builder builder) {
 		this.response = builder.response;
 		this.rawOutput = builder.rawOutput;
@@ -122,6 +124,7 @@ public class ExecuteResult {
 		this.duration = builder.duration;
 		this.structured = builder.structured;
 		this.permissionNotices = List.copyOf(builder.permissionNotices);
+		this.unrecoveredError = builder.unrecoveredError;
 	}
 
 	/**
@@ -145,7 +148,7 @@ public class ExecuteResult {
 		}
 		try {
 			JsonNode root = MAPPER.readTree(stdout);
-			return parseEnvelope(root, stdout, stderr, exitCode, duration);
+			return parseEnvelope(root, stdout, stderr, exitCode, duration, reportsError(root));
 		}
 		catch (Exception ex) {
 			logger.debug("Antigravity output was not the expected JSON envelope: {}", ex.getMessage());
@@ -164,17 +167,35 @@ public class ExecuteResult {
 		}
 		try {
 			JsonNode result = null;
+			boolean sawToolError = false;
+			boolean successfulToolAfterLastError = false;
 			for (String line : stdout.split("\\R")) {
 				if (line.isBlank()) {
 					continue;
 				}
 				JsonNode event = MAPPER.readTree(line);
+				JsonNode update = event.path("step_update");
+				if ("step_update".equals(event.path("event").asText(""))
+						&& "tool".equals(update.path("step_type").asText(""))) {
+					String state = update.path("state").asText("");
+					if ("ERROR".equalsIgnoreCase(state)) {
+						sawToolError = true;
+						successfulToolAfterLastError = false;
+					}
+					else if (sawToolError && isSuccessfulToolState(state)) {
+						successfulToolAfterLastError = true;
+					}
+				}
 				if ("result".equals(event.path("event").asText(""))) {
 					result = event.path("result");
 				}
 			}
-			return result != null ? parseEnvelope(result, stdout, stderr, exitCode, duration)
-					: unstructured(stdout, stderr, exitCode, duration);
+			if (result == null) {
+				return unstructured(stdout, stderr, exitCode, duration);
+			}
+			boolean unrecoveredError = (sawToolError && !successfulToolAfterLastError)
+					|| (reportsError(result) && !sawToolError);
+			return parseEnvelope(result, stdout, stderr, exitCode, duration, unrecoveredError);
 		}
 		catch (Exception ex) {
 			logger.debug("Antigravity output was not stream-json: {}", ex.getMessage());
@@ -183,7 +204,7 @@ public class ExecuteResult {
 	}
 
 	private static ExecuteResult parseEnvelope(JsonNode root, String rawOutput, String stderr, int exitCode,
-			Duration duration) {
+			Duration duration, boolean unrecoveredError) {
 		if (!root.isObject() || !root.has("response")) {
 			return unstructured(rawOutput, stderr, exitCode, duration);
 		}
@@ -197,6 +218,7 @@ public class ExecuteResult {
 			// Present only on a failed run, and the only place the reason appears —
 			// stderr stays empty for a rejected invocation.
 			.error(nullIfEmpty(root.path("error").asText("")))
+			.unrecoveredError(unrecoveredError)
 			.numTurns(root.path("num_turns").asInt(0))
 			.structured(true);
 
@@ -210,6 +232,14 @@ public class ExecuteResult {
 		String envelopeError = root.path("error").asText("");
 		builder.permissionNotices(scanForDenials(envelopeError + "\n" + ((stderr != null) ? stderr : "")));
 		return builder.build();
+	}
+
+	private static boolean reportsError(JsonNode envelope) {
+		return "ERROR".equalsIgnoreCase(envelope.path("status").asText(""));
+	}
+
+	private static boolean isSuccessfulToolState(String state) {
+		return "DONE".equalsIgnoreCase(state) || "SUCCESS".equalsIgnoreCase(state);
 	}
 
 	private static ExecuteResult unstructured(String stdout, String stderr, int exitCode, Duration duration) {
@@ -322,6 +352,21 @@ public class ExecuteResult {
 		return !this.permissionNotices.isEmpty();
 	}
 
+	/**
+	 * Whether the stream ended without a successful tool call after its last tool error.
+	 *
+	 * <p>
+	 * agy 1.1.13 leaves the final status at {@code ERROR} after a tool error even when
+	 * later tool calls complete and the agent produces its requested result. The stream
+	 * is therefore the only evidence that distinguishes recovery from an error that
+	 * actually prevented the work. A non-streaming {@code ERROR} envelope is
+	 * conservatively treated as unrecovered because that evidence is unavailable.
+	 * @return true when execution error evidence was not followed by successful tool work
+	 */
+	public boolean hasUnrecoveredError() {
+		return this.unrecoveredError;
+	}
+
 	/** Whether the run returned any response text at all. */
 	public boolean hasResponse() {
 		return this.response != null && !this.response.isBlank();
@@ -348,14 +393,15 @@ public class ExecuteResult {
 	 * ignoring the status would hide a real failure.
 	 *
 	 * <p>
-	 * What separates the two cases is whether there is a response and whether anything
-	 * was refused. {@link #getStatus()} and {@link #getError()} stay available verbatim,
-	 * so a caller that prefers the CLI's own verdict can still have it.
+	 * What separates the two ERROR cases is the trajectory: a later successful tool call
+	 * is evidence that the agent recovered, while an error with no later successful tool
+	 * call is not. {@link #getStatus()} and {@link #getError()} stay available verbatim,
+	 * so a caller that prefers the CLI's own account can still have it.
 	 * @return true when the process exited cleanly, produced a response, and had no tool
-	 * call refused
+	 * call refused or execution error left unrecovered
 	 */
 	public boolean isSuccessful() {
-		return this.exitCode == 0 && hasResponse() && !isSoftDenied();
+		return this.exitCode == 0 && hasResponse() && !isSoftDenied() && !hasUnrecoveredError();
 	}
 
 	static class Builder {
@@ -391,6 +437,8 @@ public class ExecuteResult {
 		private boolean structured;
 
 		private List<String> permissionNotices = List.of();
+
+		private boolean unrecoveredError;
 
 		Builder response(String response) {
 			this.response = response;
@@ -469,6 +517,11 @@ public class ExecuteResult {
 
 		Builder permissionNotices(List<String> permissionNotices) {
 			this.permissionNotices = permissionNotices;
+			return this;
+		}
+
+		Builder unrecoveredError(boolean unrecoveredError) {
+			this.unrecoveredError = unrecoveredError;
 			return this;
 		}
 

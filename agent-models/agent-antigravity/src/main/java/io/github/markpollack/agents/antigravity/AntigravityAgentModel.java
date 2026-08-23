@@ -32,15 +32,15 @@ import org.slf4j.LoggerFactory;
 /**
  * Adapter from the agent-client SPI to the Google Antigravity CLI ({@code agy}).
  *
- * <h2>Soft denial is reported, not hidden</h2>
+ * <h2>The native status is evidence, not the verdict</h2>
  *
  * <p>
- * A headless Antigravity run whose tool calls were refused for want of approval still
- * exits 0 and still reports {@code SUCCESS}. This adapter surfaces that as
- * {@code softDenied} and {@code permissionNotices} in the response's provider fields, and
- * logs a warning, so a caller can tell a completed run from a completed-but-prevented
- * one. The finish reason stays SUCCESS because the run genuinely did complete; callers
- * who consider partial work a failure have the fact they need to say so.
+ * A headless Antigravity run whose tool calls were refused can report {@code SUCCESS}; a
+ * run that recovers from an earlier tool error can report {@code ERROR}. This adapter
+ * retains the native {@code status}, {@code error}, and {@code reportedSuccessful}
+ * fields, while deriving its finish reason from response, denial, and stream recovery
+ * evidence. {@code softDenied}, {@code permissionNotices}, and {@code unrecoveredError}
+ * expose that evidence to callers.
  *
  * @author Mark Pollack
  * @since 0.27.0
@@ -200,6 +200,7 @@ public class AntigravityAgentModel implements AgentModel {
 		providerFields.put("reportedSuccessful", result.isReportedSuccessful());
 		providerFields.put("error", (result.getError() != null) ? result.getError() : "");
 		providerFields.put("softDenied", result.isSoftDenied());
+		providerFields.put("unrecoveredError", result.hasUnrecoveredError());
 		providerFields.put("permissionNotices", result.getPermissionNotices());
 		providerFields.put("inputTokens", result.getInputTokens());
 		providerFields.put("outputTokens", result.getOutputTokens());
