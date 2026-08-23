@@ -42,6 +42,11 @@ class AntigravityAgentModelTest {
 		assertThat(response.getResult().getOutput()).isEqualTo("done");
 		assertThat(capture).isNotNull();
 		assertThat(capture.toolUses()).hasSize(1);
+		assertThat(response.getMetadata().getProviderFields()).containsEntry("status", "SUCCESS")
+			.containsEntry("reportedSuccessful", true)
+			.containsEntry("error", "")
+			.containsEntry("softDenied", false)
+			.containsEntry("unrecoveredError", false);
 	}
 
 }
