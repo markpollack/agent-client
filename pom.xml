@@ -116,20 +116,19 @@
                          `verify`, executions within a phase run in declaration order, and
                          the signer only signs what is already attached. With gpg first the
                          SBOM ships unsigned and Central rejects the whole deployment. -->
-                    <!-- One release-shaped aggregate SBOM, attached to the parent only. -->
+                    <!-- One consumer-scoped CycloneDX attachment per released artifact. -->
                     <plugin>
                         <groupId>org.cyclonedx</groupId>
                         <artifactId>cyclonedx-maven-plugin</artifactId>
                         <version>${cyclonedx-maven-plugin.version}</version>
-                        <inherited>false</inherited>
                         <configuration>
                             <projectType>library</projectType>
                             <schemaVersion>1.6</schemaVersion>
                             <includeBomSerialNumber>true</includeBomSerialNumber>
                             <includeCompileScope>true</includeCompileScope>
-                            <includeProvidedScope>true</includeProvidedScope>
+                            <includeProvidedScope>false</includeProvidedScope>
                             <includeRuntimeScope>true</includeRuntimeScope>
-                            <includeSystemScope>true</includeSystemScope>
+                            <includeSystemScope>false</includeSystemScope>
                             <includeTestScope>false</includeTestScope>
                             <includeLicenseText>false</includeLicenseText>
                             <outputReactorProjects>false</outputReactorProjects>
@@ -140,9 +139,9 @@
                         </configuration>
                         <executions>
                             <execution>
-                                <id>aggregate-cyclonedx-sbom</id>
+                                <id>consumer-cyclonedx-sbom</id>
                                 <phase>verify</phase>
-                                <goals><goal>makeAggregateBom</goal></goals>
+                                <goals><goal>makeBom</goal></goals>
                             </execution>
                         </executions>
                     </plugin>
