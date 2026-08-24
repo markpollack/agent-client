@@ -293,6 +293,11 @@
         <assertj.version>3.27.7</assertj.version>
         <micrometer.version>1.17.1</micrometer.version>
         <reactor.version>3.7.6</reactor.version>
+        <classmate.version>1.7.3</classmate.version>
+        <commons-logging.version>1.4.0</commons-logging.version>
+        <byte-buddy.version>1.18.12</byte-buddy.version>
+        <jspecify.version>1.0.1</jspecify.version>
+        <logback.version>1.6.3</logback.version>
 
         <!-- Plugin versions -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
