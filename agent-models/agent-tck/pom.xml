@@ -17,21 +17,6 @@
     <name>Agent TCK</name>
     <description>Technology Compatibility Kit for Spring AI Agent implementations - Provides abstract test classes for validating AgentModel and Sandbox implementations</description>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.junit.platform</groupId>
-                <artifactId>junit-platform-commons</artifactId>
-                <version>1.14.4</version>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.platform</groupId>
-                <artifactId>junit-platform-engine</artifactId>
-                <version>1.14.4</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <dependencies>
         <!-- Agent Model Core - for interfaces that TCK tests against -->
         <dependency>
@@ -39,24 +24,10 @@
             <artifactId>agent-model</artifactId>
         </dependency>
 
-        <!-- JUnit 5 is part of the published TCK API; pin its components explicitly so
-             the consumer graph is not rewritten to Boot's deferred JUnit 6 line. -->
+        <!-- JUnit Jupiter - TCK uses JUnit 5 (compile scope for TCK API) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit-jupiter.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <version>${junit-jupiter.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit-jupiter.version}</version>
+            <artifactId>junit-jupiter</artifactId>
             <scope>compile</scope>
         </dependency>
 
@@ -64,12 +35,6 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.bytebuddy</groupId>
-            <artifactId>byte-buddy</artifactId>
-            <version>${byte-buddy.version}</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

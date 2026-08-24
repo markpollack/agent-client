@@ -112,39 +112,6 @@
                             <autoPublish>true</autoPublish>
                         </configuration>
                     </plugin>
-                    <!-- CycloneDX must be declared before maven-gpg-plugin: both bind to
-                         `verify`, executions within a phase run in declaration order, and
-                         the signer only signs what is already attached. With gpg first the
-                         SBOM ships unsigned and Central rejects the whole deployment. -->
-                    <!-- One consumer-scoped CycloneDX attachment per released artifact. -->
-                    <plugin>
-                        <groupId>org.cyclonedx</groupId>
-                        <artifactId>cyclonedx-maven-plugin</artifactId>
-                        <version>${cyclonedx-maven-plugin.version}</version>
-                        <configuration>
-                            <projectType>library</projectType>
-                            <schemaVersion>1.6</schemaVersion>
-                            <includeBomSerialNumber>true</includeBomSerialNumber>
-                            <includeCompileScope>true</includeCompileScope>
-                            <includeProvidedScope>false</includeProvidedScope>
-                            <includeRuntimeScope>true</includeRuntimeScope>
-                            <includeSystemScope>false</includeSystemScope>
-                            <includeTestScope>false</includeTestScope>
-                            <includeLicenseText>false</includeLicenseText>
-                            <outputReactorProjects>false</outputReactorProjects>
-                            <skipNotDeployed>false</skipNotDeployed>
-                            <outputFormat>json</outputFormat>
-                            <outputName>${project.artifactId}-${project.version}-cyclonedx</outputName>
-                            <classifier>cyclonedx</classifier>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>consumer-cyclonedx-sbom</id>
-                                <phase>verify</phase>
-                                <goals><goal>makeBom</goal></goals>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
@@ -293,11 +260,6 @@
         <assertj.version>3.27.7</assertj.version>
         <micrometer.version>1.17.1</micrometer.version>
         <reactor.version>3.7.6</reactor.version>
-        <classmate.version>1.7.3</classmate.version>
-        <commons-logging.version>1.4.0</commons-logging.version>
-        <byte-buddy.version>1.18.12</byte-buddy.version>
-        <jspecify.version>1.0.1</jspecify.version>
-        <logback.version>1.6.3</logback.version>
 
         <!-- Plugin versions -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
@@ -309,7 +271,6 @@
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
-        <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
         <spring-javaformat-maven-plugin.version>0.0.47</spring-javaformat-maven-plugin.version>
     </properties>
 
@@ -519,38 +480,6 @@
                 <groupId>io.github.markpollack</groupId>
                 <artifactId>agent-starter</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <!-- Consumer-visible transitive floors used while the reactor SBOM is generated. -->
-            <dependency>
-                <groupId>com.fasterxml</groupId>
-                <artifactId>classmate</artifactId>
-                <version>${classmate.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-logging</groupId>
-                <artifactId>commons-logging</artifactId>
-                <version>${commons-logging.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>net.bytebuddy</groupId>
-                <artifactId>byte-buddy</artifactId>
-                <version>${byte-buddy.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jspecify</groupId>
-                <artifactId>jspecify</artifactId>
-                <version>${jspecify.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>${logback.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-core</artifactId>
-                <version>${logback.version}</version>
             </dependency>
 
             <!-- Testing dependencies -->
