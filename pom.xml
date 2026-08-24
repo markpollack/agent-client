@@ -262,7 +262,7 @@
     <properties>
         <java.version>21</java.version>
         <dependency-check.failBuildOnCVSS>7.0</dependency-check.failBuildOnCVSS>
-        <log4j2.version>2.25.5</log4j2.version>
+        <log4j2.version>2.26.1</log4j2.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -272,9 +272,9 @@
 
 
         <!-- Core dependency versions -->
-        <spring-ai.version>2.0.0</spring-ai.version>
-        <spring-boot.version>4.0.7</spring-boot.version>
-        <slf4j.version>2.0.9</slf4j.version>
+        <spring-ai.version>2.0.1</spring-ai.version>
+        <spring-boot.version>4.1.1</spring-boot.version>
+        <slf4j.version>2.0.18</slf4j.version>
 
         <!-- External SDK versions -->
         <claude-code-sdk.version>1.5.0</claude-code-sdk.version>
@@ -283,16 +283,16 @@
         <agent-journal.version>1.8.0</agent-journal.version>
 
         <!-- Agent SDK specific versions -->
-        <zt-exec.version>1.12</zt-exec.version>
-        <jackson.version>2.21.6</jackson.version>
-        <jackson3.version>3.1.6</jackson3.version>
-        <mcp-sdk.version>2.0.0</mcp-sdk.version>
+        <zt-exec.version>1.13.0</zt-exec.version>
+        <jackson.version>2.22.2</jackson.version>
+        <jackson3.version>3.2.2</jackson3.version>
+        <mcp-sdk.version>2.0.1</mcp-sdk.version>
 
         <!-- Test dependency versions -->
-        <junit-jupiter.version>5.10.1</junit-jupiter.version>
-        <mockito.version>5.7.0</mockito.version>
+        <junit-jupiter.version>5.14.4</junit-jupiter.version>
+        <mockito.version>5.23.0</mockito.version>
         <assertj.version>3.27.7</assertj.version>
-        <micrometer.version>1.15.0</micrometer.version>
+        <micrometer.version>1.17.1</micrometer.version>
         <reactor.version>3.7.6</reactor.version>
 
         <!-- Plugin versions -->
@@ -305,7 +305,7 @@
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
-        <cyclonedx-maven-plugin.version>2.9.2</cyclonedx-maven-plugin.version>
+        <cyclonedx-maven-plugin.version>2.9.3</cyclonedx-maven-plugin.version>
         <spring-javaformat-maven-plugin.version>0.0.47</spring-javaformat-maven-plugin.version>
     </properties>
 
@@ -365,11 +365,6 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-model</artifactId>
-                <version>${spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-core</artifactId>
                 <version>${spring-ai.version}</version>
             </dependency>
             <dependency>
