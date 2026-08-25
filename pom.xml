@@ -245,8 +245,8 @@
         <!-- External SDK versions -->
         <claude-code-sdk.version>1.5.1</claude-code-sdk.version>
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
-        <agent-sandbox.version>0.10.1</agent-sandbox.version>
-        <agent-journal.version>1.8.1</agent-journal.version>
+        <agent-sandbox.version>0.10.2</agent-sandbox.version>
+        <agent-journal.version>1.8.2</agent-journal.version>
 
         <!-- Agent SDK specific versions -->
         <zt-exec.version>1.13.0</zt-exec.version>
@@ -476,12 +476,6 @@
                 <artifactId>agent-client-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
-            <dependency>
-                <groupId>io.github.markpollack</groupId>
-                <artifactId>agent-starter</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
             <!-- Testing dependencies -->
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
