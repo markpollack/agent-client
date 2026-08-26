@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 class GrokProviderParityIT extends ProviderParityTCK {
 
 	@Override
-	protected Provider getProvider() {
+	protected String getProvider() {
 		return Provider.GROK;
 	}
 

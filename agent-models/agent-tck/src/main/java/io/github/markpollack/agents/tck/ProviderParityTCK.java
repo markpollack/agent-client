@@ -51,10 +51,10 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
 public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 
 	/**
-	 * Returns the provider this IT represents. Used to evaluate
+	 * Returns the provider key this IT represents. Used to evaluate
 	 * {@link ProviderCapability} annotations.
 	 */
-	protected abstract Provider getProvider();
+	protected abstract String getProvider();
 
 	/**
 	 * Checks {@link ProviderCapability} annotation on the current test method and skips
@@ -79,7 +79,7 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 */
 	@Test
 	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
-			Provider.ANTIGRAVITY })
+			Provider.ANTIGRAVITY, Provider.JUNIE })
 	void testSimpleFileCreationInGitDirectory() throws Exception {
 		// Initialize git in tempDir
 		new ProcessBuilder("git", "init").directory(tempDir.toFile()).start().waitFor();
@@ -107,7 +107,7 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 */
 	@Test
 	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
-			Provider.ANTIGRAVITY })
+			Provider.ANTIGRAVITY, Provider.JUNIE })
 	void testSimpleFileCreationInNonGitDirectory() throws IOException {
 		// tempDir is NOT a git repo — this is intentional
 
@@ -131,7 +131,7 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 */
 	@Test
 	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
-			Provider.ANTIGRAVITY })
+			Provider.ANTIGRAVITY, Provider.JUNIE })
 	void testSimpleFileCreationInReadOnlyParent() throws IOException {
 		// Create a writable subdirectory inside tempDir
 		Path workDir = tempDir.resolve("writable-child");
@@ -157,7 +157,7 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 	 */
 	@Test
 	@ProviderCapability(providers = { Provider.CLAUDE, Provider.CODEX, Provider.GEMINI, Provider.GROK,
-			Provider.ANTIGRAVITY })
+			Provider.ANTIGRAVITY, Provider.JUNIE })
 	void testSimpleFileCreationInNestedWorkspace() throws IOException {
 		Path nestedDir = tempDir.resolve("level1").resolve("level2").resolve("workspace");
 		Files.createDirectories(nestedDir);

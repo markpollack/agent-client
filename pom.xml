@@ -59,6 +59,7 @@
         <module>agent-models/agent-codex</module>
         <module>agent-models/agent-grok</module>
         <module>agent-models/agent-antigravity</module>
+        <module>agent-models/agent-junie</module>
         <module>agent-models/agent-amazon-q</module>
         <module>agent-models/agent-qwen-code</module>
 
@@ -247,6 +248,7 @@
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
         <agent-sandbox.version>0.10.2</agent-sandbox.version>
         <agent-journal.version>1.8.2</agent-journal.version>
+        <acp.version>0.16.1</acp.version>
 
         <!-- Agent SDK specific versions -->
         <zt-exec.version>1.13.0</zt-exec.version>
@@ -438,6 +440,11 @@
             <dependency>
                 <groupId>io.github.markpollack</groupId>
                 <artifactId>agent-antigravity</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.markpollack</groupId>
+                <artifactId>agent-junie</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
