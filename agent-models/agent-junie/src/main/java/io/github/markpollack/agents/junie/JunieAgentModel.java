@@ -29,6 +29,8 @@ import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
+import io.github.markpollack.journal.junie.JuniePhaseCapture;
+import io.github.markpollack.journal.junie.JunieSessionParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -258,7 +260,7 @@ public class JunieAgentModel implements AgentModel {
 			AcpSchema.PromptResponse prompt = client.prompt(
 					new AcpSchema.PromptRequest(sessionId, List.of(new AcpSchema.TextContent(goal))));
 
-			return new JunieAcpRun(sessionId, answer.toString(), prompt.stopReason(), List.copyOf(toolTitles),
+			return new JunieAcpRun(sessionId, goal, answer.toString(), prompt.stopReason(), List.copyOf(toolTitles),
 					thoughtCount.get(), initialize.agentInfo(), locateEventsFile(sessionId));
 		}
 		finally {
@@ -277,6 +279,21 @@ public class JunieAgentModel implements AgentModel {
 	 * the sessions directory before the call and diffing it after. That correspondence is
 	 * what makes this a lookup instead of a search, so it is worth re-checking if a Junie
 	 * upgrade ever changes the session id format.
+	 *
+	 * <h3>The trace is secret-bearing — do not copy it</h3>
+	 *
+	 * <p>
+	 * Junie writes the launching process's entire environment into {@code events.jsonl},
+	 * unredacted and repeatedly, via its {@code EnvironmentVariablesUpdatedEvent}. A
+	 * single observed run contained 103 variables including live API keys. Only the
+	 * <em>path</em> is published on {@code providerFields}, and the capture parser
+	 * discards that event rather than recording it.
+	 *
+	 * <p>
+	 * This is why there is no trace-archival step here of the kind the Claude adapter
+	 * has: archiving a Junie trajectory would copy live credentials out of the user's
+	 * home directory into a run directory. Do not add one without redacting that event
+	 * first.
 	 *
 	 * <p>
 	 * Junie-specific session discovery. Extract only if a second ACP provider turns out
@@ -302,8 +319,8 @@ public class JunieAgentModel implements AgentModel {
 	 * What one ACP run produced. Package-private and intentionally not part of the public
 	 * surface.
 	 */
-	private record JunieAcpRun(String sessionId, String answer, AcpSchema.StopReason stopReason, List<String> toolTitles,
-			int thoughtCount, AcpSchema.Implementation agentInfo, Path eventsFile) {
+	private record JunieAcpRun(String sessionId, String promptText, String answer, AcpSchema.StopReason stopReason,
+			List<String> toolTitles, int thoughtCount, AcpSchema.Implementation agentInfo, Path eventsFile) {
 	}
 
 	// ---------------------------------------------------------------------
@@ -365,8 +382,8 @@ public class JunieAgentModel implements AgentModel {
 		}
 	}
 
-	private Object parseCapture(JunieAcpRun run) throws IOException {
-		throw new IOException("junie-cli-capture is not yet on the classpath");
+	private JuniePhaseCapture parseCapture(JunieAcpRun run) throws IOException {
+		return JunieSessionParser.parse(run.eventsFile(), "junie-acp", run.promptText());
 	}
 
 	// ---------------------------------------------------------------------

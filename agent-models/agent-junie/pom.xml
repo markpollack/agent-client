@@ -41,6 +41,13 @@
             <version>${acp.version}</version>
         </dependency>
 
+        <!-- Agent Journal trajectory capture -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>junie-cli-capture</artifactId>
+            <version>${agent-journal.version}</version>
+        </dependency>
+
         <!-- Spring Boot AutoConfiguration -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -75,6 +82,14 @@
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-tck</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- The AgentClient facade is what exposes getPhaseCapture() to a consumer -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>agent-client-core</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
