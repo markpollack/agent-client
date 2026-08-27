@@ -19,7 +19,13 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Offline tests for the parts of {@link JunieAgentModel} that do not need a live CLI.
+ * Offline tests for the parts of the Junie adapter that do not need a live CLI.
+ *
+ * <p>
+ * The command-line cases now address {@link JunieAcpProfile}, which is where argv
+ * construction moved when the ACP lifecycle was extracted into the shared
+ * {@code AcpAgentModel}. The builder and failure cases still address
+ * {@link JunieAgentModel}, because that is the surface a consumer holds.
  */
 class JunieAgentModelTest {
 
@@ -29,7 +35,7 @@ class JunieAgentModelTest {
 	@Test
 	@DisplayName("ACP mode and the project directory are always on the command line")
 	void alwaysLaunchesInAcpMode() {
-		List<String> args = JunieAgentModel.buildLaunchArgs(this.workspace, JunieAgentOptions.builder().build());
+		List<String> args = JunieAcpProfile.buildLaunchArgs(this.workspace, JunieAgentOptions.builder().build());
 
 		assertThat(args).containsSequence("--acp", "true");
 		assertThat(args).containsSequence("--project", this.workspace.toString());
@@ -40,7 +46,7 @@ class JunieAgentModelTest {
 	void mapsNeutralOptionsOntoFlags() {
 		JunieAgentOptions options = JunieAgentOptions.builder().model("gpt-5.3-codex").effort("high").build();
 
-		List<String> args = JunieAgentModel.buildLaunchArgs(this.workspace, options);
+		List<String> args = JunieAcpProfile.buildLaunchArgs(this.workspace, options);
 
 		assertThat(args).containsSequence("--model", "gpt-5.3-codex");
 		assertThat(args).containsSequence("--effort", "high");
@@ -54,7 +60,7 @@ class JunieAgentModelTest {
 			.extra("openai-api-key", "sk-test")
 			.build();
 
-		List<String> args = JunieAgentModel.buildLaunchArgs(this.workspace, options);
+		List<String> args = JunieAcpProfile.buildLaunchArgs(this.workspace, options);
 
 		assertThat(args).containsSequence("--provider", "openai");
 		assertThat(args).containsSequence("--openai-api-key", "sk-test");
@@ -68,7 +74,7 @@ class JunieAgentModelTest {
 			.extra("brave", false)
 			.build();
 
-		List<String> args = JunieAgentModel.buildLaunchArgs(this.workspace, options);
+		List<String> args = JunieAcpProfile.buildLaunchArgs(this.workspace, options);
 
 		assertThat(args).contains("--skip-update-check");
 		assertThat(args).doesNotContain("--brave");
@@ -105,9 +111,7 @@ class JunieAgentModelTest {
 	@Test
 	@DisplayName("An unavailable CLI reports unavailable rather than throwing")
 	void unavailableCliIsReportedNotThrown() {
-		JunieAgentModel model = JunieAgentModel.builder()
-			.command("junie-does-not-exist-" + System.nanoTime())
-			.build();
+		JunieAgentModel model = JunieAgentModel.builder().command("junie-does-not-exist-" + System.nanoTime()).build();
 
 		assertThat(model.isAvailable()).isFalse();
 	}

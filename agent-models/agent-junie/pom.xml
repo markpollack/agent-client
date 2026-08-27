@@ -35,6 +35,17 @@
           mirrors agent-claude, which depends on the external claude-code-sdk rather than
           carrying a provider-sdks module.
         -->
+        <!--
+          The shared ACP adapter. Junie's protocol handling was extracted here once a
+          second ACP agent showed which parts were protocol and which were Junie; acp-core
+          arrives transitively with it and stays declared for the autoconfiguration.
+        -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>agent-acp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.agentclientprotocol</groupId>
             <artifactId>acp-core</artifactId>
