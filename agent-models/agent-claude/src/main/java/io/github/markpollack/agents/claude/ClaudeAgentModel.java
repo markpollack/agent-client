@@ -20,6 +20,7 @@ import io.github.markpollack.claude.agent.sdk.types.ResultMessage;
 import io.github.markpollack.journal.claude.PhaseCapture;
 import io.github.markpollack.journal.claude.SessionLogParser;
 import io.github.markpollack.journal.trace.TraceContentMode;
+import io.github.markpollack.journal.trace.TraceRawMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
@@ -264,8 +265,17 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 				response = new TeeingIterator(response, messageListener);
 			}
 
+			// The turn ceiling is handed over explicitly. Claude Code takes maxTurns as a
+			// caller-side option and never echoes it back, so this model is the only
+			// thing that knows it — and without it a trace records numTurns against a
+			// maxTurns of -1, which is the state SessionLogParser's own javadoc calls
+			// uninterpretable: a run reporting 26 turns either finished or was cut off,
+			// and a record that cannot tell those apart is modelling two different
+			// processes as one.
+			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns()
+					: SessionLogParser.UNKNOWN_MAX_TURNS;
 			capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path(),
-					traceContentMode);
+					traceContentMode, TraceRawMode.NONE, maxTurns);
 		}
 		catch (Exception e) {
 			logger.error("Call failed", e);
