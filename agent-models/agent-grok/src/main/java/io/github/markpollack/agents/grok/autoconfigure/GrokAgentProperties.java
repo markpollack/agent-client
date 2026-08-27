@@ -40,6 +40,39 @@ public class GrokAgentProperties {
 
 	private String executablePath;
 
+	/**
+	 * Which plane drives the CLI.
+	 *
+	 * <p>
+	 * {@code CLI} runs {@code grok --output-format streaming-json} and parses stdout;
+	 * {@code ACP} runs {@code grok agent stdio} and speaks the Agent Client Protocol.
+	 * Measured on the same task, the two produce the same tool calls, the same text and
+	 * the same durable session directory, and both report the same cost — so this is a
+	 * genuine choice of control plane rather than a downgrade either way.
+	 */
+	private Transport transport = Transport.CLI;
+
+	/**
+	 * How the Grok CLI is driven.
+	 */
+	public enum Transport {
+
+		/** Batch stdout in {@code streaming-json} form. */
+		CLI,
+
+		/** The Agent Client Protocol over {@code grok agent stdio}. */
+		ACP
+
+	}
+
+	public Transport getTransport() {
+		return this.transport;
+	}
+
+	public void setTransport(Transport transport) {
+		this.transport = transport;
+	}
+
 	public AgentClientMode getMode() {
 		return this.mode;
 	}

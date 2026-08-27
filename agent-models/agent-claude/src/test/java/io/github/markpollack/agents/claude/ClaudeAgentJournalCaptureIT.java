@@ -122,11 +122,25 @@ class ClaudeAgentJournalCaptureIT {
 		List<String> traceLines = Files.readAllLines(traceFile);
 		logger.info("Trace file: {} ({} events)", traceFile.getFileName(), traceLines.size());
 		assertThat(traceLines).as("Trace file should have events").isNotEmpty();
-		assertThat(traceLines).last().asString().contains("\"type\":\"result\"");
+		// The result line is not the last line: journal-core appends trailing derived
+		// step_cost lines after it, so anything asserting on last() is asserting on a
+		// step_cost and will drift the moment another derived line is added.
+		String resultLine = traceLines.stream()
+			.filter(line -> line.contains("\"type\":\"result\""))
+			.reduce((first, second) -> second)
+			.orElseThrow(() -> new AssertionError("trace has no result line"));
 		// Should have tool_use events since we asked Claude to read a file
 		assertThat(traceLines.stream().anyMatch(l -> l.contains("\"type\":\"tool_use\"")))
 			.as("Should have tool_use trace events")
 			.isTrue();
+
+		// Step 1c: the turn ceiling must be IN the record, not merely enforced at runtime.
+		// Claude Code takes maxTurns as a caller-side option and never echoes it back, so
+		// this model is its only source. Without it the trace carries maxTurns=-1, and a
+		// numTurns of 3 could mean "finished" or "cut off at 3" — two different processes
+		// recorded identically. A journal that cannot tell those apart is worse than none,
+		// because it looks authoritative.
+		assertThat(resultLine).contains("\"maxTurns\":3");
 
 		// Step 2: Verify raw message capture
 		assertThat(this.capturedMessages).as("messageListener should receive ParsedMessages").isNotEmpty();
@@ -236,8 +250,12 @@ class ClaudeAgentJournalCaptureIT {
 		assertThat(nodes.get(0).get("type").asText()).isEqualTo("header");
 		assertThat(nodes.get(0).get("schemaVersion").asInt()).isEqualTo(2);
 
-		// Result line enrichment
-		JsonNode result = nodes.get(nodes.size() - 1);
+		// Result line enrichment. Located by type rather than by position — trailing
+		// step_cost lines follow the result line.
+		JsonNode result = nodes.stream()
+			.filter(node -> "result".equals(node.path("type").asText()))
+			.reduce((first, second) -> second)
+			.orElseThrow(() -> new AssertionError("trace has no result line"));
 		assertThat(result.get("type").asText()).isEqualTo("result");
 		assertThat(result.get("sessionId").asText()).isNotBlank();
 		assertThat(result.has("cacheReadInputTokens")).isTrue();

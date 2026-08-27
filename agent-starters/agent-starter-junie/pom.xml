@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.markpollack</groupId>
+        <artifactId>agent-starters</artifactId>
+        <version>0.30.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>agent-starter-junie</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Agent Starter - Junie</name>
+    <description>Spring Boot starter for JetBrains Junie agent integration over ACP</description>
+
+    <dependencies>
+        <!-- Agent Client (includes AgentClient.Builder autoconfiguration) -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <!-- Junie Agent Model (includes autoconfiguration) -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>agent-junie</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

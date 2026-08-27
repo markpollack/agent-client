@@ -32,7 +32,7 @@ import io.github.markpollack.sandbox.LocalSandbox;
 class GeminiProviderParityIT extends ProviderParityTCK {
 
 	@Override
-	protected Provider getProvider() {
+	protected String getProvider() {
 		return Provider.GEMINI;
 	}
 

@@ -28,7 +28,7 @@ import io.github.markpollack.sandbox.LocalSandbox;
 class ClaudeProviderParityIT extends ProviderParityTCK {
 
 	@Override
-	protected Provider getProvider() {
+	protected String getProvider() {
 		return Provider.CLAUDE;
 	}
 

@@ -40,8 +40,10 @@ import java.lang.annotation.Target;
 public @interface ProviderCapability {
 
 	/**
-	 * The providers expected to support this test scenario.
+	 * The provider keys expected to support this test scenario. Use the constants on
+ * {@link Provider} for the providers shipped here, or any {@code String} key for an
+ * adapter maintained elsewhere.
 	 */
-	Provider[] providers();
+	String[] providers();
 
 }

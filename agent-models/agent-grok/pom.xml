@@ -42,6 +42,13 @@
             <version>${agent-journal.version}</version>
         </dependency>
 
+        <!-- The shared ACP adapter; Grok speaks ACP over `grok agent stdio` -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>agent-acp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Spring Boot AutoConfiguration -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
