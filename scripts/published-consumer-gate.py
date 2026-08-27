@@ -27,7 +27,6 @@ from typing import Iterable
 GROUP_ID = "io.github.markpollack"
 DEPENDENCY_PLUGIN = "3.8.1"
 JACKSON2_FLOOR = "2.21.6"
-JACKSON2_ANNOTATIONS_LINE = "2.21"
 JACKSON3_FLOOR = "3.1.6"
 LOG4J_FLOOR = "2.25.5"
 DEPENDENCY_MINIMUMS = {
@@ -181,6 +180,14 @@ def numeric_version(value: str) -> tuple[int, ...]:
     return tuple(int(part) for part in value.split("."))
 
 
+def minor_line(version: str) -> str:
+    """The `major.minor` line a version belongs to, e.g. 2.22.2 -> 2.22, 2.22 -> 2.22."""
+    parts = numeric_version(version)
+    if len(parts) < 2:
+        raise ValueError(f"version has no minor component: {version}")
+    return f"{parts[0]}.{parts[1]}"
+
+
 def version_at_least(actual: str, floor: str) -> bool:
     left, right = numeric_version(actual), numeric_version(floor)
     width = max(len(left), len(right))
@@ -239,6 +246,23 @@ def assess(
     if "${" in text:
         failures.append("flattened published POM contains an unresolved property")
 
+    # `jackson-annotations` is versioned independently of the rest of Jackson 2: since 2.20 it
+    # carries no patch component, so jackson-bom 2.22.2 manages jackson-annotations 2.22. The rule
+    # is therefore a *line* rule, not a floor -- annotations must belong to the same major.minor
+    # line as the Jackson 2 artifacts it is compiled against. Derive that line from the closure
+    # under test rather than hardcoding it, so a dependency refresh cannot leave this gate behind.
+    jackson2_lines: set[str] = set()
+    for dependency in dependencies:
+        if (
+            dependency["groupId"].startswith("com.fasterxml.jackson")
+            and dependency["artifactId"] != "jackson-annotations"
+            and not dependency["version"].endswith("-SNAPSHOT")
+        ):
+            try:
+                jackson2_lines.add(minor_line(dependency["version"]))
+            except ValueError:
+                pass
+
     for dependency in dependencies:
         group = dependency["groupId"]
         name = dependency["artifactId"]
@@ -253,8 +277,26 @@ def assess(
         try:
             if group.startswith("com.fasterxml.jackson"):
                 if name == "jackson-annotations":
-                    if not (actual == JACKSON2_ANNOTATIONS_LINE or actual.startswith(JACKSON2_ANNOTATIONS_LINE + ".")):
-                        failures.append(f"Jackson 2 annotations line violation: {coordinate}")
+                    if len(jackson2_lines) > 1:
+                        failures.append(
+                            "Jackson 2 line is split across this closure "
+                            f"({', '.join(sorted(jackson2_lines))}); {coordinate} cannot be anchored"
+                        )
+                    elif jackson2_lines:
+                        expected = next(iter(jackson2_lines))
+                        if minor_line(actual) != expected:
+                            failures.append(
+                                f"Jackson 2 annotations line violation: {coordinate} is not on the "
+                                f"{expected} line used by the rest of Jackson 2 in this closure"
+                            )
+                    elif numeric_version(minor_line(actual)) < numeric_version(minor_line(JACKSON2_FLOOR)):
+                        # Nothing in this closure to be consistent *with*, so the line rule has no
+                        # subject and only the floor applies. Compare lines, not full versions: the
+                        # 2.21.6 floor is satisfied by annotations 2.21, which has no patch part.
+                        failures.append(
+                            f"Jackson 2 annotations floor violation: {coordinate} is below the "
+                            f"{minor_line(JACKSON2_FLOOR)} line"
+                        )
                 elif not version_at_least(actual, JACKSON2_FLOOR):
                     failures.append(f"Jackson 2 floor violation: {coordinate} < {JACKSON2_FLOOR}")
             elif group.startswith("tools.jackson") and not version_at_least(actual, JACKSON3_FLOOR):
@@ -413,7 +455,7 @@ def main() -> int:
             },
             "acceptedFloors": {
                 "jackson2": JACKSON2_FLOOR,
-                "jackson2AnnotationsLine": JACKSON2_ANNOTATIONS_LINE,
+                "jackson2AnnotationsLine": "derived per consumer from the resolved Jackson 2 line",
                 "jackson3": JACKSON3_FLOOR,
                 "log4j": LOG4J_FLOOR,
                 "dependencyTrain": {f"{group}:{artifact}": minimum for (group, artifact), minimum in DEPENDENCY_MINIMUMS.items()},
