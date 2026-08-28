@@ -249,7 +249,7 @@
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
         <agent-sandbox.version>0.10.2</agent-sandbox.version>
         <agent-journal.version>1.10.0</agent-journal.version>
-        <acp.version>0.16.1</acp.version>
+        <acp.version>0.17.0</acp.version>
 
         <!-- Agent SDK specific versions -->
         <zt-exec.version>1.13.0</zt-exec.version>
