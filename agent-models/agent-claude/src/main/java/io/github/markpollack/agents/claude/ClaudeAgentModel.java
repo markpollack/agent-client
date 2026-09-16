@@ -7,6 +7,9 @@ package io.github.markpollack.agents.claude;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import io.github.markpollack.claude.agent.sdk.ClaudeClient;
 import io.github.markpollack.claude.agent.sdk.ClaudeSyncClient;
 import io.github.markpollack.claude.agent.sdk.hooks.HookCallback;
@@ -123,6 +126,25 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 	private final String claudePath;
 
 	private final HookRegistry hookRegistry;
+
+	/**
+	 * The sync clients this model currently has in flight, so {@link #interrupt()} can
+	 * reach them. Registered once a client is built and removed when its call ends.
+	 *
+	 * <p>
+	 * Without this nothing can stop a call already running: each execution opens its
+	 * client in local scope, so no handle escapes, and a blocked
+	 * {@code receiveResponse()} has no other way out. Closing the client reaches the
+	 * SDK's {@code StreamingTransport.close()}, which destroys the CLI process tree
+	 * descendants-first — which is the point, because those children go on editing the
+	 * project after a cancel.
+	 *
+	 * <p>
+	 * The availability probe's client is deliberately not registered: it closes inside
+	 * its own method and cannot be the ongoing work a cancel is aimed at, so tracking it
+	 * would only let a cancel turn a health check into a spurious failure.
+	 */
+	private final Set<ClaudeSyncClient> inFlight = ConcurrentHashMap.newKeySet();
 
 	private final ClaudeAgentOptions defaultOptions;
 
@@ -248,12 +270,14 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		CLIOptions options = buildCLIOptions(request);
 
 		PhaseCapture capture;
+		ClaudeSyncClient tracked = null;
 		try (ClaudeSyncClient client = ClaudeClient.sync(options)
 			.workingDirectory(effectiveWorkingDir)
 			.timeout(timeout)
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build()) {
+			this.inFlight.add(tracked = client);
 
 			String prompt = formatPrompt(request);
 			client.connect(prompt);
@@ -284,6 +308,11 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			harvestTranscript(null, traceTarget, effectiveWorkingDir);
 			Duration duration = Duration.between(startTime, Instant.now());
 			return createErrorResponse(e.getMessage(), duration);
+		}
+		finally {
+			if (tracked != null) {
+				this.inFlight.remove(tracked);
+			}
 		}
 
 		// Client closed above — the CLI subprocess has exited, so its session
@@ -361,6 +390,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build();
+		this.inFlight.add(client);
 
 		String prompt = formatPrompt(request);
 		client.connect(prompt);
@@ -395,6 +425,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 				// Close the client when iteration is complete
 				if (!closed) {
 					closed = true;
+					ClaudeAgentModel.this.inFlight.remove(client);
 					client.close();
 				}
 				return false;
@@ -434,8 +465,34 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	// ========== AutoCloseable ==========
 
+	/**
+	 * Stop whatever this model is running now, including the CLI process tree beneath it.
+	 *
+	 * <p>
+	 * Closes every in-flight client, which ends the blocked {@code receiveResponse()} so
+	 * the call it belongs to throws rather than running on. Safe to call from another
+	 * thread — that is the only way it is useful — and safe to call when nothing is
+	 * running, when it does nothing. One client failing to close does not stop the rest.
+	 *
+	 * <p>
+	 * This is what an ACP cancel notification needs: the child processes are the reason
+	 * it matters, since they keep modifying the project after the request is abandoned.
+	 */
+	public void interrupt() {
+		for (ClaudeSyncClient client : this.inFlight) {
+			this.inFlight.remove(client);
+			try {
+				client.close();
+			}
+			catch (RuntimeException ex) {
+				logger.warn("Interrupt: a client failed to close; continuing", ex);
+			}
+		}
+	}
+
 	@Override
 	public void close() {
+		interrupt();
 		hookRegistry.clear();
 	}
 
@@ -445,12 +502,14 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		Path effectiveWorkingDir = request.workingDirectory() != null ? request.workingDirectory() : workingDirectory;
 		CLIOptions options = buildCLIOptions(request);
 
+		ClaudeSyncClient tracked = null;
 		try (ClaudeSyncClient client = ClaudeClient.sync(options)
 			.workingDirectory(effectiveWorkingDir)
 			.timeout(timeout)
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build()) {
+			this.inFlight.add(tracked = client);
 
 			String prompt = formatPrompt(request);
 			client.connect(prompt);
@@ -474,6 +533,11 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 		catch (Exception e) {
 			sink.tryEmitError(e);
+		}
+		finally {
+			if (tracked != null) {
+				this.inFlight.remove(tracked);
+			}
 		}
 	}
 
