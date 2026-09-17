@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.github.markpollack</groupId>
         <artifactId>agent-starters</artifactId>
-        <version>0.31.1-SNAPSHOT</version>
+        <version>0.31.0</version>
     </parent>
 
     <artifactId>agent-starter-amp</artifactId>
