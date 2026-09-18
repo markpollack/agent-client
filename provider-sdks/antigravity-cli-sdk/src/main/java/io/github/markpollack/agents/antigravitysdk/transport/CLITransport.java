@@ -130,11 +130,11 @@ public class CLITransport {
 	 * wrong:
 	 *
 	 * <ul>
-	 * <li><b>There is no {@code --cwd}, and the process working directory alone does
-	 * not establish a workspace.</b> The transport sets the process directory AND
-	 * declares it with {@code --add-dir}. Omit the flag and agy reports "there wasn't an
-	 * active workspace", writes into a shared {@code ~/.gemini/antigravity-cli/scratch}
-	 * that every caller sees, and still returns a response that reads like success.</li>
+	 * <li><b>There is no {@code --cwd}, and the process working directory alone does not
+	 * establish a workspace.</b> The transport sets the process directory AND declares it
+	 * with {@code --add-dir}. Omit the flag and agy reports "there wasn't an active
+	 * workspace", writes into a shared {@code ~/.gemini/antigravity-cli/scratch} that
+	 * every caller sees, and still returns a response that reads like success.</li>
 	 * <li><b>{@code --print-timeout} defaults to five minutes</b>, well short of a real
 	 * task, so it is always set from the caller's timeout rather than left alone.</li>
 	 * <li><b>Permissions default to soft-deny.</b> Without

@@ -41,13 +41,24 @@ Verified integration seams and current limits:
 - `DefaultAgentClient.resolveMcpServers` unions builder default names with request names and
   resolves them through `McpServerCatalog`. Selection is additive; the resolved map replaces the
   options definition map. `McpServerDefinition.HttpDefinition` carries URL and headers.
-- `ClaudeAgentModel.buildCLIOptions` translates portable definitions to SDK configuration;
-  Claude-native entries override matching names. `ClaudeAgentSessionRegistry` creates the only
-  current `AgentSession` implementation. Its creation API lacks portable per-session options;
-  `ClaudeAgentSession.resume` rebuilds options with the resume ID alone, losing MCP settings.
-- `AgentSession` already supplies identity, directory, prompt, resume and close, but has no
-  active-turn cancel or per-turn observer. It does not yet satisfy the complete conversation
-  requirements. Extend this optional surface before introducing a duplicate abstraction.
+- `AgentSessionRegistry.create(Path, String, McpServerDefinition)` opens a conversation
+  with a fixed named connection. `AgentSession.prompt(String, Consumer<AgentSessionEvent>)`
+  streams text, tool calls/results and a terminal outcome. Legacy providers explicitly reject
+  these optional capabilities. The application supplies the selected registry.
+- `ClaudeAgentSessionRegistry` reserves a UUID and opens the SDK connection without a paid
+  startup prompt. `ClaudeAgentSession` retains that client across ordered, non-overlapping
+  turns. `cancelActiveTurn()` closes only its SDK client, preserving SDK descendant cleanup;
+  after the turn unwinds, `resume()` reconnects the same conversation. Explicit close is terminal.
+- Claude sessions translate the portable definition with the existing model translator, merge
+  unrelated native servers, and reject same-name collisions. They own a temporary JSON file and
+  pass its path through SDK `CLIOptions.extraArgs["mcp-config"]` on initial launch and resume.
+  This bypasses the SDK's silent file-write fallback. No strict MCP or settings-source flag is
+  added, so ordinary configured tools remain available. SDK in-process MCP servers are explicitly
+  unsupported by this connection-only session path; the one-shot model path is unchanged.
+- Invalid connection URLs and configuration-file failures fail before launch. Claude's init
+  message must confirm the scoped server is connected before assistant output is accepted.
+  Remote connection, authentication and CLI capability failures can surface on the first real
+  prompt. Opening alone is not evidence of authentication or tool usability.
 - `AcpAgentModel.executePrompt` creates a new client/session, sends an empty
   `NewSessionRequest.mcpServers` list, prompts once, then closes. `AcpMergedOptions` preserves
   definitions that this path does not deliver. HTTP capability negotiation, retained lifetime,
@@ -60,9 +71,26 @@ Verified integration seams and current limits:
   interruption/timeout cleanup, and their client close methods do not stop active execution.
   The ACP SDK supports `session/cancel`, but the model does not expose it; ACP close terminates
   its direct child. None of these operations cancels an application Java handler automatically.
-- `ClaudeAgentMcpIT` configures a dummy `echo` server and asserts nonblank response text. It does
-  not assert tool discovery, invocation or result use. Reuse the deterministic translation,
-  catalog, command and interrupt tests, then add behavioral conversation qualification.
+- `ClaudeAgentSessionTest` deterministically verifies configuration at the SDK boundary and
+  argv, retained turns, resume, event ordering, explicit failures, cancellation isolation and close.
+  `ClaudeAgentMcpIT` is tagged `live` and excluded by the default test naming rules. Its two real
+  prompts require HTTP discovery, exact tool requests, fresh original-JVM receipts, observed tool
+  results, model use and first-turn recall. Passing deterministic tests is not live qualification.
 
 Provider capture dependencies stay in provider modules. Existing upstream Reactor and MCP SDK
 transitives are separate from application-owned tool-bridge dependency choices.
+
+Conversation validation commands (Java 21):
+
+```bash
+./mvnw spring-javaformat:apply
+./mvnw spring-javaformat:validate verify
+# Opt-in only, invokes Claude twice; do not use the whole failsafe suite for this check.
+./mvnw -pl agent-models/agent-claude -am -Pfailsafe \
+  -Dit.test=ClaudeAgentMcpIT -Dfailsafe.failIfNoSpecifiedTests=false \
+  -Dfailsafe.rerunFailingTestsCount=0 verify
+```
+
+For an isolated dependency cache, add `-Dmaven.repo.local=/absolute/path/to/cache` to each
+command. Neither validation command requires `install`. Cancellation does not cancel
+application-owned Java handlers; the application coordinates that separately.

@@ -28,9 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * with the working directory rewritten to {@code /workspace}, the home directory to
  * {@code /home/user}, and the agent's slash-command list — which enumerated local files
  * outside the run — replaced by a two-entry synthetic one, since the fold ignores that
- * kind entirely. Hand-written update maps would have proved only that the fold folds
- * what it was written to fold; the whole point of these assertions is the ratio between
- * what arrived on the wire and what actually happened.
+ * kind entirely. Hand-written update maps would have proved only that the fold folds what
+ * it was written to fold; the whole point of these assertions is the ratio between what
+ * arrived on the wire and what actually happened.
  *
  * @author Mark Pollack
  */

@@ -19,13 +19,16 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * Guards against stale Spring auto-configuration registration — every class named in this
- * module's {@code AutoConfiguration.imports} and {@code spring.factories} must be loadable.
+ * module's {@code AutoConfiguration.imports} and {@code spring.factories} must be
+ * loadable.
  *
  * <p>
- * Regression guard for the org migration ({@code org.springaicommunity} → {@code io.github.markpollack}):
- * the auto-config CLASSES moved but the registration files kept the old package, so Spring Boot failed to
- * load them ({@code ClassNotFoundException}) at startup — invisible to every other test because none boots
- * the auto-config. A plain {@code Class.forName} on each registered name catches exactly that.
+ * Regression guard for the org migration ({@code org.springaicommunity} →
+ * {@code io.github.markpollack}): the auto-config CLASSES moved but the registration
+ * files kept the old package, so Spring Boot failed to load them
+ * ({@code ClassNotFoundException}) at startup — invisible to every other test because
+ * none boots the auto-config. A plain {@code Class.forName} on each registered name
+ * catches exactly that.
  */
 class AutoConfigurationRegistrationTest {
 
@@ -68,7 +71,10 @@ class AutoConfigurationRegistrationTest {
 		return out;
 	}
 
-	/** Collects the right-hand-side class names from a (possibly line-continued) spring.factories. */
+	/**
+	 * Collects the right-hand-side class names from a (possibly line-continued)
+	 * spring.factories.
+	 */
 	private List<String> readFactoriesValues(String resource) throws IOException {
 		List<String> out = new ArrayList<>();
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream(resource)) {

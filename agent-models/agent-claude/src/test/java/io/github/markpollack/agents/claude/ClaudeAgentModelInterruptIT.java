@@ -28,11 +28,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * the process, which can take minutes to return.
  *
  * <p>
- * An ACP cancel has to reach work in flight, and the reason it matters is the CLI's
- * child processes: without this they go on editing the project after the request is
- * abandoned. Before the change nothing could stop a call — each execution opened its
- * client in local scope, so no handle escaped and a blocked {@code receiveResponse()}
- * had no other way out.
+ * An ACP cancel has to reach work in flight, and the reason it matters is the CLI's child
+ * processes: without this they go on editing the project after the request is abandoned.
+ * Before the change nothing could stop a call — each execution opened its client in local
+ * scope, so no handle escaped and a blocked {@code receiveResponse()} had no other way
+ * out.
  *
  * <p>
  * The CLI here is a stub script that blocks forever, pointed at through

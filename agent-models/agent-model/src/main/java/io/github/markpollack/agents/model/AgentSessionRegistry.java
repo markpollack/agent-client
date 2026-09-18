@@ -15,9 +15,8 @@ import java.util.Optional;
  *
  * <p>
  * The registry is pre-configured with provider-specific settings at construction time.
- * Each {@link #create(Path)} call establishes a new session eagerly — the returned
- * session has a real session ID and is ready for {@link AgentSession#prompt(String)}
- * calls.
+ * Each {@link #create(Path)} call opens a conversation ready for prompts. Opening is not
+ * a paid authentication probe.
  * </p>
  *
  * @author Mark Pollack
@@ -27,30 +26,30 @@ import java.util.Optional;
 public interface AgentSessionRegistry {
 
 	/**
-	 * Creates a new session, eagerly establishing the CLI connection and capturing the
-	 * real session ID from the first response. The returned session is fully initialized
-	 * and ready for {@link AgentSession#prompt(String)} calls.
-	 *
-	 * <p>
-	 * This method doubles as a startup probe — if it completes without exception, the CLI
-	 * is installed, authenticated, and responsive. Callers can use a disposable session
-	 * at startup to verify CLI health before accepting user requests:
-	 * </p>
-	 * <pre>{@code
-	 * try {
-	 *     AgentSession probe = registry.create(workingDirectory);
-	 *     probe.close();
-	 *     registry.evict(probe.getSessionId());
-	 * } catch (IllegalStateException e) {
-	 *     // CLI not available — surface error, refuse to start
-	 * }
-	 * }</pre>
+	 * Opens a conversation without submitting a synthetic model prompt. Providers may
+	 * reserve the session ID before the first prompt. Authentication and remote endpoint
+	 * failures are reported when the provider reports them, including on the first turn.
 	 * @param workingDirectory the directory the session operates in
-	 * @return a fully-initialized session ready for prompts
-	 * @throws IllegalStateException if the CLI is not found, exits abnormally, or fails
-	 * to return a session ID
+	 * @return a conversation ready for prompts
+	 * @throws IllegalStateException if the provider cannot open the conversation
 	 */
 	AgentSession create(Path workingDirectory);
+
+	/**
+	 * Opens a conversation with a fixed, named MCP connection. Implementations must
+	 * preserve unrelated configured servers and reject unsupported configurations.
+	 * Opening does not submit a synthetic model prompt. Remote connection failures may be
+	 * reported on the first real prompt.
+	 * @param workingDirectory the conversation directory
+	 * @param serverName the scoped server name
+	 * @param definition the immutable connection definition
+	 * @return the conversation
+	 * @throws UnsupportedOperationException if scoped MCP conversations are unsupported
+	 */
+	default AgentSession create(Path workingDirectory, String serverName,
+			io.github.markpollack.agents.model.mcp.McpServerDefinition definition) {
+		throw new UnsupportedOperationException("Scoped MCP conversations are not supported");
+	}
 
 	/**
 	 * Finds an existing session by its ID.

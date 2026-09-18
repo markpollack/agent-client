@@ -23,7 +23,7 @@ import java.nio.file.Path;
  * </p>
  * <pre>{@code
  * AgentSession session = registry.create(Paths.get("/my/project"));
- * // session.getSessionId() returns real UUID — already established
+ * // session.getSessionId() returns a UUID reserved for this conversation
  *
  * AgentResponse r1 = session.prompt("create a REST app");
  * AgentResponse r2 = session.prompt("add Spring Data JDBC");
@@ -38,8 +38,8 @@ import java.nio.file.Path;
 public interface AgentSession extends AutoCloseable {
 
 	/**
-	 * Returns the unique session identifier. Never null or "default" — the session is
-	 * eagerly initialized at creation time.
+	 * Returns the unique session identifier. Never null or "default". The provider may
+	 * reserve the ID at creation without submitting a prompt.
 	 * @return the session ID
 	 */
 	String getSessionId();
@@ -65,6 +65,29 @@ public interface AgentSession extends AutoCloseable {
 	 * @throws IllegalStateException if the session is {@link AgentSessionStatus#DEAD}
 	 */
 	AgentResponse prompt(String message);
+
+	/**
+	 * Prompts with synchronous, ordered observation of messages, tool activity and one
+	 * terminal outcome. Observers must return promptly. Overlapping turns are rejected.
+	 * An observer exception fails the turn and releases its provider resources.
+	 * @param message the prompt
+	 * @param observer the event observer
+	 * @return the completed response
+	 * @throws UnsupportedOperationException if observation is unsupported
+	 */
+	default AgentResponse prompt(String message, java.util.function.Consumer<AgentSessionEvent> observer) {
+		throw new UnsupportedOperationException("Session observation is not supported");
+	}
+
+	/**
+	 * Cancels only this session's active turn and releases its provider resources.
+	 * Idempotent when idle or already cancelled. A DEAD session requires resume before
+	 * the next prompt. Application-owned tool handlers are cancelled by the application.
+	 * @throws UnsupportedOperationException if cancellation is unsupported
+	 */
+	default void cancelActiveTurn() {
+		throw new UnsupportedOperationException("Session cancellation is not supported");
+	}
 
 	/**
 	 * Resurrects a dead session by spawning a fresh transport process with the same

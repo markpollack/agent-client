@@ -8,12 +8,9 @@ package io.github.markpollack.agents.claude;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.model.AgentSession;
@@ -21,7 +18,6 @@ import io.github.markpollack.agents.model.AgentSessionRegistry;
 import io.github.markpollack.claude.agent.sdk.ClaudeClient;
 import io.github.markpollack.claude.agent.sdk.ClaudeSyncClient;
 import io.github.markpollack.claude.agent.sdk.hooks.HookRegistry;
-import io.github.markpollack.claude.agent.sdk.parsing.ParsedMessage;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
 
 /**
@@ -29,9 +25,9 @@ import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
  * {@link ClaudeAgentSession} instances backed by live CLI processes.
  *
  * <p>
- * Each {@link #create(Path)} call starts a Claude Code CLI process, establishes a
- * session, and captures the real session ID from the CLI response. The returned session
- * is fully initialized and ready for {@link AgentSession#prompt(String)} calls.
+ * Each {@link #create(Path)} call starts a Claude Code CLI process, reserves a session ID
+ * without submitting a model prompt. The returned session is fully initialized and ready
+ * for {@link AgentSession#prompt(String)} calls.
  * </p>
  *
  * <p>
@@ -85,80 +81,63 @@ public class ClaudeAgentSessionRegistry implements AgentSessionRegistry {
 		return new Builder();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>
-	 * <b>Error behavior:</b> Fails fast with {@link IllegalStateException} in three
-	 * cases:
-	 * </p>
-	 * <ul>
-	 * <li><b>CLI not found</b> — {@code connect()} throws {@code TransportException} when
-	 * the Claude CLI binary is missing or {@code claudePath} is invalid. The SDK
-	 * discovers the CLI via {@code ClaudeCliDiscovery}; if discovery fails, the error
-	 * surfaces here.</li>
-	 * <li><b>Process exits non-zero</b> — the CLI starts but crashes immediately (e.g.,
-	 * auth failure, corrupt installation). {@code TransportException} includes the exit
-	 * code.</li>
-	 * <li><b>No session ID</b> — CLI responds but the {@code ResultMessage} has no
-	 * session ID (null, empty, or "default"). This indicates a protocol mismatch or CLI
-	 * version too old.</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * In all failure cases the client is closed before the exception propagates — no
-	 * leaked processes. Use {@link ClaudeAgentModel#isAvailable()} as a startup probe to
-	 * catch CLI problems before any user calls {@code create()}.
-	 * </p>
-	 */
 	@Override
 	public AgentSession create(Path workingDirectory) {
-		CLIOptions.Builder optionsBuilder = CLIOptions.builder();
-		if (timeout != null) {
-			optionsBuilder.timeout(timeout);
-		}
-		if (defaultOptions != null) {
-			if (defaultOptions.getModel() != null) {
-				optionsBuilder.model(defaultOptions.getModel());
-			}
-			if (defaultOptions.getMcpServers() != null && !defaultOptions.getMcpServers().isEmpty()) {
-				optionsBuilder.mcpServers(defaultOptions.getMcpServers());
-			}
-		}
-		CLIOptions options = optionsBuilder.build();
+		return open(workingDirectory, null, null);
+	}
 
-		ClaudeSyncClient client = ClaudeClient.sync(options)
-			.workingDirectory(workingDirectory)
+	@Override
+	public AgentSession create(Path workingDirectory, String serverName,
+			io.github.markpollack.agents.model.mcp.McpServerDefinition definition) {
+		if (serverName == null || !serverName.matches("[a-zA-Z0-9_-]+")) {
+			throw new IllegalArgumentException("MCP server name must contain letters, digits, underscores or hyphens");
+		}
+		java.util.Objects.requireNonNull(definition, "definition");
+		return open(workingDirectory, serverName, definition);
+	}
+
+	private AgentSession open(Path directory, String serverName,
+			io.github.markpollack.agents.model.mcp.McpServerDefinition definition) {
+		java.util.Objects.requireNonNull(directory, "workingDirectory");
+		String id = java.util.UUID.randomUUID().toString();
+		ClaudeSessionConfiguration configuration = ClaudeSessionConfiguration.create(directory, id, defaultOptions,
+				timeout, serverName, definition);
+		ClaudeSyncClient client = null;
+		try {
+			client = newClient(configuration.initial(), directory);
+			client.connect();
+			ClaudeAgentSession session = new ClaudeAgentSession(id, directory, client, configuration,
+					options -> newClient(options, directory), serverName);
+			sessions.put(id, session);
+			return session;
+		}
+		catch (Exception ex) {
+			if (client != null) {
+				try {
+					client.close();
+				}
+				catch (RuntimeException cleanup) {
+					ex.addSuppressed(cleanup);
+				}
+			}
+			try {
+				configuration.close();
+			}
+			catch (RuntimeException cleanup) {
+				ex.addSuppressed(cleanup);
+			}
+			throw new IllegalStateException("Failed to open Claude conversation with scoped MCP configuration", ex);
+		}
+	}
+
+	// SDK boundary, replaceable by deterministic adapter tests without starting a CLI.
+	ClaudeSyncClient newClient(CLIOptions options, Path directory) {
+		return ClaudeClient.sync(options)
+			.workingDirectory(directory)
 			.timeout(timeout)
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build();
-
-		try {
-			client.connect();
-			Iterator<ParsedMessage> response = client.receiveResponse();
-			PhaseCapture capture = SessionLogParser.parse(response, "session-init", "");
-			String sessionId = capture.sessionId();
-
-			if (sessionId == null || sessionId.isEmpty() || "default".equals(sessionId)) {
-				client.close();
-				throw new IllegalStateException("Failed to establish session — no session ID returned from CLI");
-			}
-
-			ClaudeAgentSession session = new ClaudeAgentSession(sessionId, workingDirectory, client, timeout,
-					claudePath, hookRegistry);
-			sessions.put(sessionId, session);
-
-			logger.info("Created session {} in {}", sessionId, workingDirectory);
-			return session;
-		}
-		catch (IllegalStateException ex) {
-			throw ex;
-		}
-		catch (Exception ex) {
-			client.close();
-			throw new IllegalStateException("Failed to create session: " + ex.getMessage(), ex);
-		}
 	}
 
 	@Override
