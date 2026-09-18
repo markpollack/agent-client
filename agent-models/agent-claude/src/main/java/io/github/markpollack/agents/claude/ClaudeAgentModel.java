@@ -567,6 +567,12 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		ClaudeAgentOptions options = getEffectiveOptions(request);
 		CLIOptions.Builder builder = CLIOptions.builder();
 
+		Map<String, String> environment = new LinkedHashMap<>(options.getEnvironmentVariables());
+		if (request.options() != null && request.options().getEnvironmentVariables() != null) {
+			environment.putAll(request.options().getEnvironmentVariables());
+		}
+		builder.env(environment);
+
 		if (options.getTimeout() != null) {
 			builder.timeout(options.getTimeout());
 		}

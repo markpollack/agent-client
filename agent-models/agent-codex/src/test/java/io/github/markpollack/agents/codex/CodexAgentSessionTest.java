@@ -92,26 +92,35 @@ class CodexAgentSessionTest {
 				#!/bin/sh
 				if [ "$1" = '--version' ]; then echo fixture; exit 0; fi
 				env | grep -q '^AGENT_CLIENT_MCP_TOKEN_.*=test-secret-bearer$' || exit 11
+				[ "$CONVERSATION_OPTION" = 'private-option-value' ] || exit 12
+				[ "$SHELL" = '/conversation-shell' ] || exit 13
+				printf '%s' "$PATH" > inherited-path.txt
 				printf '%s\\n' "$@" >> argv.txt
 				echo '{"type":"thread.started","thread_id":"fixture-thread"}'
 				echo '{"type":"item.completed","item":{"type":"agent_message","text":"answer"}}'
 				echo '{"type":"turn.completed"}'
 				""");
 		assertThat(script.toFile().setExecutable(true)).isTrue();
+		var environment = new java.util.HashMap<>(
+				Map.of("CONVERSATION_OPTION", "private-option-value", "SHELL", "/conversation-shell"));
 		var registry = CodexAgentSessionRegistry.builder()
+			.environmentVariables(environment)
 			.codexPath(script.toString())
 			.approvedTools(Set.of("probe"))
 			.build();
+		environment.put("CONVERSATION_OPTION", "changed-after-build");
 		try (var session = registry.create(directory, "scoped", HTTP)) {
 			assertThat(session.prompt("first").getText()).isEqualTo("answer");
 			assertThat(session.prompt("second").getText()).isEqualTo("answer");
 		}
+		assertThat(java.nio.file.Files.readString(directory.resolve("inherited-path.txt")))
+			.isEqualTo(System.getenv("PATH"));
 		var argv = java.nio.file.Files.readAllLines(directory.resolve("argv.txt"));
 		assertThat(argv.stream().filter(arg -> arg.equals("mcp_servers.scoped.url=\"http://127.0.0.1:8123/mcp\"")))
 			.hasSize(2);
 		assertThat(argv.stream().filter(arg -> arg.startsWith("mcp_servers.scoped.bearer_token_env_var="))).hasSize(2);
 		assertThat(argv).containsSequence("exec", "resume", "--json", "fixture-thread", "--", "second")
-			.noneMatch(arg -> arg.contains(TOKEN));
+			.noneMatch(arg -> arg.contains(TOKEN) || arg.contains("private-option-value"));
 	}
 
 	@Test
@@ -174,7 +183,7 @@ class CodexAgentSessionTest {
 			.isInstanceOf(UnsupportedOperationException.class)
 			.hasMessageNotContaining(TOKEN);
 		assertThatThrownBy(() -> CodexSessionConfiguration.create(DIRECTORY, null, Duration.ofSeconds(1), "scoped",
-				HTTP, Set.of()))
+				HTTP, Set.of(), Map.of()))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("approved tool names");
 		assertThat(registry.clients).isEmpty();

@@ -50,6 +50,11 @@
 
         <!-- Testing dependencies -->
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-tck</artifactId>
             <version>${project.version}</version>

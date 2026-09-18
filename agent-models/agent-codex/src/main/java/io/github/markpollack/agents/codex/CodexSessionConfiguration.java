@@ -26,7 +26,7 @@ final class CodexSessionConfiguration {
 	}
 
 	static ExecuteOptions create(Path directory, String model, Duration timeout, String name,
-			McpServerDefinition definition, Set<String> approvedTools) {
+			McpServerDefinition definition, Set<String> approvedTools, Map<String, String> environmentVariables) {
 		var overrides = new LinkedHashMap<String, String>();
 		var environment = new LinkedHashMap<String, String>();
 		if (definition != null) {
@@ -75,6 +75,7 @@ final class CodexSessionConfiguration {
 				overrides.put(prefix + ".bearer_token_env_var", quote(variable));
 			}
 		}
+		environment.putAll(environmentVariables);
 		return ExecuteOptions.builder()
 			.model(model)
 			.timeout(timeout)

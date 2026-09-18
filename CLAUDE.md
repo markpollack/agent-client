@@ -55,6 +55,11 @@ Verified integration seams and current limits:
   This bypasses the SDK's silent file-write fallback. No strict MCP or settings-source flag is
   added, so ordinary configured tools remain available. SDK in-process MCP servers are explicitly
   unsupported by this connection-only session path; the one-shot model path is unchanged.
+- Claude conversation `defaultOptions.environmentVariables` is snapshotted at open into SDK
+  `CLIOptions.env` for initial launch and resume; retained turns use the same child. Codex registry
+  `environmentVariables(Map<String, String>)` supplies fixed overrides on every exec/resume alongside
+  its bearer environment entry. Both preserve inherited variables, with supplied values winning,
+  and do not log environment values. Applications own variable selection and timeout policy.
 - Invalid connection URLs and configuration-file failures fail before launch. Claude's init
   message must confirm the scoped server is connected before assistant output is accepted.
   Remote connection, authentication and CLI capability failures can surface on the first real

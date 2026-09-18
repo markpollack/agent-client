@@ -78,13 +78,19 @@ class ClaudeAgentSessionTest {
 
 	@Test
 	void transportFailureResumesSameIdAndConfigurationWithoutPaidPrompt() throws Exception {
-		var registry = new TestRegistry(null);
+		var defaults = ClaudeAgentOptions.builder()
+			.environmentVariables(new java.util.HashMap<>(Map.of("MCP_TOOL_TIMEOUT", "246813")))
+			.build();
+		var registry = new TestRegistry(defaults);
 		try (var session = registry.create(directory, "scoped", definition)) {
+			assertThat(registry.options.getFirst().env()).containsEntry("MCP_TOOL_TIMEOUT", "246813");
+			defaults.getEnvironmentVariables().put("MCP_TOOL_TIMEOUT", "changed-after-open");
 			when(registry.client.receiveResponse()).thenThrow(new IllegalStateException("transport failed"));
 			assertThatThrownBy(() -> session.prompt("first")).isInstanceOf(IllegalStateException.class);
 			assertThat(session.getStatus()).isEqualTo(AgentSessionStatus.DEAD);
 			session.resume();
 			assertThat(registry.options).hasSize(2);
+			assertThat(registry.options.get(1).env()).containsEntry("MCP_TOOL_TIMEOUT", "246813");
 			assertThat(registry.options.get(1).resume()).isEqualTo(session.getSessionId());
 			assertThat(registry.options.get(1).extraArgs())
 				.containsEntry("mcp-config", registry.options.getFirst().extraArgs().get("mcp-config"))
