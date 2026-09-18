@@ -26,3 +26,15 @@ Follow `/home/mark/projects/agento-forge/guides/java-library-quality.md`. The pr
 customized source license; see `LICENSE`. Commit messages contain no AI attribution.
 
 Do not copy private planning, roadmap, checkpoint, or dirty-tree state into public files.
+
+For conversational integrations, Agent Client owns semantic provider conversation open, prompt,
+resume where supported, active-turn cancellation, close, event streaming, and translation of
+ordinary session-scoped `McpServerDefinition` values. Negotiate downstream ACP MCP capabilities
+and report unsupported conversation or connection capabilities explicitly. Keep provider process
+and resume details behind the provider API. Verify behavior with adapter tests and live round-trip
+assertions; configuration acceptance alone is insufficient.
+
+The application chooses the provider and owns its tool registry, Java callback dispatch, embedded
+MCP endpoint, domain knowledge, and workflow coordination. Do not add `LocalTool`, callback
+registration, a tool bridge, or Spring domain knowledge here. Provider adapters must not choose
+themselves or silently fall back to another provider.
