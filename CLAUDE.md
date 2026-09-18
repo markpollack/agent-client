@@ -63,9 +63,29 @@ Verified integration seams and current limits:
   `NewSessionRequest.mcpServers` list, prompts once, then closes. `AcpMergedOptions` preserves
   definitions that this path does not deliver. HTTP capability negotiation, retained lifetime,
   observer delivery and exposed session cancellation remain missing.
-- `CodexClient.resume` and `AntigravityClient.resume` exist beneath one-shot model adapters.
-  Native `GrokClient` also supports resume. These APIs alone do not prove retained MCP tools.
-  Portable MCP translation is absent from these native adapters.
+- `CodexAgentSessionRegistry.builder().approvedTools(Set.of("tool_name")).build()` opens
+  conversations through the same scoped `create` contract. The registry reserves a stable semantic
+  ID; the first real prompt learns the separate Codex thread ID. Later prompts use exact-thread
+  `codex exec resume`, never `--last`. A cancelled or failed turn requires `resume()` first;
+  cancellation before a thread ID arrives cannot be resumed. Explicit close is terminal.
+- Codex sessions support HTTP definitions with an optional Bearer Authorization header. The URL,
+  bearer environment-variable reference, required/enabled flags and per-tool `approval_mode`
+  reach each invocation as repeated global `-c` arguments. The bearer value is passed only in the
+  child environment. zt-exec environment logging is disabled; echoed secret values are redacted
+  before observer delivery. No persistent provider configuration is written. Use a distinct scoped
+  server name; inherited same-name configuration precedence has not been qualified.
+- Codex uses never approval and a read-only sandbox for this session path. `approvedTools` names
+  exact tools on the scoped server only; this is connection policy, not callback registration.
+  Missing approvals, unsupported transports/headers and invalid URLs fail before launch. Required
+  server startup failures, CLI rejection, invalid events and identity changes fail the turn.
+  Opening alone proves neither endpoint authentication nor tool usability.
+- Codex conversation JSON lines stream assistant messages and MCP tool calls/results, followed by
+  one terminal outcome. Cancellation interrupts only the active session's wait and direct child.
+  The new session path does not harvest journal rollouts; the existing one-shot model capture path
+  remains available. Deterministic adapter and fake-child tests cover two turns, argv/environment,
+  resume, rejection, observer errors, cancellation and cleanup. Live conformance is still required.
+- `AntigravityClient.resume` and native `GrokClient.resume` exist beneath one-shot model adapters.
+  These APIs alone do not prove retained MCP tools. Portable MCP translation is absent there.
 - Claude model `interrupt()` closes all its tracked clients; SDK close enumerates descendants
   and terminates the child. Native Codex/Grok/Antigravity transports use zt-exec direct-child
   interruption/timeout cleanup, and their client close methods do not stop active execution.
