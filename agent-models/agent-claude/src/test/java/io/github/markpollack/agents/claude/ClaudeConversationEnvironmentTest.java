@@ -4,6 +4,14 @@
  */
 package io.github.markpollack.agents.claude;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CancellationException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import io.github.markpollack.agents.model.AgentSessionEvent;
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -53,6 +61,85 @@ class ClaudeConversationEnvironmentTest {
 		}
 	}
 
+	@Test
+	void cancelledTurnResumesWithScopedToolsAndEnvironmentWithoutReplay() throws Exception {
+		Path executable = directory.resolve("fake-claude");
+		Files.writeString(executable,
+				"""
+						#!/usr/bin/python3
+						import json, os, sys
+						args = sys.argv[1:]
+						resumed = '--resume' in args
+						phase = 'resumed' if resumed else 'initial'
+						identity = args[args.index('--resume' if resumed else '--session-id') + 1]
+						config = args[args.index('--mcp-config') + 1]
+						with open(config) as source:
+						    servers = json.load(source)
+						with open(phase + '.json', 'w') as output:
+						    json.dump({'argv': args, 'config': servers, 'budget': os.environ.get('MCP_TOOL_TIMEOUT')}, output)
+						def emit(value):
+						    print(json.dumps(value), flush=True)
+						emit({'type':'system','subtype':'init','mcp_servers':[{'name':'scoped','status':'connected'}]})
+						for line in sys.stdin:
+						    with open(phase + '-prompts.jsonl', 'a') as output:
+						        output.write(line)
+						    emit({'type':'assistant','message':{'role':'assistant','content':[{'type':'tool_use','id':'call-1','name':'mcp__scoped__lookup','input':{'nonce':phase}}]}})
+						    if resumed:
+						        emit({'type':'user','message':{'role':'user','content':[{'type':'tool_result','tool_use_id':'call-1','content':'fresh-receipt'}]}})
+						        emit({'type':'assistant','message':{'role':'assistant','content':[{'type':'text','text':'fresh-receipt'}]}})
+						        emit({'type':'result','subtype':'success','is_error':False,'session_id':identity,'result':'fresh-receipt'})
+						""");
+		assertThat(executable.toFile().setExecutable(true)).isTrue();
+		var definition = new McpServerDefinition.HttpDefinition("http://127.0.0.1:12345/mcp",
+				Map.of("Authorization", "Bearer fixture-token"));
+		var registry = ClaudeAgentSessionRegistry.builder()
+			.claudePath(executable.toString())
+			.defaultOptions(
+					ClaudeAgentOptions.builder().environmentVariables(Map.of("MCP_TOOL_TIMEOUT", "246813")).build())
+			.build();
+		Path config;
+		try (var executor = Executors.newSingleThreadExecutor();
+				var session = registry.create(directory, "scoped", definition)) {
+			String identity = session.getSessionId();
+			var entered = new CountDownLatch(1);
+			var pending = executor.submit(() -> session.prompt("cancel-this-prompt", event -> {
+				if (event instanceof AgentSessionEvent.ToolCall) {
+					entered.countDown();
+				}
+			}));
+			assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+			session.cancelActiveTurn();
+			assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CancellationException.class);
+			session.resume();
+			var events = new ArrayList<AgentSessionEvent>();
+			assertThat(session.prompt("next-tool-prompt", events::add).getText()).contains("fresh-receipt");
+			assertThat(session.getSessionId()).isEqualTo(identity);
+			assertThat(events).extracting(Object::getClass)
+				.containsExactly(AgentSessionEvent.ToolCall.class, AgentSessionEvent.ToolResult.class,
+						AgentSessionEvent.Text.class, AgentSessionEvent.Terminal.class);
+			var mapper = new ObjectMapper();
+			var initial = mapper.readTree(directory.resolve("initial.json").toFile());
+			var resumed = mapper.readTree(directory.resolve("resumed.json").toFile());
+			assertThat(resumed.path("config")).isEqualTo(initial.path("config"));
+			var server = resumed.path("config").path("mcpServers").path("scoped");
+			assertThat(server.path("url").asText()).isEqualTo("http://127.0.0.1:12345/mcp");
+			assertThat(server.path("headers").path("Authorization").asText()).isEqualTo("Bearer fixture-token");
+			assertThat(initial.path("budget").asText()).isEqualTo("246813");
+			assertThat(resumed.path("budget").asText()).isEqualTo("246813");
+			var argv = mapper.convertValue(resumed.path("argv"), new TypeReference<List<String>>() {
+			});
+			assertThat(argv).containsSequence("--resume", identity).doesNotContain("--session-id");
+			config = Path.of(argv.get(argv.indexOf("--mcp-config") + 1));
+			assertThat(config).exists();
+			var prompts = Files.readAllLines(directory.resolve("resumed-prompts.jsonl"));
+			assertThat(prompts).hasSize(1);
+			assertThat(mapper.readTree(prompts.getFirst()).path("message").path("content").asText())
+				.isEqualTo("next-tool-prompt");
+			assertThat(Files.readAllLines(directory.resolve("initial-prompts.jsonl"))).hasSize(1);
+		}
+		assertThat(config).doesNotExist();
+	}
+
 	private void assertChildEnvironment(ClaudeSessionConfiguration config, String budget, String path)
 			throws Exception {
 		Path executable = directory.resolve("fake-claude");
@@ -71,7 +158,7 @@ class ClaudeConversationEnvironmentTest {
 		root.addAppender(logs);
 		root.setLevel(Level.TRACE);
 		try {
-			for (var options : java.util.List.of(config.initial(), config.resumed())) {
+			for (var options : List.of(config.initial(), config.resumed())) {
 				Files.deleteIfExists(directory.resolve("observed-budget"));
 				Files.deleteIfExists(directory.resolve("observed-path"));
 				var ready = new CountDownLatch(1);

@@ -4,6 +4,9 @@
  */
 package io.github.markpollack.agents.codex;
 
+import java.nio.file.Files;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -88,7 +91,7 @@ class CodexAgentSessionTest {
 	void definitionTravelsThroughRegistrySdkAndRealChildOnBothTurns(@org.junit.jupiter.api.io.TempDir Path directory)
 			throws Exception {
 		Path script = directory.resolve("fake-codex");
-		java.nio.file.Files.writeString(script, """
+		Files.writeString(script, """
 				#!/bin/sh
 				if [ "$1" = '--version' ]; then echo fixture; exit 0; fi
 				env | grep -q '^AGENT_CLIENT_MCP_TOKEN_.*=test-secret-bearer$' || exit 11
@@ -113,14 +116,90 @@ class CodexAgentSessionTest {
 			assertThat(session.prompt("first").getText()).isEqualTo("answer");
 			assertThat(session.prompt("second").getText()).isEqualTo("answer");
 		}
-		assertThat(java.nio.file.Files.readString(directory.resolve("inherited-path.txt")))
-			.isEqualTo(System.getenv("PATH"));
-		var argv = java.nio.file.Files.readAllLines(directory.resolve("argv.txt"));
+		assertThat(Files.readString(directory.resolve("inherited-path.txt"))).isEqualTo(System.getenv("PATH"));
+		var argv = Files.readAllLines(directory.resolve("argv.txt"));
 		assertThat(argv.stream().filter(arg -> arg.equals("mcp_servers.scoped.url=\"http://127.0.0.1:8123/mcp\"")))
 			.hasSize(2);
 		assertThat(argv.stream().filter(arg -> arg.startsWith("mcp_servers.scoped.bearer_token_env_var="))).hasSize(2);
 		assertThat(argv).containsSequence("exec", "resume", "--json", "fixture-thread", "--", "second")
 			.noneMatch(arg -> arg.contains(TOKEN) || arg.contains("private-option-value"));
+	}
+
+	@Test
+	@org.junit.jupiter.api.condition.EnabledOnOs({ org.junit.jupiter.api.condition.OS.LINUX,
+			org.junit.jupiter.api.condition.OS.MAC })
+	void cancelledChildResumesWithToolsAndEnvironmentWithoutReplay(@org.junit.jupiter.api.io.TempDir Path directory)
+			throws Exception {
+		Path script = directory.resolve("fake-codex");
+		Files.writeString(script,
+				"""
+						#!/usr/bin/python3
+						import json, os, sys, time
+						if '--version' in sys.argv:
+						    print('fixture')
+						    sys.exit(0)
+						args = sys.argv[1:]
+						with open('launches.jsonl', 'a') as output:
+						    json.dump({'argv':args,'budget':os.environ.get('MCP_TOOL_TIMEOUT'),
+						        'bearer':[v for k,v in os.environ.items() if k.startswith('AGENT_CLIENT_MCP_TOKEN_')]}, output)
+						    output.write('\\n')
+						def emit(value):
+						    print(json.dumps(value), flush=True)
+						emit({'type':'thread.started','thread_id':'fixture-thread'})
+						emit({'type':'item.started','item':{'id':'tool-1','type':'mcp_tool_call','server':'scoped','tool':'probe','arguments':{}}})
+						if 'resume' not in args:
+						    time.sleep(30)
+						else:
+						    emit({'type':'item.completed','item':{'id':'tool-1','type':'mcp_tool_call','status':'completed','result':{'content':[{'type':'text','text':'fresh-receipt'}]},'error':None}})
+						    emit({'type':'item.completed','item':{'type':'agent_message','text':'fresh-receipt'}})
+						    emit({'type':'turn.completed'})
+						""");
+		assertThat(script.toFile().setExecutable(true)).isTrue();
+		var registry = CodexAgentSessionRegistry.builder()
+			.codexPath(script.toString())
+			.environmentVariables(Map.of("MCP_TOOL_TIMEOUT", "246813"))
+			.approvedTools(Set.of("probe"))
+			.build();
+		try (var executor = Executors.newSingleThreadExecutor();
+				var session = registry.create(directory, "scoped", HTTP)) {
+			String identity = session.getSessionId();
+			var entered = new CountDownLatch(1);
+			var pending = executor.submit(() -> session.prompt("cancel-this-prompt", event -> {
+				if (event instanceof AgentSessionEvent.ToolCall) {
+					entered.countDown();
+				}
+			}));
+			assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+			session.cancelActiveTurn();
+			assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CancellationException.class);
+			session.resume();
+			var events = new ArrayList<AgentSessionEvent>();
+			assertThat(session.prompt("next-tool-prompt", events::add).getText()).isEqualTo("fresh-receipt");
+			assertThat(session.getSessionId()).isEqualTo(identity);
+			assertThat(events).extracting(Object::getClass)
+				.containsExactly(AgentSessionEvent.ToolCall.class, AgentSessionEvent.ToolResult.class,
+						AgentSessionEvent.Text.class, AgentSessionEvent.Terminal.class);
+		}
+		var launches = Files.readAllLines(directory.resolve("launches.jsonl"));
+		assertThat(launches).hasSize(2);
+		var mapper = new ObjectMapper();
+		for (int i = 0; i < launches.size(); i++) {
+			var launch = mapper.readTree(launches.get(i));
+			assertThat(launch.path("budget").asText()).isEqualTo("246813");
+			assertThat(launch.path("bearer").get(0).asText()).isEqualTo(TOKEN);
+			var argv = mapper.convertValue(launch.path("argv"), new TypeReference<List<String>>() {
+			});
+			assertThat(argv).containsSequence("-c", "mcp_servers.scoped.url=\"http://127.0.0.1:8123/mcp\"")
+				.containsSequence("-c", "mcp_servers.scoped.tools.probe.approval_mode=\"approve\"");
+			if (i == 1) {
+				assertThat(argv)
+					.containsSequence("exec", "resume", "--json", "fixture-thread", "--", "next-tool-prompt")
+					.doesNotContain("cancel-this-prompt");
+			}
+			else {
+				assertThat(argv).contains("cancel-this-prompt").doesNotContain("next-tool-prompt");
+			}
+		}
 	}
 
 	@Test

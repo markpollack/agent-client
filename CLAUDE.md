@@ -60,6 +60,13 @@ Verified integration seams and current limits:
   `environmentVariables(Map<String, String>)` supplies fixed overrides on every exec/resume alongside
   its bearer environment entry. Both preserve inherited variables, with supplied values winning,
   and do not log environment values. Applications own variable selection and timeout policy.
+- After active-turn cancellation, call `resume()` after the prompt unwinds, then send only the
+  next prompt. Claude retains its session-owned MCP file and environment on the replacement SDK
+  child; Codex reapplies scoped overrides and environment on exact-thread resume. Deterministic
+  fake-child tests cancel mid-turn, observe fresh tool-call/result events on the next turn, and
+  assert that the cancelled prompt is not resubmitted. These tests do not qualify live provider
+  recovery or application endpoint admission. The application must keep the scoped endpoint
+  usable for later turns while rejecting late work from the cancelled turn.
 - Invalid connection URLs and configuration-file failures fail before launch. Claude's init
   message must confirm the scoped server is connected before assistant output is accepted.
   Remote connection, authentication and CLI capability failures can surface on the first real
