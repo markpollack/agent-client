@@ -6,6 +6,8 @@
 package io.github.markpollack.agents.codex;
 
 import java.nio.file.Path;
+import java.util.function.BiFunction;
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -29,8 +31,9 @@ import io.github.markpollack.agents.model.AgentSessionStatus;
 /**
  * A semantic Codex conversation. Its stable registry ID is distinct from the provider
  * thread ID learned on the first real prompt. Every later prompt resumes that exact
- * thread with the original configuration. Close is terminal; cancellation interrupts only
- * this turn's zt-exec wait and direct child, not application-owned handlers.
+ * thread with the original or application-supplied configuration. Close is terminal;
+ * cancellation interrupts only this turn's zt-exec wait and direct child, not
+ * application-owned handlers.
  */
 public final class CodexAgentSession implements AgentSession {
 
@@ -40,7 +43,9 @@ public final class CodexAgentSession implements AgentSession {
 
 	private final Path directory;
 
-	private final CodexClient client;
+	private CodexClient client;
+
+	private final BiFunction<McpServerDefinition, java.util.Map<String, String>, CodexClient> bindingFactory;
 
 	private final Object lifecycle = new Object();
 
@@ -59,6 +64,12 @@ public final class CodexAgentSession implements AgentSession {
 	private boolean finishing;
 
 	CodexAgentSession(Path directory, CodexClient client) {
+		this(directory, client, null);
+	}
+
+	CodexAgentSession(Path directory, CodexClient client,
+			BiFunction<McpServerDefinition, java.util.Map<String, String>, CodexClient> bindingFactory) {
+		this.bindingFactory = bindingFactory;
 		this.directory = directory;
 		this.client = client;
 	}
@@ -273,6 +284,16 @@ public final class CodexAgentSession implements AgentSession {
 
 	@Override
 	public AgentSession resume() {
+		return resumeCurrent(null, null);
+	}
+
+	@Override
+	public AgentSession resume(McpServerDefinition definition, java.util.Map<String, String> environmentVariables) {
+		java.util.Objects.requireNonNull(definition, "definition");
+		return resumeCurrent(definition, java.util.Map.copyOf(environmentVariables));
+	}
+
+	private AgentSession resumeCurrent(McpServerDefinition definition, java.util.Map<String, String> environment) {
 		synchronized (lifecycle) {
 			if (closed || activeThread != null || status != AgentSessionStatus.DEAD) {
 				throw new IllegalStateException("Only an idle, dead, unclosed conversation can resume");
@@ -280,6 +301,20 @@ public final class CodexAgentSession implements AgentSession {
 			if (threadId == null) {
 				throw new IllegalStateException(
 						"Codex has not supplied a thread ID; exact-thread resume is unavailable");
+			}
+			if (definition != null) {
+				if (bindingFactory == null) {
+					throw new UnsupportedOperationException("A scoped conversation is required");
+				}
+				var replacement = bindingFactory.apply(definition, environment);
+				try {
+					client.close();
+				}
+				catch (RuntimeException ex) {
+					replacement.close();
+					throw ex;
+				}
+				client = replacement;
 			}
 			status = AgentSessionStatus.RESUMED;
 			lastActivity = Instant.now();

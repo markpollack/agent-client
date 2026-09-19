@@ -107,7 +107,9 @@ public class ClaudeAgentSessionRegistry implements AgentSessionRegistry {
 			client = newClient(configuration.initial(), directory);
 			client.connect();
 			ClaudeAgentSession session = new ClaudeAgentSession(id, directory, client, configuration,
-					options -> newClient(options, directory), serverName);
+					options -> newClient(options, directory), serverName,
+					(definitionNow, environment) -> ClaudeSessionConfiguration.create(directory, id, defaultOptions,
+							timeout, serverName, definitionNow, environment));
 			sessions.put(id, session);
 			return session;
 		}

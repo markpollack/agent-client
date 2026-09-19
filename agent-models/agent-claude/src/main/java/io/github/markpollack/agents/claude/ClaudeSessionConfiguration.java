@@ -23,6 +23,11 @@ record ClaudeSessionConfiguration(CLIOptions initial, CLIOptions resumed, Path f
 
 	static ClaudeSessionConfiguration create(Path directory, String id, ClaudeAgentOptions defaults, Duration timeout,
 			String name, McpServerDefinition definition) {
+		return create(directory, id, defaults, timeout, name, definition, null);
+	}
+
+	static ClaudeSessionConfiguration create(Path directory, String id, ClaudeAgentOptions defaults, Duration timeout,
+			String name, McpServerDefinition definition, Map<String, String> environment) {
 		validateEndpoint(definition);
 		if (defaults == null) {
 			defaults = ClaudeAgentOptions.builder().yolo(false).build();
@@ -31,6 +36,9 @@ record ClaudeSessionConfiguration(CLIOptions initial, CLIOptions resumed, Path f
 		try (ClaudeAgentModel model = ClaudeAgentModel.builder().defaultOptions(defaults).timeout(timeout).build()) {
 			var request = AgentTaskRequest.builder("", directory).build();
 			CLIOptions.Builder builder = model.buildCLIOptionsBuilder(request);
+			if (environment != null) {
+				builder.env(Map.copyOf(environment));
+			}
 			CLIOptions base = builder.build();
 			Map<String, McpServerConfig> servers = new LinkedHashMap<>(base.mcpServers());
 			if (name != null) {

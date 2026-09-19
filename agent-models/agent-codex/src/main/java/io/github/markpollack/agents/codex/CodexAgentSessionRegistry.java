@@ -62,7 +62,12 @@ public class CodexAgentSessionRegistry implements AgentSessionRegistry {
 		Objects.requireNonNull(directory, "workingDirectory");
 		var options = CodexSessionConfiguration.create(directory, settings.model, settings.timeout, name, definition,
 				settings.approvedTools, settings.environmentVariables);
-		var session = new CodexAgentSession(directory, newClient(options, directory));
+		var session = new CodexAgentSession(directory, newClient(options, directory),
+				name == null ? null
+						: (definitionNow,
+								environment) -> newClient(CodexSessionConfiguration.create(directory, settings.model,
+										settings.timeout, name, definitionNow, settings.approvedTools, environment),
+										directory));
 		sessions.put(session.getSessionId(), session);
 		return session;
 	}

@@ -98,6 +98,24 @@ public interface AgentSession extends AutoCloseable {
 	AgentSession resume();
 
 	/**
+	 * Resumes the same dead, unclosed conversation with the application's current
+	 * connection and environment overrides. Call after the cancelled prompt unwinds. The
+	 * original scoped server name and other provider settings are retained; the supplied
+	 * environment replaces prior explicit overrides. No prompt is replayed. Admission and
+	 * cancellation of application tools remain application-owned.
+	 * @param definition current connection definition, including route and credentials
+	 * @param environmentVariables current child environment overrides
+	 * @return this session, ready for the next prompt
+	 * @throws IllegalStateException if active, closed, or not resumable
+	 * @throws UnsupportedOperationException if current-binding continuation is
+	 * unsupported
+	 */
+	default AgentSession resume(io.github.markpollack.agents.model.mcp.McpServerDefinition definition,
+			java.util.Map<String, String> environmentVariables) {
+		throw new UnsupportedOperationException("Current-binding continuation is not supported");
+	}
+
+	/**
 	 * Branches the conversation from the current point, creating a new independent
 	 * session with the same history up to this point.
 	 * @return a new forked session

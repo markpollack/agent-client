@@ -125,11 +125,12 @@ class CodexAgentSessionTest {
 			.noneMatch(arg -> arg.contains(TOKEN) || arg.contains("private-option-value"));
 	}
 
-	@Test
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.ValueSource(booleans = { false, true })
 	@org.junit.jupiter.api.condition.EnabledOnOs({ org.junit.jupiter.api.condition.OS.LINUX,
 			org.junit.jupiter.api.condition.OS.MAC })
-	void cancelledChildResumesWithToolsAndEnvironmentWithoutReplay(@org.junit.jupiter.api.io.TempDir Path directory)
-			throws Exception {
+	void cancelledChildResumesWithToolsAndEnvironmentWithoutReplay(boolean currentBinding,
+			@org.junit.jupiter.api.io.TempDir Path directory) throws Exception {
 		Path script = directory.resolve("fake-codex");
 		Files.writeString(script,
 				"""
@@ -140,7 +141,7 @@ class CodexAgentSessionTest {
 						    sys.exit(0)
 						args = sys.argv[1:]
 						with open('launches.jsonl', 'a') as output:
-						    json.dump({'argv':args,'budget':os.environ.get('MCP_TOOL_TIMEOUT'),
+						    json.dump({'pid':os.getpid(),'argv':args,'budget':os.environ.get('MCP_TOOL_TIMEOUT'),
 						        'bearer':[v for k,v in os.environ.items() if k.startswith('AGENT_CLIENT_MCP_TOKEN_')]}, output)
 						    output.write('\\n')
 						def emit(value):
@@ -172,7 +173,17 @@ class CodexAgentSessionTest {
 			assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 			session.cancelActiveTurn();
 			assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CancellationException.class);
-			session.resume();
+			var firstLaunch = new ObjectMapper()
+				.readTree(Files.readAllLines(directory.resolve("launches.jsonl")).getFirst());
+			assertThat(ProcessHandle.of(firstLaunch.path("pid").asLong()).map(ProcessHandle::isAlive).orElse(false))
+				.isFalse();
+			if (currentBinding) {
+				session.resume(new McpServerDefinition.HttpDefinition("http://127.0.0.1:8123/current",
+						Map.of("Authorization", "Bearer current-token")), Map.of("MCP_TOOL_TIMEOUT", "97531"));
+			}
+			else {
+				session.resume();
+			}
 			var events = new ArrayList<AgentSessionEvent>();
 			assertThat(session.prompt("next-tool-prompt", events::add).getText()).isEqualTo("fresh-receipt");
 			assertThat(session.getSessionId()).isEqualTo(identity);
@@ -185,11 +196,15 @@ class CodexAgentSessionTest {
 		var mapper = new ObjectMapper();
 		for (int i = 0; i < launches.size(); i++) {
 			var launch = mapper.readTree(launches.get(i));
-			assertThat(launch.path("budget").asText()).isEqualTo("246813");
-			assertThat(launch.path("bearer").get(0).asText()).isEqualTo(TOKEN);
+			assertThat(launch.path("budget").asText()).isEqualTo(currentBinding && i == 1 ? "97531" : "246813");
+			assertThat(launch.path("bearer").get(0).asText())
+				.isEqualTo(currentBinding && i == 1 ? "current-token" : TOKEN);
 			var argv = mapper.convertValue(launch.path("argv"), new TypeReference<List<String>>() {
 			});
-			assertThat(argv).containsSequence("-c", "mcp_servers.scoped.url=\"http://127.0.0.1:8123/mcp\"")
+			assertThat(argv)
+				.containsSequence("-c",
+						"mcp_servers.scoped.url=\"http://127.0.0.1:8123/"
+								+ (currentBinding && i == 1 ? "current" : "mcp") + "\"")
 				.containsSequence("-c", "mcp_servers.scoped.tools.probe.approval_mode=\"approve\"");
 			if (i == 1) {
 				assertThat(argv)
@@ -326,7 +341,9 @@ class CodexAgentSessionTest {
 			var pending = executor.submit(() -> session.prompt("wait", events::add));
 			assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
 			assertThatThrownBy(() -> session.prompt("overlap")).hasMessageContaining("already active");
+			assertThatThrownBy(() -> session.resume(HTTP, Map.of())).isInstanceOf(IllegalStateException.class);
 			assertThatThrownBy(session::resume).isInstanceOf(IllegalStateException.class);
+			assertThatThrownBy(() -> session.resume(HTTP, Map.of())).isInstanceOf(IllegalStateException.class);
 			session.cancelActiveTurn();
 			session.cancelActiveTurn();
 			assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CancellationException.class);
@@ -360,6 +377,7 @@ class CodexAgentSessionTest {
 		session.close();
 		assertThatThrownBy(() -> session.prompt("closed")).isInstanceOf(IllegalStateException.class);
 		assertThatThrownBy(session::resume).isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> session.resume(HTTP, Map.of())).isInstanceOf(IllegalStateException.class);
 		assertThatThrownBy(session::fork).isInstanceOf(UnsupportedOperationException.class);
 		registry.evict(session.getSessionId());
 		assertThat(registry.find(session.getSessionId())).isEmpty();

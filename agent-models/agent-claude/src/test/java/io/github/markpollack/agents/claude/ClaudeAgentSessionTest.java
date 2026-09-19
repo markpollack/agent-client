@@ -151,6 +151,7 @@ class ClaudeAgentSessionTest {
 			var future = executor.submit(() -> session.prompt("blocked", events::add));
 			assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 			assertThatThrownBy(() -> session.prompt("overlap")).hasMessageContaining("already active");
+			assertThatThrownBy(() -> session.resume(definition, Map.of())).isInstanceOf(IllegalStateException.class);
 			session.cancelActiveTurn();
 			session.cancelActiveTurn();
 			assertThatThrownBy(() -> future.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CancellationException.class);
@@ -173,6 +174,7 @@ class ClaudeAgentSessionTest {
 		session.cancelActiveTurn();
 		verify(registry.client).close();
 		assertThatThrownBy(session::resume).isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> session.resume(definition, Map.of())).isInstanceOf(IllegalStateException.class);
 		assertThatThrownBy(() -> session.prompt("closed")).isInstanceOf(IllegalStateException.class);
 	}
 

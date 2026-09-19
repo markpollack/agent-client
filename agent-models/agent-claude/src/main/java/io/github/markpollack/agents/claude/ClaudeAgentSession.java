@@ -6,6 +6,8 @@
 package io.github.markpollack.agents.claude;
 
 import java.nio.file.Path;
+import java.util.function.BiFunction;
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.Iterator;
@@ -38,9 +40,10 @@ import io.github.markpollack.claude.agent.sdk.types.ToolResultBlock;
 import io.github.markpollack.journal.claude.SessionLogParser;
 
 /**
- * One Claude conversation with ordered turns and fixed MCP configuration. The SDK retains
- * the process between prompts. Cancellation closes the SDK process tree; resume
- * reattaches the same configuration without an extra model prompt. Close is terminal.
+ * One Claude conversation with ordered turns and replaceable scoped MCP configuration.
+ * The SDK retains the process between prompts. Cancellation closes the SDK process tree;
+ * resume reattaches the same or application-supplied configuration without an extra model
+ * prompt. Close is terminal.
  */
 public class ClaudeAgentSession implements AgentSession {
 
@@ -48,13 +51,15 @@ public class ClaudeAgentSession implements AgentSession {
 
 	private final Path workingDirectory;
 
-	private final ClaudeSessionConfiguration configuration;
+	private ClaudeSessionConfiguration configuration;
 
 	private final Function<CLIOptions, ClaudeSyncClient> clientFactory;
 
 	private final String scopedServer;
 
 	private final ReentrantLock turn = new ReentrantLock();
+
+	private final BiFunction<McpServerDefinition, java.util.Map<String, String>, ClaudeSessionConfiguration> bindingFactory;
 
 	private final Object lifecycle = new Object();
 
@@ -74,6 +79,13 @@ public class ClaudeAgentSession implements AgentSession {
 
 	ClaudeAgentSession(String id, Path directory, ClaudeSyncClient client, ClaudeSessionConfiguration configuration,
 			Function<CLIOptions, ClaudeSyncClient> clientFactory, String scopedServer) {
+		this(id, directory, client, configuration, clientFactory, scopedServer, null);
+	}
+
+	ClaudeAgentSession(String id, Path directory, ClaudeSyncClient client, ClaudeSessionConfiguration configuration,
+			Function<CLIOptions, ClaudeSyncClient> clientFactory, String scopedServer,
+			BiFunction<McpServerDefinition, Map<String, String>, ClaudeSessionConfiguration> bindingFactory) {
+		this.bindingFactory = bindingFactory;
 		this.sessionId = id;
 		this.workingDirectory = directory;
 		this.client = client;
@@ -280,6 +292,16 @@ public class ClaudeAgentSession implements AgentSession {
 
 	@Override
 	public AgentSession resume() {
+		return resumeCurrent(null, null);
+	}
+
+	@Override
+	public AgentSession resume(McpServerDefinition definition, java.util.Map<String, String> environmentVariables) {
+		java.util.Objects.requireNonNull(definition, "definition");
+		return resumeCurrent(definition, java.util.Map.copyOf(environmentVariables));
+	}
+
+	private AgentSession resumeCurrent(McpServerDefinition definition, java.util.Map<String, String> environment) {
 		if (turn.isHeldByCurrentThread() || !turn.tryLock()) {
 			throw new IllegalStateException("A turn is still active");
 		}
@@ -288,7 +310,24 @@ public class ClaudeAgentSession implements AgentSession {
 				if (closed || status != AgentSessionStatus.DEAD) {
 					throw new IllegalStateException("Only a dead, unclosed conversation can resume");
 				}
-				client.close();
+				if (definition != null) {
+					if (bindingFactory == null || scopedServer == null) {
+						throw new UnsupportedOperationException("A scoped conversation is required");
+					}
+					var replacement = bindingFactory.apply(definition, environment);
+					try {
+						client.close();
+						configuration.close();
+					}
+					catch (RuntimeException ex) {
+						replacement.close();
+						throw ex;
+					}
+					configuration = replacement;
+				}
+				else {
+					client.close();
+				}
 				client = clientFactory.apply(configuration.resumed());
 				try {
 					client.connect();

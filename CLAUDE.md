@@ -10,7 +10,7 @@ not gated by `traceDir`; that setting controls only raw trace-file output.
 A conversational application extends an installed agentic CLI: the CLI owns dialogue and context,
 and Agent Client owns the semantic conversation and provider connection mechanics. A conversation
 must support ordered prompts, resume where applicable, active-turn cancellation and close, with a
-fixed session-scoped MCP definition and observable messages, tool activity and terminal outcomes.
+session-scoped MCP definition and observable messages, tool activity and terminal outcomes.
 Capability failures must be explicit, and behavioral tests must prove continuity and tool use.
 
 The application owns provider selection, local Java tools and callbacks, the embedded MCP endpoint,
@@ -60,13 +60,21 @@ Verified integration seams and current limits:
   `environmentVariables(Map<String, String>)` supplies fixed overrides on every exec/resume alongside
   its bearer environment entry. Both preserve inherited variables, with supplied values winning,
   and do not log environment values. Applications own variable selection and timeout policy.
-- After active-turn cancellation, call `resume()` after the prompt unwinds, then send only the
-  next prompt. Claude retains its session-owned MCP file and environment on the replacement SDK
-  child; Codex reapplies scoped overrides and environment on exact-thread resume. Deterministic
-  fake-child tests cancel mid-turn, observe fresh tool-call/result events on the next turn, and
-  assert that the cancelled prompt is not resubmitted. These tests do not qualify live provider
-  recovery or application endpoint admission. The application must keep the scoped endpoint
-  usable for later turns while rejecting late work from the cancelled turn.
+- After active-turn cancellation, wait for the prompt to unwind, then use
+  `AgentSession.resume(McpServerDefinition definition, Map<String, String> environmentVariables)`
+  to continue with the application's current route, credential and child environment. Claude and
+  Codex implement this operation for scoped conversations. The existing server name, working
+  directory and other provider settings are retained; supplied environment overrides replace the
+  previous explicit overrides. Agent Client closes the old client and uses Claude's session resume
+  or Codex's exact-thread resume, preserving conversation identity and provider context without
+  replaying the cancelled prompt. Claude replaces and cleans up its MCP file. Codex requires an
+  already-observed thread ID. Active, closed and non-dead sessions reject continuation.
+- No-argument `resume()` retains the current binding, including one supplied by the overload.
+  Other providers explicitly reject the optional current-binding operation. The application owns
+  admission and must keep cancelled routes rejected independently of the successor connection.
+  Deterministic real-SDK/fake-child tests check changed route, credential and environment, old-child
+  termination, exact identity, fresh tool events and no replay. These are not live provider or
+  application-admission qualification.
 - Invalid connection URLs and configuration-file failures fail before launch. Claude's init
   message must confirm the scoped server is connected before assistant output is accepted.
   Remote connection, authentication and CLI capability failures can surface on the first real

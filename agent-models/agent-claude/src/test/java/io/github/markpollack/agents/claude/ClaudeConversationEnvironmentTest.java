@@ -61,8 +61,9 @@ class ClaudeConversationEnvironmentTest {
 		}
 	}
 
-	@Test
-	void cancelledTurnResumesWithScopedToolsAndEnvironmentWithoutReplay() throws Exception {
+	@org.junit.jupiter.params.ParameterizedTest
+	@org.junit.jupiter.params.provider.ValueSource(booleans = { false, true })
+	void cancelledTurnResumesWithScopedToolsAndEnvironmentWithoutReplay(boolean currentBinding) throws Exception {
 		Path executable = directory.resolve("fake-claude");
 		Files.writeString(executable,
 				"""
@@ -76,7 +77,7 @@ class ClaudeConversationEnvironmentTest {
 						with open(config) as source:
 						    servers = json.load(source)
 						with open(phase + '.json', 'w') as output:
-						    json.dump({'argv': args, 'config': servers, 'budget': os.environ.get('MCP_TOOL_TIMEOUT')}, output)
+						    json.dump({'pid':os.getpid(), 'argv': args, 'config': servers, 'budget': os.environ.get('MCP_TOOL_TIMEOUT')}, output)
 						def emit(value):
 						    print(json.dumps(value), flush=True)
 						emit({'type':'system','subtype':'init','mcp_servers':[{'name':'scoped','status':'connected'}]})
@@ -110,22 +111,40 @@ class ClaudeConversationEnvironmentTest {
 			assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 			session.cancelActiveTurn();
 			assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CancellationException.class);
-			session.resume();
+			var mapper = new ObjectMapper();
+			var initial = mapper.readTree(directory.resolve("initial.json").toFile());
+			assertThat(ProcessHandle.of(initial.path("pid").asLong()).map(ProcessHandle::isAlive).orElse(false))
+				.isFalse();
+			if (currentBinding) {
+				session.resume(new McpServerDefinition.HttpDefinition("http://127.0.0.1:12345/current",
+						Map.of("Authorization", "Bearer current-token")), Map.of("MCP_TOOL_TIMEOUT", "97531"));
+			}
+			else {
+				session.resume();
+			}
 			var events = new ArrayList<AgentSessionEvent>();
 			assertThat(session.prompt("next-tool-prompt", events::add).getText()).contains("fresh-receipt");
 			assertThat(session.getSessionId()).isEqualTo(identity);
 			assertThat(events).extracting(Object::getClass)
 				.containsExactly(AgentSessionEvent.ToolCall.class, AgentSessionEvent.ToolResult.class,
 						AgentSessionEvent.Text.class, AgentSessionEvent.Terminal.class);
-			var mapper = new ObjectMapper();
-			var initial = mapper.readTree(directory.resolve("initial.json").toFile());
 			var resumed = mapper.readTree(directory.resolve("resumed.json").toFile());
-			assertThat(resumed.path("config")).isEqualTo(initial.path("config"));
+			var initialArgs = mapper.convertValue(initial.path("argv"), new TypeReference<List<String>>() {
+			});
+			Path oldConfig = Path.of(initialArgs.get(initialArgs.indexOf("--mcp-config") + 1));
+			if (currentBinding) {
+				assertThat(oldConfig).doesNotExist();
+			}
+			else {
+				assertThat(resumed.path("config")).isEqualTo(initial.path("config"));
+			}
 			var server = resumed.path("config").path("mcpServers").path("scoped");
-			assertThat(server.path("url").asText()).isEqualTo("http://127.0.0.1:12345/mcp");
-			assertThat(server.path("headers").path("Authorization").asText()).isEqualTo("Bearer fixture-token");
+			assertThat(server.path("url").asText())
+				.isEqualTo(currentBinding ? "http://127.0.0.1:12345/current" : "http://127.0.0.1:12345/mcp");
+			assertThat(server.path("headers").path("Authorization").asText())
+				.isEqualTo(currentBinding ? "Bearer current-token" : "Bearer fixture-token");
 			assertThat(initial.path("budget").asText()).isEqualTo("246813");
-			assertThat(resumed.path("budget").asText()).isEqualTo("246813");
+			assertThat(resumed.path("budget").asText()).isEqualTo(currentBinding ? "97531" : "246813");
 			var argv = mapper.convertValue(resumed.path("argv"), new TypeReference<List<String>>() {
 			});
 			assertThat(argv).containsSequence("--resume", identity).doesNotContain("--session-id");
@@ -154,6 +173,7 @@ class ClaudeConversationEnvironmentTest {
 		Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 		Level previous = root.getLevel();
 		var logs = new ListAppender<ILoggingEvent>();
+		logs.list = new java.util.concurrent.CopyOnWriteArrayList<>();
 		logs.start();
 		root.addAppender(logs);
 		root.setLevel(Level.TRACE);
