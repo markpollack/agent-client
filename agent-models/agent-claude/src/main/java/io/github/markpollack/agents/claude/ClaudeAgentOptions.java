@@ -90,6 +90,23 @@ public class ClaudeAgentOptions implements AgentOptions {
 	private boolean includePartialMessages = false;
 
 	/**
+	 * Ask Claude Code to forward each sub-agent's text and thinking blocks, and with them
+	 * the sub-agent turns that call no tool, on the message stream. Maps to the
+	 * {@code --forward-subagent-text} CLI flag. Off by default: the CLI's default
+	 * behaviour is unchanged unless this is set.
+	 *
+	 * <p>
+	 * Without it, Claude Code still streams a sub-agent's prompt, tool calls and tool
+	 * results, but not its text-only turns, so a journal capture of the sub-agent misses
+	 * those turns and their token usage. Turn it on when sub-agent accounting or text
+	 * matters. It needs agent-journal 1.11.0 or later, which keeps each sub-agent's
+	 * activity apart from the main loop ({@code PhaseCapture.subagents()}); with an
+	 * earlier agent-journal the forwarded sub-agent text is merged into the main loop's
+	 * text and therefore into this model's response text.
+	 */
+	private boolean forwardSubagentText = false;
+
+	/**
 	 * Reasoning effort level for the session. Maps to the {@code --effort} CLI flag.
 	 * Claude-native values: {@code low}, {@code medium}, {@code high}, {@code xhigh},
 	 * {@code max} (a wider range than the portable {@code AgentOptions#getEffort()}
@@ -240,6 +257,14 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 	public void setIncludePartialMessages(boolean includePartialMessages) {
 		this.includePartialMessages = includePartialMessages;
+	}
+
+	public boolean isForwardSubagentText() {
+		return forwardSubagentText;
+	}
+
+	public void setForwardSubagentText(boolean forwardSubagentText) {
+		this.forwardSubagentText = forwardSubagentText;
 	}
 
 	/**
@@ -423,6 +448,15 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 		public Builder includePartialMessages(boolean includePartialMessages) {
 			options.setIncludePartialMessages(includePartialMessages);
+			return this;
+		}
+
+		/**
+		 * Forwards sub-agent text, thinking and text-only turns on the stream
+		 * ({@code --forward-subagent-text}); see {@link #isForwardSubagentText()}.
+		 */
+		public Builder forwardSubagentText(boolean forwardSubagentText) {
+			options.setForwardSubagentText(forwardSubagentText);
 			return this;
 		}
 
