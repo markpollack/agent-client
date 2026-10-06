@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import io.github.markpollack.journal.codex.CodexPhaseCapture;
+import io.github.markpollack.journal.codex.CodexRollouts;
 import io.github.markpollack.journal.codex.CodexSessionParser;
 
 /**
@@ -248,22 +249,24 @@ public class CodexAgentModel implements AgentModel {
 	}
 
 	/**
-	 * Parses the root rollout only. {@link ExecuteResult#getRollouts()} also carries the
-	 * sub-agent rollouts harvested for this run (thread id, parent thread id, source
-	 * path, verbatim lines), but the released {@code codex-cli-capture} has no entry
-	 * point that takes more than one file.
-	 * <p>
-	 * TODO(agent-journal 1.11.0): once {@code CodexSessionParser.parse(CodexRollouts,
-	 * phaseName, promptText)} is released, build {@code CodexRollouts} from
-	 * {@code result.getRollouts()} (one
-	 * {@code CodexRollout(threadId, parentThreadId, lines)} plus {@code sourcePath} per
-	 * entry) and call it here instead of joining the root lines, so each child becomes
-	 * its own run under the accepted sub-agent keys.
+	 * Parses the harvested rollouts. When {@link ExecuteResult#getRollouts()} carries the
+	 * root and its sub-agent rollouts, every file is handed to
+	 * {@code CodexSessionParser.parse(CodexRollouts, phaseName, promptText)} so each
+	 * child becomes its own sub-agent capture; otherwise the root lines are parsed alone.
 	 */
 	private CodexPhaseCapture parseCapture(ExecuteResult result, String prompt) throws IOException {
+		String phaseName = UUID.randomUUID().toString();
+		if (result.getRollouts() != null && !result.getRollouts().isEmpty()) {
+			List<io.github.markpollack.journal.codex.CodexRollout> rollouts = result.getRollouts()
+				.stream()
+				.map(r -> new io.github.markpollack.journal.codex.CodexRollout(r.threadId(), r.parentThreadId(),
+						r.sourcePath(), r.lines()))
+				.toList();
+			return CodexSessionParser.parse(new CodexRollouts(rollouts), phaseName, prompt);
+		}
 		String rollout = String.join("\n", result.getRolloutLines());
 		try (BufferedReader reader = new BufferedReader(new StringReader(rollout))) {
-			return CodexSessionParser.parse(reader, UUID.randomUUID().toString(), prompt);
+			return CodexSessionParser.parse(reader, phaseName, prompt);
 		}
 	}
 
@@ -282,6 +285,8 @@ public class CodexAgentModel implements AgentModel {
 		providerFields.put("successful", result.isSuccessful());
 		providerFields.put("activityLog", result.getActivityLog() != null ? result.getActivityLog() : "");
 		providerFields.put("phaseCapture", capture);
+		providerFields.put("rollouts", result.getRollouts());
+		providerFields.put("missingRolloutThreadIds", result.getMissingRolloutThreadIds());
 
 		AgentResponseMetadata metadata = AgentResponseMetadata.builder()
 			.model(result.getModel() != null ? result.getModel() : "codex-default")
