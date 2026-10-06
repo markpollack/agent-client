@@ -57,6 +57,18 @@ class ClaudeAgentModelPortableOptionsTest {
 	}
 
 	@Test
+	@DisplayName("forwardSubagentText reaches CLIOptions when set; off by default")
+	void forwardSubagentTextPassedToCli() {
+		ClaudeAgentOptions on = ClaudeAgentOptions.builder().forwardSubagentText(true).build();
+		CLIOptions cliOn = this.model.buildCLIOptions(new AgentTaskRequest("test goal", Path.of("/tmp"), on));
+		assertThat(cliOn.isForwardSubagentText()).isTrue();
+
+		ClaudeAgentOptions off = ClaudeAgentOptions.builder().build();
+		CLIOptions cliOff = this.model.buildCLIOptions(new AgentTaskRequest("test goal", Path.of("/tmp"), off));
+		assertThat(cliOff.isForwardSubagentText()).isFalse();
+	}
+
+	@Test
 	@DisplayName("Claude-specific maxTurns takes precedence over portable")
 	void claudeMaxTurnsTakesPrecedence() {
 		ClaudeAgentOptions claudeOptions = ClaudeAgentOptions.builder().maxTurns(10).build();

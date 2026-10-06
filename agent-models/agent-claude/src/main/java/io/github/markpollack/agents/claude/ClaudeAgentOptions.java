@@ -90,6 +90,12 @@ public class ClaudeAgentOptions implements AgentOptions {
 	private boolean includePartialMessages = false;
 
 	/**
+	 * Forward sub-agent text blocks on the stream. Maps to the
+	 * {@code --forward-subagent-text} CLI flag.
+	 */
+	private boolean forwardSubagentText = false;
+
+	/**
 	 * Reasoning effort level for the session. Maps to the {@code --effort} CLI flag.
 	 * Claude-native values: {@code low}, {@code medium}, {@code high}, {@code xhigh},
 	 * {@code max} (a wider range than the portable {@code AgentOptions#getEffort()}
@@ -240,6 +246,14 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 	public void setIncludePartialMessages(boolean includePartialMessages) {
 		this.includePartialMessages = includePartialMessages;
+	}
+
+	public boolean isForwardSubagentText() {
+		return forwardSubagentText;
+	}
+
+	public void setForwardSubagentText(boolean forwardSubagentText) {
+		this.forwardSubagentText = forwardSubagentText;
 	}
 
 	/**
@@ -423,6 +437,11 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 		public Builder includePartialMessages(boolean includePartialMessages) {
 			options.setIncludePartialMessages(includePartialMessages);
+			return this;
+		}
+
+		public Builder forwardSubagentText(boolean forwardSubagentText) {
+			options.setForwardSubagentText(forwardSubagentText);
 			return this;
 		}
 

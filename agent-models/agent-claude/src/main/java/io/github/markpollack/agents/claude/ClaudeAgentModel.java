@@ -584,6 +584,10 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			builder.model(options.getModel());
 		}
 
+		if (options.isForwardSubagentText()) {
+			builder.forwardSubagentText(true);
+		}
+
 		// Auto-approve: Claude-specific yolo if ClaudeAgentOptions, otherwise portable
 		// isAutoApprove()
 		boolean autoApprove = options.isYolo();
