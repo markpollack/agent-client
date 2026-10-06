@@ -34,19 +34,44 @@ public class ExecuteResult {
 
 	private final List<String> rolloutLines;
 
+	private final List<CodexRollout> rollouts;
+
+	private final List<String> missingRolloutThreadIds;
+
 	public ExecuteResult(String output, String activityLog, int exitCode, Duration duration, String model) {
 		this(output, activityLog, exitCode, duration, model, List.of());
 	}
 
+	/**
+	 * Creates a result whose only rollout is the root. Equivalent to supplying a
+	 * {@link CodexRolloutHarvest} with a single root {@link CodexRollout} whose thread id
+	 * is the session id derived from the activity log and whose source path is unknown.
+	 */
 	public ExecuteResult(String output, String activityLog, int exitCode, Duration duration, String model,
 			List<String> rolloutLines) {
+		this(output, activityLog, exitCode, duration, model, rootOnly(activityLog, rolloutLines));
+	}
+
+	public ExecuteResult(String output, String activityLog, int exitCode, Duration duration, String model,
+			CodexRolloutHarvest harvest) {
 		this.output = output;
 		this.activityLog = activityLog;
 		this.exitCode = exitCode;
 		this.duration = duration;
 		this.model = model;
 		this.sessionId = extractSessionId(activityLog);
-		this.rolloutLines = rolloutLines != null ? List.copyOf(rolloutLines) : List.of();
+		CodexRolloutHarvest effective = harvest != null ? harvest : CodexRolloutHarvest.EMPTY;
+		this.rollouts = effective.rollouts();
+		this.missingRolloutThreadIds = effective.missingThreadIds();
+		this.rolloutLines = effective.rootLines();
+	}
+
+	private static CodexRolloutHarvest rootOnly(String activityLog, List<String> rolloutLines) {
+		if (rolloutLines == null || rolloutLines.isEmpty()) {
+			return CodexRolloutHarvest.EMPTY;
+		}
+		return new CodexRolloutHarvest(
+				List.of(new CodexRollout(extractSessionId(activityLog), null, null, rolloutLines)), List.of());
 	}
 
 	/**
@@ -55,7 +80,7 @@ public class ExecuteResult {
 	 * @param activityLog the stderr activity log
 	 * @return extracted session ID or null if not found
 	 */
-	private String extractSessionId(String activityLog) {
+	private static String extractSessionId(String activityLog) {
 		if (activityLog == null || activityLog.isEmpty()) {
 			return null;
 		}
@@ -92,14 +117,36 @@ public class ExecuteResult {
 	}
 
 	/**
-	 * Gets the raw persisted Codex rollout JSONL for this run. Codex writes the
-	 * trajectory to its session store rather than to the ordinary {@code exec} output.
-	 * The list is empty when no matching, flushed rollout could be found within the
-	 * transport's bounded wait.
-	 * @return immutable raw rollout lines, possibly empty
+	 * Gets the raw persisted Codex rollout JSONL of the root thread for this run. Codex
+	 * writes the trajectory to its session store rather than to the ordinary {@code exec}
+	 * output. The list is empty when no matching, flushed rollout could be found within
+	 * the transport's bounded wait. Sub-agent rollouts are not included here; see
+	 * {@link #getRollouts()}.
+	 * @return immutable raw root rollout lines, possibly empty
 	 */
 	public List<String> getRolloutLines() {
 		return rolloutLines;
+	}
+
+	/**
+	 * Gets every rollout harvested for this run: the root thread first, then each
+	 * sub-agent thread reached by following the parent's
+	 * {@code SubAgentActivity{kind:"started"}} records. Each entry carries its thread id,
+	 * its parent thread id ({@code null} for the root), the path it was read from and its
+	 * verbatim lines.
+	 * @return immutable list, empty when no rollout was found
+	 */
+	public List<CodexRollout> getRollouts() {
+		return rollouts;
+	}
+
+	/**
+	 * Gets the sub-agent thread ids announced by a harvested rollout whose own file was
+	 * not found within the bounded wait. Such spawns are known but not collected.
+	 * @return immutable list, usually empty
+	 */
+	public List<String> getMissingRolloutThreadIds() {
+		return missingRolloutThreadIds;
 	}
 
 	public boolean isSuccessful() {

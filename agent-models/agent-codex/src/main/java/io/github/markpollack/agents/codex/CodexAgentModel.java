@@ -247,6 +247,19 @@ public class CodexAgentModel implements AgentModel {
 		return new AgentResponse(List.of(generation), metadata);
 	}
 
+	/**
+	 * Parses the root rollout only. {@link ExecuteResult#getRollouts()} also carries the
+	 * sub-agent rollouts harvested for this run (thread id, parent thread id, source
+	 * path, verbatim lines), but the released {@code codex-cli-capture} has no entry
+	 * point that takes more than one file.
+	 * <p>
+	 * TODO(agent-journal 1.11.0): once {@code CodexSessionParser.parse(CodexRollouts,
+	 * phaseName, promptText)} is released, build {@code CodexRollouts} from
+	 * {@code result.getRollouts()} (one
+	 * {@code CodexRollout(threadId, parentThreadId, lines)} plus {@code sourcePath} per
+	 * entry) and call it here instead of joining the root lines, so each child becomes
+	 * its own run under the accepted sub-agent keys.
+	 */
 	private CodexPhaseCapture parseCapture(ExecuteResult result, String prompt) throws IOException {
 		String rollout = String.join("\n", result.getRolloutLines());
 		try (BufferedReader reader = new BufferedReader(new StringReader(rollout))) {

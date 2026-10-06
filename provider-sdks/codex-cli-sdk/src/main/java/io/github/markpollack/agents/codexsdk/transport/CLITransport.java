@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.codexsdk.exceptions.CodexSDKException;
 import io.github.markpollack.agents.codexsdk.types.ApprovalPolicy;
+import io.github.markpollack.agents.codexsdk.types.CodexRolloutHarvest;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
 import io.github.markpollack.agents.codexsdk.types.ExecuteResult;
 import io.github.markpollack.agents.codexsdk.types.SandboxMode;
@@ -245,14 +246,14 @@ public class CLITransport {
 					ROLLOUT_WAIT, ROLLOUT_POLL_INTERVAL);
 			Path effectiveWorkingDirectory = options.getWorkingDirectory() != null ? options.getWorkingDirectory()
 					: workingDirectory;
-			List<String> rolloutLines = harvester.harvest(execution.getSessionId(), effectiveWorkingDirectory,
+			CodexRolloutHarvest harvest = harvester.harvestRollouts(execution.getSessionId(), effectiveWorkingDirectory,
 					startTime);
-			if (rolloutLines.isEmpty()) {
+			if (harvest.rollouts().isEmpty()) {
 				logger.warn("No flushed Codex rollout found for session {} in {}", execution.getSessionId(),
 						effectiveWorkingDirectory);
 			}
 
-			return new ExecuteResult(finalMessage, activityLog, exitCode, duration, model, rolloutLines);
+			return new ExecuteResult(finalMessage, activityLog, exitCode, duration, model, harvest);
 		}
 		catch (IOException e) {
 			Duration duration = Duration.between(startTime, Instant.now());

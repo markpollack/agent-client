@@ -7,6 +7,8 @@ package io.github.markpollack.agents.codexsdk.transport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.markpollack.agents.codexsdk.types.CodexRollout;
+import io.github.markpollack.agents.codexsdk.types.CodexRolloutHarvest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,14 +19,29 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * Locates and reads the persisted rollout written by a Codex CLI run.
+ * Locates and reads the persisted rollouts written by a Codex CLI run: the root thread's
+ * file and, when the run spawned sub-agents, each child thread's file.
+ * <p>
+ * Codex writes one rollout per thread under {@code sessions/YYYY/MM/DD/}. The parent
+ * names a child only through {@code event_msg/item_completed} records whose item is a
+ * {@code SubAgentActivity} with {@code kind:"started"}; that item's
+ * {@code agent_thread_id} is the suffix of the child's file name. Children may sit under
+ * a different date directory than their parent, so lookup scans the whole sessions root.
+ * This class owns discovery and copying of lines only; it does not interpret the records
+ * beyond what discovery needs.
  */
 final class CodexRolloutHarvester {
 
@@ -53,21 +70,127 @@ final class CodexRolloutHarvester {
 		return home.resolve("sessions");
 	}
 
+	/**
+	 * Harvests the root rollout only. Kept for callers that need the flat line list;
+	 * equal to {@code harvestRollouts(...).rootLines()} when a root is found.
+	 */
 	List<String> harvest(String sessionId, Path workingDirectory, Instant runStartedAt) {
+		return awaitStable(() -> locate(sessionId, workingDirectory, runStartedAt)).map(this::readLines)
+			.orElse(List.of());
+	}
+
+	/**
+	 * Harvests the root rollout and every sub-agent rollout reachable from it. Each file,
+	 * root or child, is read only once two consecutive polls observe the same size and
+	 * modification time, or when the bounded wait expires with a candidate present. A
+	 * child announced by its parent but absent from the store within the wait is listed
+	 * in {@link CodexRolloutHarvest#missingThreadIds()} and the harvest continues.
+	 */
+	CodexRolloutHarvest harvestRollouts(String sessionId, Path workingDirectory, Instant runStartedAt) {
+		Optional<Path> rootPath = awaitStable(() -> locate(sessionId, workingDirectory, runStartedAt));
+		if (rootPath.isEmpty()) {
+			return CodexRolloutHarvest.EMPTY;
+		}
+
+		List<CodexRollout> rollouts = new ArrayList<>();
+		List<String> missing = new ArrayList<>();
+		Set<String> visited = new LinkedHashSet<>();
+		Deque<CodexRollout> pending = new ArrayDeque<>();
+
+		CodexRollout root = toRollout(rootPath.get(), sessionId);
+		visited.add(root.threadId());
+		rollouts.add(root);
+		pending.add(root);
+
+		while (!pending.isEmpty()) {
+			CodexRollout parent = pending.poll();
+			for (String childThreadId : startedSubAgentThreadIds(parent.lines())) {
+				if (!visited.add(childThreadId)) {
+					continue;
+				}
+				Optional<Path> childPath = awaitStable(() -> locateByThreadId(childThreadId));
+				if (childPath.isEmpty()) {
+					logger.warn("Codex sub-agent rollout {} announced by thread {} was not found under {}",
+							childThreadId, parent.threadId(), sessionsRoot);
+					missing.add(childThreadId);
+					continue;
+				}
+				CodexRollout child = toRollout(childPath.get(), childThreadId);
+				rollouts.add(child);
+				pending.add(child);
+			}
+		}
+		return new CodexRolloutHarvest(rollouts, missing);
+	}
+
+	Optional<Path> locate(String sessionId, Path workingDirectory, Instant runStartedAt) {
+		if (!Files.isDirectory(sessionsRoot)) {
+			return Optional.empty();
+		}
+
+		List<Path> rollouts = rolloutFiles();
+		if (sessionId != null && !sessionId.isBlank()) {
+			Optional<Path> bySession = byThreadId(rollouts, sessionId);
+			if (bySession.isPresent()) {
+				return bySession;
+			}
+		}
+
+		if (workingDirectory == null) {
+			return Optional.empty();
+		}
+
+		// Fallback by cwd and start time. Only root session metadata qualifies: a
+		// sub-agent's session_meta carries parent_thread_id and an object-valued source,
+		// and readSessionMetadata returns null for those, so a child is never chosen
+		// here.
+		Path normalizedWorkingDirectory = workingDirectory.toAbsolutePath().normalize();
+		Instant earliestSession = runStartedAt.minus(START_TIME_TOLERANCE);
+		return rollouts.stream()
+			.filter(path -> !lastModified(path).isBefore(earliestSession))
+			.map(this::readSessionMetadata)
+			.filter(Objects::nonNull)
+			.filter(metadata -> metadata.cwd().equals(normalizedWorkingDirectory))
+			.filter(metadata -> !metadata.timestamp().isBefore(earliestSession))
+			.max(Comparator.comparing(SessionMetadata::timestamp)
+				.thenComparing(metadata -> lastModified(metadata.path())))
+			.map(SessionMetadata::path);
+	}
+
+	Optional<Path> locateByThreadId(String threadId) {
+		if (!Files.isDirectory(sessionsRoot) || threadId == null || threadId.isBlank()) {
+			return Optional.empty();
+		}
+		return byThreadId(rolloutFiles(), threadId);
+	}
+
+	private Optional<Path> byThreadId(List<Path> rollouts, String threadId) {
+		return rollouts.stream()
+			.filter(path -> path.getFileName().toString().endsWith(threadId + ".jsonl"))
+			.max(Comparator.comparing(this::lastModified));
+	}
+
+	/**
+	 * Polls the locator until the same file is observed unchanged on two consecutive
+	 * polls. If the deadline expires while a candidate is still changing, that candidate
+	 * is returned so the caller gets the latest readable snapshot; a missing match stays
+	 * empty.
+	 */
+	private Optional<Path> awaitStable(Supplier<Optional<Path>> locator) {
 		Instant deadline = Instant.now().plus(wait);
 		Path previousCandidate = null;
 		FileSnapshot previousSnapshot = null;
 		int stableObservations = 0;
 
 		do {
-			Optional<Path> candidate = locate(sessionId, workingDirectory, runStartedAt);
+			Optional<Path> candidate = locator.get();
 			if (candidate.isPresent()) {
 				Path path = candidate.get();
 				FileSnapshot snapshot = snapshot(path);
 				if (path.equals(previousCandidate) && snapshot != null && snapshot.equals(previousSnapshot)) {
 					stableObservations++;
 					if (stableObservations >= 2) {
-						return readLines(path);
+						return Optional.of(path);
 					}
 				}
 				else {
@@ -83,41 +206,63 @@ final class CodexRolloutHarvester {
 		}
 		while (pause());
 
-		// If the deadline expired while a matching file was still changing, return the
-		// latest readable snapshot. A missing match remains an honest empty trajectory.
-		return previousCandidate != null ? readLines(previousCandidate) : List.of();
+		return Optional.ofNullable(previousCandidate);
 	}
 
-	Optional<Path> locate(String sessionId, Path workingDirectory, Instant runStartedAt) {
-		if (!Files.isDirectory(sessionsRoot)) {
-			return Optional.empty();
+	private CodexRollout toRollout(Path path, String fallbackThreadId) {
+		List<String> lines = readLines(path);
+		String threadId = fallbackThreadId;
+		String parentThreadId = null;
+		for (String line : lines) {
+			JsonNode event = parse(line);
+			if (event == null || !"session_meta".equals(event.path("type").asText())) {
+				continue;
+			}
+			// Only the first session_meta identifies the thread: a forked child replays
+			// the
+			// parent's history, including the parent's session_meta, later in the file.
+			JsonNode payload = event.path("payload");
+			String id = payload.path("id").asText(null);
+			if (id != null && !id.isBlank()) {
+				threadId = id;
+			}
+			parentThreadId = payload.path("parent_thread_id").asText(null);
+			break;
 		}
+		return new CodexRollout(threadId, parentThreadId, path.toAbsolutePath().toString(), lines);
+	}
 
-		List<Path> rollouts = rolloutFiles();
-		if (sessionId != null && !sessionId.isBlank()) {
-			Optional<Path> bySession = rollouts.stream()
-				.filter(path -> path.getFileName().toString().endsWith(sessionId + ".jsonl"))
-				.max(Comparator.comparing(this::lastModified));
-			if (bySession.isPresent()) {
-				return bySession;
+	static List<String> startedSubAgentThreadIds(List<String> lines) {
+		Set<String> threadIds = new LinkedHashSet<>();
+		for (String line : lines) {
+			JsonNode event = parse(line);
+			if (event == null || !"event_msg".equals(event.path("type").asText())) {
+				continue;
+			}
+			JsonNode payload = event.path("payload");
+			if (!"item_completed".equals(payload.path("type").asText())) {
+				continue;
+			}
+			JsonNode item = payload.path("item");
+			if (!"SubAgentActivity".equals(item.path("type").asText())
+					|| !"started".equals(item.path("kind").asText())) {
+				continue;
+			}
+			String threadId = item.path("agent_thread_id").asText(null);
+			if (threadId != null && !threadId.isBlank()) {
+				threadIds.add(threadId);
 			}
 		}
+		return List.copyOf(threadIds);
+	}
 
-		if (workingDirectory == null) {
-			return Optional.empty();
+	private static JsonNode parse(String line) {
+		try {
+			return MAPPER.readTree(line);
 		}
-
-		Path normalizedWorkingDirectory = workingDirectory.toAbsolutePath().normalize();
-		Instant earliestSession = runStartedAt.minus(START_TIME_TOLERANCE);
-		return rollouts.stream()
-			.filter(path -> !lastModified(path).isBefore(earliestSession))
-			.map(this::readSessionMetadata)
-			.filter(Objects::nonNull)
-			.filter(metadata -> metadata.cwd().equals(normalizedWorkingDirectory))
-			.filter(metadata -> !metadata.timestamp().isBefore(earliestSession))
-			.max(Comparator.comparing(SessionMetadata::timestamp)
-				.thenComparing(metadata -> lastModified(metadata.path())))
-			.map(SessionMetadata::path);
+		catch (IOException | RuntimeException ex) {
+			return null;
+		}
 	}
 
 	private List<Path> rolloutFiles() {
@@ -133,6 +278,12 @@ final class CodexRolloutHarvester {
 		}
 	}
 
+	/**
+	 * Reads the first {@code session_meta} of a rollout for the cwd-and-time fallback.
+	 * Returns {@code null} when the file has no usable metadata or when the metadata
+	 * belongs to a sub-agent thread ({@code parent_thread_id} present, or {@code source}
+	 * not a plain string), because a child must never be chosen as the root.
+	 */
 	private SessionMetadata readSessionMetadata(Path path) {
 		try (BufferedReader reader = Files.newBufferedReader(path)) {
 			String line;
@@ -142,6 +293,14 @@ final class CodexRolloutHarvester {
 					continue;
 				}
 				JsonNode payload = event.path("payload");
+				JsonNode parentThreadId = payload.path("parent_thread_id");
+				if (!parentThreadId.isMissingNode() && !parentThreadId.isNull()) {
+					return null;
+				}
+				JsonNode source = payload.path("source");
+				if (!source.isMissingNode() && !source.isNull() && !source.isTextual()) {
+					return null;
+				}
 				String cwd = payload.path("cwd").asText(null);
 				String timestamp = payload.path("timestamp").asText(null);
 				if (cwd == null || timestamp == null) {
