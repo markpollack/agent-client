@@ -22,8 +22,6 @@ import io.github.markpollack.claude.agent.sdk.types.Message;
 import io.github.markpollack.claude.agent.sdk.types.ResultMessage;
 import io.github.markpollack.journal.claude.PhaseCapture;
 import io.github.markpollack.journal.claude.SessionLogParser;
-import io.github.markpollack.journal.trace.TraceContentMode;
-import io.github.markpollack.journal.trace.TraceRawMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
@@ -154,8 +152,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	private final Path traceDir;
 
-	private final TraceContentMode traceContentMode;
-
 	private final boolean archiveTranscript;
 
 	private ClaudeAgentModel(Builder builder) {
@@ -167,7 +163,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		this.asyncExecutor = builder.asyncExecutor != null ? builder.asyncExecutor : DEFAULT_EXECUTOR;
 		this.messageListener = builder.messageListener;
 		this.traceDir = builder.traceDir;
-		this.traceContentMode = builder.traceContentMode;
 		this.archiveTranscript = builder.archiveTranscript;
 	}
 
@@ -297,8 +292,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			// and a record that cannot tell those apart is modelling two different
 			// processes as one.
 			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns() : SessionLogParser.UNKNOWN_MAX_TURNS;
-			capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path(),
-					traceContentMode, TraceRawMode.NONE, maxTurns);
+			capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path(), maxTurns);
 		}
 		catch (Exception e) {
 			logger.error("Call failed", e);
@@ -774,8 +768,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 		private Path traceDir;
 
-		private TraceContentMode traceContentMode = TraceContentMode.TRUNCATED;
-
 		private boolean archiveTranscript = true;
 
 		private Builder() {
@@ -869,7 +861,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		 * Claude-specific JSONL trace file containing events observed during
 		 * SessionLogParser parsing (tool calls, tool results, text, thinking blocks, and
 		 * result events). These are not provider-neutral journal events. Null (default)
-		 * disables tracing.
+		 * disables tracing. Content is always written whole (agent-journal 1.12.0 removed
+		 * the truncating and lengths-only modes); traces may include prompts, file
+		 * contents and command output, so treat them as sensitive local artifacts.
 		 * <p>
 		 * When tracing is enabled, the CLI's own session transcript is also archived
 		 * verbatim into {@code <traceDir>/transcripts/} by default — see
@@ -879,21 +873,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		 */
 		public Builder traceDir(Path traceDir) {
 			this.traceDir = traceDir;
-			return this;
-		}
-
-		/**
-		 * Sets the content capture policy for trace files. Default
-		 * {@link TraceContentMode#TRUNCATED}: full thinking/text/tool_result content,
-		 * truncated per item at 60KB. {@link TraceContentMode#FULL} never truncates;
-		 * {@link TraceContentMode#LENGTHS} pins the lengths-only disk footprint.
-		 * Content-carrying traces may include prompts, file contents, and command output
-		 * — treat them as sensitive local artifacts.
-		 * @param traceContentMode the content mode (null resets to default)
-		 * @return this builder
-		 */
-		public Builder traceContentMode(TraceContentMode traceContentMode) {
-			this.traceContentMode = traceContentMode != null ? traceContentMode : TraceContentMode.TRUNCATED;
 			return this;
 		}
 

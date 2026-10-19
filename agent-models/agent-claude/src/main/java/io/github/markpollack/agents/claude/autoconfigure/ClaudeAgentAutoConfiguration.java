@@ -106,12 +106,9 @@ public class ClaudeAgentAutoConfiguration {
 			builder.claudePath(properties.getExecutablePath());
 		}
 
-		// Trace directory + content capture policy
+		// Trace directory (content is always written whole since agent-journal 1.12.0)
 		if (StringUtils.hasText(properties.getTraceDir())) {
 			builder.traceDir(Path.of(properties.getTraceDir()));
-		}
-		if (properties.getTraceContentMode() != null) {
-			builder.traceContentMode(properties.getTraceContentMode());
 		}
 		if (properties.getArchiveTranscript() != null) {
 			builder.archiveTranscript(properties.getArchiveTranscript());

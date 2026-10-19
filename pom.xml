@@ -248,7 +248,7 @@
         <claude-code-sdk.version>1.7.0</claude-code-sdk.version>
         <qwencode-sdk.version>0.0.3-alpha</qwencode-sdk.version>
         <agent-sandbox.version>0.10.2</agent-sandbox.version>
-        <agent-journal.version>1.10.0</agent-journal.version>
+        <agent-journal.version>1.12.0-SNAPSHOT</agent-journal.version>
         <acp.version>0.17.0</acp.version>
 
         <!-- Agent SDK specific versions -->
@@ -276,6 +276,21 @@
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
         <spring-javaformat-maven-plugin.version>0.0.47</spring-javaformat-maven-plugin.version>
     </properties>
+
+    <!-- agent-journal 1.12.0 is consumed as a snapshot until it is released (Journal publishes one on
+         every push to main). Remove this repository with the 1.12.0 release pin. -->
+    <repositories>
+        <repository>
+            <id>central-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <dependencyManagement>
         <dependencies>

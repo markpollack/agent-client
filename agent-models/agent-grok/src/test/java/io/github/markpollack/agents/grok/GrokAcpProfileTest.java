@@ -115,6 +115,7 @@ class GrokAcpProfileTest {
 		assertThat(capture.outputTokens()).isEqualTo(236);
 		assertThat(capture.thinkingTokens()).isEqualTo(61);
 		assertThat(capture.totalCostUsd()).isEqualTo(0.00576606);
+		assertThat(capture.costReported()).isTrue();
 		assertThat(capture.isError()).isFalse();
 		assertThat(capture.hasToolUses()).isTrue();
 		assertThat(capture.toolUses()).extracting(t -> t.kind().wireValue()).containsExactly("edit", "read");
@@ -141,7 +142,9 @@ class GrokAcpProfileTest {
 				Map.of(), null, Duration.ZERO);
 
 		assertThat(this.profile.providerFields(bare)).isEmpty();
-		assertThat(((GrokPhaseCapture) this.profile.capture(bare)).totalCostUsd()).isZero();
+		GrokPhaseCapture capture = (GrokPhaseCapture) this.profile.capture(bare);
+		assertThat(capture.totalCostUsd()).isZero();
+		assertThat(capture.costReported()).isFalse();
 	}
 
 	@Test

@@ -12,7 +12,6 @@ import java.util.Map;
 
 import io.github.markpollack.claude.agent.sdk.config.PermissionMode;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
-import io.github.markpollack.journal.trace.TraceContentMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -194,18 +193,10 @@ public class ClaudeAgentProperties {
 	/**
 	 * Directory for Claude-specific JSONL trace files. Each agent invocation writes one
 	 * trace file containing events observed during SessionLogParser parsing. Null
-	 * (default) disables tracing.
+	 * (default) disables tracing. Content is always written whole; treat traces as
+	 * sensitive local artifacts.
 	 */
 	private String traceDir;
-
-	/**
-	 * Content capture policy for trace files: FULL (never truncate), TRUNCATED (default —
-	 * full thinking/text/tool_result content, 60KB per-item cap), or LENGTHS (lengths
-	 * only, pins the pre-content-capture disk footprint). Content-carrying traces may
-	 * include prompts, file contents, and command output — treat them as sensitive local
-	 * artifacts.
-	 */
-	private TraceContentMode traceContentMode;
 
 	/**
 	 * Whether to archive the CLI session transcript verbatim into
@@ -409,14 +400,6 @@ public class ClaudeAgentProperties {
 
 	public void setTraceDir(String traceDir) {
 		this.traceDir = traceDir;
-	}
-
-	public TraceContentMode getTraceContentMode() {
-		return traceContentMode;
-	}
-
-	public void setTraceContentMode(TraceContentMode traceContentMode) {
-		this.traceContentMode = traceContentMode;
 	}
 
 	public Boolean getArchiveTranscript() {

@@ -219,9 +219,9 @@ class ClaudeAgentJournalCaptureIT {
 	}
 
 	@Test
-	@DisplayName("Trace v2: valid JSON lines, content capture, >60KB truncation with source pointer, transcript archival")
+	@DisplayName("Trace v2: valid JSON lines, whole content capture past 60KB, transcript archival")
 	void traceV2ContentCapture() throws IOException {
-		// A >60KB file forces tool_result truncation (the riskiest new behavior)
+		// A >60KB file used to force tool_result truncation; 1.12.0 keeps it whole
 		StringBuilder big = new StringBuilder();
 		for (int i = 0; i < 800; i++) {
 			big.append("line-").append(i).append(" ").append("x".repeat(95)).append("\n");
@@ -263,16 +263,16 @@ class ClaudeAgentJournalCaptureIT {
 		assertThat(result.has("cacheReadInputTokens")).isTrue();
 		assertThat(result.has("durationApiMs")).isTrue();
 
-		// Oversized tool_result: head(60KB) + canonical contentLength + source pointer
-		JsonNode truncated = nodes.stream()
-			.filter(n -> "tool_result".equals(n.path("type").asText()) && n.path("truncated").asBoolean())
+		// Oversized tool_result is written whole: agent-journal 1.12.0 removed the 60KB
+		// truncation and the lengths-only mode, so contentLength equals the content.
+		JsonNode bigResult = nodes.stream()
+			.filter(n -> "tool_result".equals(n.path("type").asText()) && n.path("contentLength").asInt() > 60_000)
 			.findFirst()
 			.orElse(null);
-		assertThat(truncated).as("Read of a >60KB file should produce a truncated tool_result").isNotNull();
-		assertThat(truncated.get("contentLength").asInt()).isGreaterThan(60_000);
-		assertThat(truncated.get("content").asText()).hasSize(60_000);
-		assertThat(truncated.get("source").get("kind").asText()).isEqualTo("file_path");
-		assertThat(truncated.get("source").get("value").asText()).endsWith("big.txt");
+		assertThat(bigResult).as("Read of a >60KB file should produce a tool_result over 60KB").isNotNull();
+		assertThat(bigResult.has("truncated")).as("1.12.0 writes content whole; no truncated flag").isFalse();
+		assertThat(bigResult.get("content").asText()).hasSize(bigResult.get("contentLength").asInt());
+		assertThat(bigResult.get("content").asText()).contains("line-799 ");
 
 		// Thinking faithfulness: structural assertions only — content may legitimately
 		// be redacted upstream (thinking:"" + signature); we record what arrived

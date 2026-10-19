@@ -209,7 +209,7 @@ public class GrokAcpProfile implements AcpAgentProfile {
 		return new GrokPhaseCapture(run.sessionId(), run.promptText(), stringValue(run.promptMeta().get("modelId")),
 				intValue(usage.get("inputTokens")), intValue(usage.get("outputTokens")),
 				intValue(usage.get("reasoningTokens")), intValue(usage.get("cacheCreationTokens")),
-				intValue(usage.get("cachedReadTokens")), costUsd(usage), run.sessionId(),
+				intValue(usage.get("cachedReadTokens")), costUsd(usage), costReported(usage), run.sessionId(),
 				intValue(usage.get("numTurns")), !run.endedTurn(), run.stopReason(), run.answer(), run.thinking(),
 				List.copyOf(toolUses));
 	}
@@ -230,6 +230,15 @@ public class GrokAcpProfile implements AcpAgentProfile {
 			return BigDecimal.valueOf(ticks.longValue()).divide(TICKS_PER_USD, 10, RoundingMode.HALF_UP).doubleValue();
 		}
 		return 0.0;
+	}
+
+	/**
+	 * Whether the prompt response's usage block carried a cost. A missing block or a
+	 * block without {@code costUsdTicks} means the cost is not reported, not that the
+	 * call was free (agent-journal 1.12.0 keeps the two apart).
+	 */
+	private static boolean costReported(Map<String, Object> usage) {
+		return usage.get("costUsdTicks") instanceof Number;
 	}
 
 	private static int intValue(Object value) {
