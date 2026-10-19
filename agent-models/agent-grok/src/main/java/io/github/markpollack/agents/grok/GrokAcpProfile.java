@@ -203,6 +203,10 @@ public class GrokAcpProfile implements AcpAgentProfile {
 			toolUses.add(new GrokToolUseRecord(step.toolCallId(), step.name(), ToolKind.fromWireValue(step.kind()),
 					step.rawInput(), step.rawOutput(), step.status(), "failed".equals(step.status()), null));
 		}
+		// No vendor events: this capture is built from typed ACP updates, not from the
+		// CLI's
+		// streaming-json output, so there are no unconsumed output lines to keep. Unknown
+		// ACP update kinds are counted on the response (unknownUpdateKinds) instead.
 		// modelId sits on the outer _meta, not inside usage: the outer block reports the
 		// last model call and `usage` reports the turn total, and it is the turn total
 		// that a capture should carry.
@@ -211,7 +215,7 @@ public class GrokAcpProfile implements AcpAgentProfile {
 				tokenCount(usage.get("reasoningTokens")), tokenCount(usage.get("cacheCreationTokens")),
 				tokenCount(usage.get("cachedReadTokens")), costUsd(usage), costReported(usage), run.sessionId(),
 				intValue(usage.get("numTurns")), !run.endedTurn(), run.stopReason(), run.answer(), run.thinking(),
-				List.copyOf(toolUses));
+				List.copyOf(toolUses), List.of());
 	}
 
 	@Override
