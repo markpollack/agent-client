@@ -145,6 +145,11 @@ class GrokAcpProfileTest {
 		GrokPhaseCapture capture = (GrokPhaseCapture) this.profile.capture(bare);
 		assertThat(capture.totalCostUsd()).isZero();
 		assertThat(capture.costReported()).isFalse();
+		assertThat(capture.inputTokens()).isEqualTo(GrokPhaseCapture.NOT_REPORTED);
+		assertThat(capture.outputTokens()).isEqualTo(GrokPhaseCapture.NOT_REPORTED);
+		assertThat(capture.thinkingTokens()).isEqualTo(GrokPhaseCapture.NOT_REPORTED);
+		assertThat(capture.cacheCreationInputTokens()).isEqualTo(GrokPhaseCapture.NOT_REPORTED);
+		assertThat(capture.cacheReadInputTokens()).isEqualTo(GrokPhaseCapture.NOT_REPORTED);
 	}
 
 	@Test

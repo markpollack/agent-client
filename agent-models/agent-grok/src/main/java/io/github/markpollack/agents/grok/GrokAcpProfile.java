@@ -207,9 +207,9 @@ public class GrokAcpProfile implements AcpAgentProfile {
 		// last model call and `usage` reports the turn total, and it is the turn total
 		// that a capture should carry.
 		return new GrokPhaseCapture(run.sessionId(), run.promptText(), stringValue(run.promptMeta().get("modelId")),
-				intValue(usage.get("inputTokens")), intValue(usage.get("outputTokens")),
-				intValue(usage.get("reasoningTokens")), intValue(usage.get("cacheCreationTokens")),
-				intValue(usage.get("cachedReadTokens")), costUsd(usage), costReported(usage), run.sessionId(),
+				tokenCount(usage.get("inputTokens")), tokenCount(usage.get("outputTokens")),
+				tokenCount(usage.get("reasoningTokens")), tokenCount(usage.get("cacheCreationTokens")),
+				tokenCount(usage.get("cachedReadTokens")), costUsd(usage), costReported(usage), run.sessionId(),
 				intValue(usage.get("numTurns")), !run.endedTurn(), run.stopReason(), run.answer(), run.thinking(),
 				List.copyOf(toolUses));
 	}
@@ -239,6 +239,16 @@ public class GrokAcpProfile implements AcpAgentProfile {
 	 */
 	private static boolean costReported(Map<String, Object> usage) {
 		return usage.get("costUsdTicks") instanceof Number;
+	}
+
+	/**
+	 * A token count the prompt response carried, or {@link GrokPhaseCapture#NOT_REPORTED}
+	 * when it did not: agent-journal keeps "not reported" apart from zero and lists such
+	 * counts in the LLM call's {@code tokensNotReported}. {@code numTurns} keeps 0, as
+	 * the record defines it.
+	 */
+	private static int tokenCount(Object value) {
+		return (value instanceof Number number) ? number.intValue() : GrokPhaseCapture.NOT_REPORTED;
 	}
 
 	private static int intValue(Object value) {
