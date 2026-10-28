@@ -100,13 +100,91 @@ public class CLITransport {
 		return executeCommand(command, options);
 	}
 
+	/**
+	 * Streams JSON lines for one conversation turn on the calling thread. A null thread
+	 * ID opens a conversation; otherwise only that exact thread is resumed. Interruption,
+	 * timeout and observer failure cancel the zt-exec future and stop its direct child.
+	 * @param prompt prompt text
+	 * @param options fixed invocation configuration
+	 * @param sessionId exact provider thread ID, or null for the first turn
+	 * @param observer synchronous line observer
+	 * @return child exit code
+	 */
+	public int stream(String prompt, ExecuteOptions options, String sessionId,
+			java.util.function.Consumer<String> observer) {
+		var lines = new java.util.concurrent.LinkedBlockingQueue<String>();
+		java.util.concurrent.Future<ProcessResult> future = null;
+		Process child = null;
+		try {
+			var process = new ProcessExecutor().command(buildCommand(codexCliPath, prompt, options, sessionId))
+				.directory(workingDirectory.toFile())
+				.environment(options.getEnvironment())
+				// zt-exec's default launch logger prints the environment, including
+				// secrets.
+				.setMessageLogger(org.zeroturnaround.exec.MessageLoggers.NOP)
+				.redirectInput(new java.io.ByteArrayInputStream(new byte[0]))
+				.redirectOutput(new org.zeroturnaround.exec.stream.LogOutputStream() {
+					@Override
+					protected void processLine(String line) {
+						lines.add(line);
+					}
+				})
+				.destroyOnExit()
+				.start();
+			child = process.getProcess();
+			future = process.getFuture();
+			long deadline = System.nanoTime() + options.getTimeout().toNanos();
+			while (!future.isDone() || !lines.isEmpty()) {
+				if (System.nanoTime() >= deadline) {
+					throw new CodexSDKException("Codex conversation turn timed out");
+				}
+				String line = lines.poll(25, TimeUnit.MILLISECONDS);
+				if (line != null) {
+					line = redact(line, options);
+					observer.accept(line);
+				}
+			}
+			return future.get().getExitValue();
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new CodexSDKException("Codex conversation turn interrupted");
+		}
+		catch (IOException | java.util.concurrent.ExecutionException ex) {
+			// Process exceptions may include the environment. Do not expose their
+			// messages.
+			throw new CodexSDKException("Codex CLI could not execute the conversation configuration");
+		}
+		finally {
+			// The child can emit output before zt-exec's waiting task starts. Cancelling
+			// that task before it starts would otherwise skip its cleanup entirely.
+			if (child != null && child.isAlive()) {
+				child.destroy();
+			}
+			if (future != null && !future.isDone()) {
+				future.cancel(true);
+			}
+		}
+	}
+
+	private static String redact(String text, ExecuteOptions options) {
+		for (String value : options.getEnvironment().values()) {
+			if (!value.isEmpty()) {
+				text = text.replace(value, "[REDACTED]");
+			}
+		}
+		return text;
+	}
+
 	private ExecuteResult executeCommand(List<String> command, ExecuteOptions options) {
 		Instant startTime = Instant.now();
-		logger.debug("Executing Codex CLI command: {}", String.join(" ", command));
+		logger.debug("Executing Codex CLI command: {}", redact(String.join(" ", command), options));
 
 		try {
 			ProcessResult result = new ProcessExecutor().command(command)
 				.directory(workingDirectory.toFile())
+				.environment(options.getEnvironment())
+				.setMessageLogger(org.zeroturnaround.exec.MessageLoggers.NOP)
 				.timeout(options.getTimeout().toMillis(), TimeUnit.MILLISECONDS)
 				.readOutput(true)
 				.redirectInput(new java.io.ByteArrayInputStream(new byte[0]))
@@ -115,7 +193,7 @@ public class CLITransport {
 
 			Duration duration = Duration.between(startTime, Instant.now());
 
-			String combinedOutput = result.outputUTF8();
+			String combinedOutput = redact(result.outputUTF8(), options);
 			int exitCode = result.getExitValue();
 
 			logger.debug("Codex CLI execution completed. Exit code: {}, Duration: {}ms", exitCode, duration.toMillis());
@@ -178,7 +256,10 @@ public class CLITransport {
 		}
 		catch (IOException e) {
 			Duration duration = Duration.between(startTime, Instant.now());
-			logger.error("Codex CLI execution failed after {}ms: {}", duration.toMillis(), e.getMessage());
+			logger.error("Codex CLI execution failed after {}ms", duration.toMillis());
+			if (!options.getEnvironment().isEmpty()) {
+				throw new CodexSDKException("Failed to execute Codex CLI command with scoped environment");
+			}
 			throw new CodexSDKException("Failed to execute Codex CLI command", e);
 		}
 		catch (InterruptedException e) {
@@ -189,7 +270,10 @@ public class CLITransport {
 		}
 		catch (Exception e) {
 			Duration duration = Duration.between(startTime, Instant.now());
-			logger.error("Codex CLI execution failed after {}ms: {}", duration.toMillis(), e.getMessage());
+			logger.error("Codex CLI execution failed after {}ms", duration.toMillis());
+			if (!options.getEnvironment().isEmpty()) {
+				throw new CodexSDKException("Failed to execute Codex CLI command with scoped environment");
+			}
 			throw new CodexSDKException("Failed to execute Codex CLI command", e);
 		}
 	}
@@ -211,7 +295,27 @@ public class CLITransport {
 			command.add(ApprovalPolicy.NEVER.getValue());
 		}
 
+		if (!options.isFullAuto() && !options.isDangerouslyBypassSandbox()) {
+			command.add("--ask-for-approval");
+			command.add(options.getApprovalPolicy().getValue());
+			command.add("--sandbox");
+			command.add(options.getSandboxMode().getValue());
+		}
+		// Global overrides are repeated on every invocation, including exact-thread
+		// resume.
+		options.getConfigOverrides().forEach((key, value) -> {
+			command.add("-c");
+			command.add(key + "=" + value);
+		});
+		// Working directory via -C flag
+		if (options.getWorkingDirectory() != null) {
+			command.add("-C");
+			command.add(options.getWorkingDirectory().toString());
+		}
 		command.add("exec");
+		if (sessionId != null && !sessionId.isEmpty()) {
+			command.add("resume");
+		}
 
 		// Model is an exec-specific option (not a global flag)
 		if (options.getModel() != null && !options.getModel().isEmpty()) {
@@ -230,16 +334,7 @@ public class CLITransport {
 		if (options.isDangerouslyBypassSandbox()) {
 			command.add("--dangerously-bypass-approvals-and-sandbox");
 		}
-		else if (!options.isFullAuto()) {
-			command.add("--sandbox");
-			command.add(options.getSandboxMode().getValue());
-		}
 
-		// Working directory via -C flag
-		if (options.getWorkingDirectory() != null) {
-			command.add("-C");
-			command.add(options.getWorkingDirectory().toString());
-		}
 		for (Path additionalDirectory : options.getAdditionalDirectories()) {
 			command.add("--add-dir");
 			command.add(additionalDirectory.toString());
@@ -263,7 +358,6 @@ public class CLITransport {
 
 		// Session resume
 		if (sessionId != null && !sessionId.isEmpty()) {
-			command.add("resume");
 			command.add(sessionId);
 		}
 

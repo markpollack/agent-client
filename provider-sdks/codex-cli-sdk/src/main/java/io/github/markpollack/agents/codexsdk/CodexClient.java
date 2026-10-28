@@ -122,6 +122,17 @@ public class CodexClient implements AutoCloseable {
 	}
 
 	/**
+	 * Streams one conversation turn, using exec or exact-thread exec resume.
+	 * @param sessionId provider thread ID, or null on the first turn
+	 * @param prompt prompt text
+	 * @param observer synchronous JSON line observer
+	 * @return process exit code
+	 */
+	public int stream(String sessionId, String prompt, java.util.function.Consumer<String> observer) {
+		return transport.stream(prompt, defaultOptions, sessionId, observer);
+	}
+
+	/**
 	 * Checks if the Codex CLI is available and functional.
 	 * @return true if Codex CLI is available
 	 */
