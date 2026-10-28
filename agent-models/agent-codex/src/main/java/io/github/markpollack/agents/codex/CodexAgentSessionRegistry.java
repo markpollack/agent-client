@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,8 +35,7 @@ public class CodexAgentSessionRegistry implements AgentSessionRegistry {
 		settings = new Builder().model(builder.model)
 			.timeout(builder.timeout)
 			.codexPath(builder.codexPath)
-			.approvedTools(builder.approvedTools)
-			.environmentVariables(builder.environmentVariables);
+			.approvedTools(builder.approvedTools);
 	}
 
 	/**
@@ -61,7 +59,7 @@ public class CodexAgentSessionRegistry implements AgentSessionRegistry {
 	private AgentSession open(Path directory, String name, McpServerDefinition definition) {
 		Objects.requireNonNull(directory, "workingDirectory");
 		var options = CodexSessionConfiguration.create(directory, settings.model, settings.timeout, name, definition,
-				settings.approvedTools, settings.environmentVariables);
+				settings.approvedTools);
 		var session = new CodexAgentSession(directory, newClient(options, directory));
 		sessions.put(session.getSessionId(), session);
 		return session;
@@ -106,8 +104,6 @@ public class CodexAgentSessionRegistry implements AgentSessionRegistry {
 
 		private Set<String> approvedTools = Set.of();
 
-		private Map<String, String> environmentVariables = Map.of();
-
 		private Builder() {
 		}
 
@@ -150,17 +146,6 @@ public class CodexAgentSessionRegistry implements AgentSessionRegistry {
 		 */
 		public Builder approvedTools(Set<String> names) {
 			approvedTools = Set.copyOf(names);
-			return this;
-		}
-
-		/**
-		 * Sets fixed conversation environment overrides for every child invocation.
-		 * Values override inherited variables and are never logged by the adapter.
-		 * @param environmentVariables variable names and values, copied on assignment
-		 * @return this builder
-		 */
-		public Builder environmentVariables(Map<String, String> environmentVariables) {
-			this.environmentVariables = Map.copyOf(environmentVariables);
 			return this;
 		}
 
