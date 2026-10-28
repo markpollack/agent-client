@@ -296,7 +296,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			// uninterpretable: a run reporting 26 turns either finished or was cut off,
 			// and a record that cannot tell those apart is modelling two different
 			// processes as one.
-			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns() : SessionLogParser.UNKNOWN_MAX_TURNS;
+			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns()
+					: SessionLogParser.UNKNOWN_MAX_TURNS;
 			capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path(),
 					traceContentMode, TraceRawMode.NONE, maxTurns);
 		}
@@ -560,10 +561,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 	}
 
 	CLIOptions buildCLIOptions(AgentTaskRequest request) {
-		return buildCLIOptionsBuilder(request).build();
-	}
-
-	CLIOptions.Builder buildCLIOptionsBuilder(AgentTaskRequest request) {
 		ClaudeAgentOptions options = getEffectiveOptions(request);
 		CLIOptions.Builder builder = CLIOptions.builder();
 
@@ -701,7 +698,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			builder.appendSystemPrompt(request.options().getSystemInstructions());
 		}
 
-		return builder;
+		return builder.build();
 	}
 
 	private ClaudeAgentOptions getEffectiveOptions(AgentTaskRequest request) {
