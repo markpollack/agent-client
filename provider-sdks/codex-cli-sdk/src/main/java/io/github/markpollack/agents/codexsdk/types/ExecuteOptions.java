@@ -8,7 +8,6 @@ package io.github.markpollack.agents.codexsdk.types;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Configuration options for Codex CLI execution.
@@ -17,10 +16,6 @@ import java.util.Map;
  * @since 0.1.0
  */
 public class ExecuteOptions {
-
-	private final Map<String, String> configOverrides;
-
-	private final Map<String, String> environment;
 
 	private final String model;
 
@@ -47,8 +42,6 @@ public class ExecuteOptions {
 	private final boolean dangerouslyBypassSandbox;
 
 	private ExecuteOptions(Builder builder) {
-		this.configOverrides = Map.copyOf(builder.configOverrides);
-		this.environment = Map.copyOf(builder.environment);
 		this.model = builder.model;
 		this.reasoningEffort = builder.reasoningEffort;
 		this.timeout = builder.timeout;
@@ -69,20 +62,6 @@ public class ExecuteOptions {
 
 	public static ExecuteOptions defaultOptions() {
 		return builder().build();
-	}
-
-	/**
-	 * @return invocation-only TOML values keyed by configuration path
-	 */
-	public Map<String, String> getConfigOverrides() {
-		return configOverrides;
-	}
-
-	/**
-	 * @return child environment additions; never log these values
-	 */
-	public Map<String, String> getEnvironment() {
-		return environment;
 	}
 
 	public String getModel() {
@@ -142,10 +121,6 @@ public class ExecuteOptions {
 
 	public static class Builder {
 
-		private Map<String, String> configOverrides = Map.of();
-
-		private Map<String, String> environment = Map.of();
-
 		private String model = "gpt-5.4-mini";
 
 		private String reasoningEffort;
@@ -169,24 +144,6 @@ public class ExecuteOptions {
 		private Path outputSchema;
 
 		private boolean dangerouslyBypassSandbox = false;
-
-		/**
-		 * @param values invocation-only configuration with TOML-encoded values
-		 * @return this builder
-		 */
-		public Builder configOverrides(Map<String, String> values) {
-			this.configOverrides = Map.copyOf(values);
-			return this;
-		}
-
-		/**
-		 * @param values child environment additions
-		 * @return this builder
-		 */
-		public Builder environment(Map<String, String> values) {
-			this.environment = Map.copyOf(values);
-			return this;
-		}
 
 		public Builder model(String model) {
 			this.model = model;
