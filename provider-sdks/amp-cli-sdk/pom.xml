@@ -18,7 +18,7 @@
     <description>Java SDK for interacting with Sourcegraph Amp CLI - Low-level binding with resilience features</description>
 
     <properties>
-        <pmd.maxAllowedViolations>1</pmd.maxAllowedViolations>
+        <pmd.maxAllowedViolations>0</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
         <jacoco.minimum.line>0.10</jacoco.minimum.line>
         <jacoco.minimum.branch>0.00</jacoco.minimum.branch>

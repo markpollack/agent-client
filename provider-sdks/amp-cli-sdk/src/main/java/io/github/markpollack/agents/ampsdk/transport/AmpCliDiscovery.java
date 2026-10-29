@@ -36,14 +36,9 @@ public class AmpCliDiscovery {
 	 */
 	public static String discoverAmpCli() {
 		// 1. Check environment variable first (highest priority)
-		String envPath = System.getenv(ENV_AMP_CLI_PATH);
-		if (envPath != null && !envPath.isEmpty()) {
-			Path ampPath = Paths.get(envPath);
-			if (Files.exists(ampPath) && Files.isExecutable(ampPath)) {
-				logger.info("Found Amp CLI via {} environment variable: {}", ENV_AMP_CLI_PATH, envPath);
-				return envPath;
-			}
-			logger.warn("{} points to non-existent or non-executable file: {}", ENV_AMP_CLI_PATH, envPath);
+		String envPath = findEnvironmentOverride();
+		if (envPath != null) {
+			return envPath;
 		}
 
 		// 2. Try 'which amp' on Unix-like systems
@@ -67,6 +62,19 @@ public class AmpCliDiscovery {
 
 		throw new AmpSDKException(
 				"Amp CLI not found. Please install Amp CLI or set " + ENV_AMP_CLI_PATH + " environment variable");
+	}
+
+	private static String findEnvironmentOverride() {
+		String envPath = System.getenv(ENV_AMP_CLI_PATH);
+		if (envPath != null && !envPath.isEmpty()) {
+			Path ampPath = Paths.get(envPath);
+			if (Files.exists(ampPath) && Files.isExecutable(ampPath)) {
+				logger.info("Found Amp CLI via {} environment variable: {}", ENV_AMP_CLI_PATH, envPath);
+				return envPath;
+			}
+			logger.warn("{} points to non-existent or non-executable file: {}", ENV_AMP_CLI_PATH, envPath);
+		}
+		return null;
 	}
 
 	private static String tryWhichCommand() {
