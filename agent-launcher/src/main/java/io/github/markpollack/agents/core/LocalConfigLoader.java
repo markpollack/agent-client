@@ -59,6 +59,18 @@ public final class LocalConfigLoader {
 			throw new IllegalArgumentException("Invalid agent id: " + agentId);
 		}
 
+		Map<String, Object> inputs = parseInputs(argv);
+
+		// 3) load AgentSpec (classpath/.agents per existing loader)
+		AgentSpec agentSpec = Launcher.loadAgentSpec(agentId);
+		if (agentSpec == null) {
+			throw new IllegalArgumentException("Unknown agent: " + agentId + ". Check agent availability.");
+		}
+
+		return withRunSpec(agentSpec, inputs, baseDir);
+	}
+
+	private static Map<String, Object> parseInputs(String[] argv) {
 		// 2) inputs from key=value (strings; split on first '='; last wins)
 		Map<String, Object> inputs = new LinkedHashMap<>();
 		for (int i = 1; i < argv.length; i++) {
@@ -72,12 +84,10 @@ public final class LocalConfigLoader {
 			inputs.put(key, val);
 		}
 
-		// 3) load AgentSpec (classpath/.agents per existing loader)
-		AgentSpec agentSpec = Launcher.loadAgentSpec(agentId);
-		if (agentSpec == null) {
-			throw new IllegalArgumentException("Unknown agent: " + agentId + ". Check agent availability.");
-		}
+		return inputs;
+	}
 
+	private static LauncherSpec withRunSpec(AgentSpec agentSpec, Map<String, Object> inputs, Path baseDir) {
 		// 4) optional runspec for cwd/env
 		Path cwd = baseDir;
 		Map<String, Object> env = Map.of();

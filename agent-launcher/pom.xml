@@ -18,7 +18,7 @@
     <description>Core JBang launcher functionality for Spring AI Agents - AgentSpec, RunSpec, LocalConfigLoader</description>
 
     <properties>
-        <pmd.maxAllowedViolations>2</pmd.maxAllowedViolations>
+        <pmd.maxAllowedViolations>0</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
         <jacoco.minimum.line>0.45</jacoco.minimum.line>
         <jacoco.minimum.branch>0.46</jacoco.minimum.branch>
