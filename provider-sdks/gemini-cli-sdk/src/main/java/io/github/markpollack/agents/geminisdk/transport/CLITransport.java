@@ -104,11 +104,7 @@ public class CLITransport {
 	 */
 	public List<Message> executeQuery(String prompt, CLIOptions options, Path workingDirOverride)
 			throws GeminiSDKException {
-		if (prompt == null || prompt.trim().isEmpty()) {
-			throw new IllegalArgumentException("Prompt cannot be null or empty");
-		}
-
-		Path effectiveWorkDir = workingDirOverride != null ? workingDirOverride : workingDirectory;
+		validatePrompt(prompt);
 
 		List<String> command = buildCommand(prompt, options);
 
@@ -116,23 +112,7 @@ public class CLITransport {
 		logger.debug("Command: {}", String.join(" ", command));
 
 		try {
-			// Use GeminiCliDiscovery to get the correct command for nvm environments
-			String[] commandArray = GeminiCliDiscovery.getGeminiCommand(geminiCommand,
-					command.subList(1, command.size()).toArray(new String[0]));
-
-			ProcessExecutor executor = new ProcessExecutor().command(commandArray)
-				.directory(effectiveWorkDir.toFile())
-				.timeout(options.getTimeout().toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
-				.readOutput(true)
-				.exitValueNormal();
-
-			// Yolo means "skip all permission gates" — including the trusted-folder
-			// gate newer Gemini CLIs enforce in headless runs (exit 55 in untrusted
-			// dirs otherwise). Env var rather than --skip-trust: older CLIs ignore
-			// unknown env vars but reject unknown flags.
-			if (options.isYoloMode()) {
-				executor.environment("GEMINI_CLI_TRUST_WORKSPACE", "true");
-			}
+			ProcessExecutor executor = queryExecutor(command, options, workingDirOverride);
 
 			ProcessResult result = executor.execute();
 
@@ -143,16 +123,16 @@ public class CLITransport {
 
 		}
 		catch (InvalidExitValueException e) {
-			ProcessResult result = e.getResult();
-			String output = result.outputUTF8();
-			String stderr = (output != null && (output.contains("Error:") || output.contains("error:"))) ? output
-					: "No stderr captured";
-			throw new ProcessExecutionException("Gemini CLI execution failed", e.getExitValue(), output, stderr, e);
+			throw executionFailure(e);
 		}
 		catch (java.util.concurrent.TimeoutException e) {
 			throw new TimeoutException("Gemini CLI execution timed out", options.getTimeout(), e);
 		}
-		catch (IOException | InterruptedException e) {
+		catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new GeminiSDKException("Failed to execute Gemini CLI", e);
+		}
+		catch (IOException e) {
 			throw new GeminiSDKException("Failed to execute Gemini CLI", e);
 		}
 	}
@@ -378,6 +358,38 @@ public class CLITransport {
 				|| line.startsWith("Require stack:") || (line.startsWith("- /") && line.contains("node_modules/"))
 				|| line.startsWith("Using FileKeychain fallback") || line.startsWith("Loaded cached credentials")
 				|| line.startsWith("Using cached credentials") || line.startsWith("YOLO mode");
+	}
+
+	private static void validatePrompt(String prompt) {
+		if (prompt == null || prompt.trim().isEmpty()) {
+			throw new IllegalArgumentException("Prompt cannot be null or empty");
+		}
+	}
+
+	private ProcessExecutor queryExecutor(List<String> command, CLIOptions options, Path workingDirOverride) {
+		Path effectiveWorkDir = workingDirOverride != null ? workingDirOverride : workingDirectory;
+		ProcessExecutor executor = new ProcessExecutor().command(command)
+			.directory(effectiveWorkDir.toFile())
+			.timeout(options.getTimeout().toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)
+			.readOutput(true)
+			.exitValueNormal();
+
+		// Yolo means "skip all permission gates" — including the trusted-folder
+		// gate newer Gemini CLIs enforce in headless runs (exit 55 in untrusted
+		// dirs otherwise). Env var rather than --skip-trust: older CLIs ignore
+		// unknown env vars but reject unknown flags.
+		if (options.isYoloMode()) {
+			executor.environment("GEMINI_CLI_TRUST_WORKSPACE", "true");
+		}
+		return executor;
+	}
+
+	private static ProcessExecutionException executionFailure(InvalidExitValueException e) {
+		ProcessResult result = e.getResult();
+		String output = result.outputUTF8();
+		String stderr = (output != null && (output.contains("Error:") || output.contains("error:"))) ? output
+				: "No stderr captured";
+		return new ProcessExecutionException("Gemini CLI execution failed", e.getExitValue(), output, stderr, e);
 	}
 
 }
