@@ -138,7 +138,7 @@ public class DefaultAgentClient implements AgentClient {
 
 		private Map<String, Object> jsonSchema;
 
-		public DefaultAgentClientRequestSpec(Goal goal) {
+		private DefaultAgentClientRequestSpec(Goal goal) {
 			this.goal = goal; // Can be null for goal() method
 			this.workingDirectory = goal != null ? goal.getWorkingDirectory() : null;
 		}
