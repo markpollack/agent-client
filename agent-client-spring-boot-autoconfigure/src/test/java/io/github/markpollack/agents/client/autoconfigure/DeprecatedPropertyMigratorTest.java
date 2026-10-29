@@ -42,6 +42,15 @@ class DeprecatedPropertyMigratorTest {
 		assertThat(environment.getPropertySources().contains("deprecatedAgentClientProperties")).isFalse();
 	}
 
+	@Test
+	void retainsHighestPriorityLegacyValueAcrossSources() {
+		var environment = environment(Map.of("spring.ai.agents.codex.model", "higher-priority"));
+		environment.getPropertySources()
+			.addLast(new MapPropertySource("defaults", Map.of("spring.ai.agents.codex.model", "lower-priority")));
+		new DeprecatedPropertyMigrator().postProcessEnvironment(environment, null);
+		assertThat(environment.getProperty("agent-client.codex.model")).isEqualTo("higher-priority");
+	}
+
 	private StandardEnvironment environment(Map<String, Object> properties) {
 		var environment = new StandardEnvironment();
 		environment.getPropertySources().remove(StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME);
