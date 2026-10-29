@@ -72,6 +72,7 @@ public class ExecuteOptions {
 	}
 
 	/**
+	 * Returns invocation-only TOML configuration overrides.
 	 * @return invocation-only TOML values keyed by configuration path
 	 */
 	public Map<String, String> getConfigOverrides() {
@@ -79,6 +80,7 @@ public class ExecuteOptions {
 	}
 
 	/**
+	 * Returns additions to the child process environment.
 	 * @return child environment additions; never log these values
 	 */
 	public Map<String, String> getEnvironment() {
@@ -171,6 +173,7 @@ public class ExecuteOptions {
 		private boolean dangerouslyBypassSandbox = false;
 
 		/**
+		 * Sets invocation-only TOML configuration overrides.
 		 * @param values invocation-only configuration with TOML-encoded values
 		 * @return this builder
 		 */
@@ -180,6 +183,7 @@ public class ExecuteOptions {
 		}
 
 		/**
+		 * Sets additions to the child process environment.
 		 * @param values child environment additions
 		 * @return this builder
 		 */

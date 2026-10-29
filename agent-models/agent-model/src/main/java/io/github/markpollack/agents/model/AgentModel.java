@@ -6,6 +6,8 @@
 package io.github.markpollack.agents.model;
 
 /**
+ * Legacy alias for the blocking agent API.
+ *
  * @deprecated Use {@link AgentApi} instead. This interface will be removed in a future
  * release. {@code AgentModel} was misleading — implementations wrap CLI agent runtimes,
  * not AI models.
