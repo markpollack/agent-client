@@ -188,7 +188,11 @@ public class ExecuteResult {
 			return parse(stdout, exitCode, duration);
 		}
 
-		builder.text(text.toString())
+		return fromStreamEnd(builder, text.toString(), end);
+	}
+
+	private static ExecuteResult fromStreamEnd(Builder builder, String text, JsonNode end) {
+		builder.text(text)
 			.sessionId(nullIfEmpty(end.path("sessionId").asText("")))
 			.stopReason(nullIfEmpty(end.path("stopReason").asText("")))
 			.numTurns(end.path("num_turns").asInt(0))
