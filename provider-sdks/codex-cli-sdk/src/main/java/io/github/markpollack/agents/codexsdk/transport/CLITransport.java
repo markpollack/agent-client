@@ -380,7 +380,7 @@ public class CLITransport {
 		}
 
 		// Look for "model: <model-name>" in stderr
-		String[] lines = stderr.split("\n");
+		String[] lines = stderr.split("\n", -1);
 		for (String line : lines) {
 			if (line.startsWith("model:")) {
 				return line.substring("model:".length()).trim();

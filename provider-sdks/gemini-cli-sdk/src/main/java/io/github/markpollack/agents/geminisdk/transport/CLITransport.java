@@ -341,7 +341,7 @@ public class CLITransport {
 	}
 
 	private String filterCliDiagnostics(String output) {
-		String[] lines = output.split("\n");
+		String[] lines = output.split("\n", -1);
 		List<String> filtered = new ArrayList<>();
 		for (String line : lines) {
 			String trimmed = line.trim();

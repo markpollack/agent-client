@@ -165,7 +165,7 @@ public class ExecuteResult {
 		StringBuilder text = new StringBuilder();
 		JsonNode end = null;
 		try {
-			for (String line : stdout.split("\\R")) {
+			for (String line : stdout.split("\\R", -1)) {
 				if (line.isBlank()) {
 					continue;
 				}

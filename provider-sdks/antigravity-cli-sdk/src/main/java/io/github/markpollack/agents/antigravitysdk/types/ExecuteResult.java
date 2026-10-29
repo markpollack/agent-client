@@ -169,7 +169,7 @@ public class ExecuteResult {
 			JsonNode result = null;
 			boolean sawToolError = false;
 			boolean successfulToolAfterLastError = false;
-			for (String line : stdout.split("\\R")) {
+			for (String line : stdout.split("\\R", -1)) {
 				if (line.isBlank()) {
 					continue;
 				}
@@ -258,7 +258,7 @@ public class ExecuteResult {
 		if (text == null || text.isBlank()) {
 			return notices;
 		}
-		for (String line : text.split("\\R")) {
+		for (String line : text.split("\\R", -1)) {
 			String lowered = line.toLowerCase(Locale.ROOT);
 			if (DENIAL_MARKERS.stream().anyMatch(lowered::contains)) {
 				notices.add(line.trim());
