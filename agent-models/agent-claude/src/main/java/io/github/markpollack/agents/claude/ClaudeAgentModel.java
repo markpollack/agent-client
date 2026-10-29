@@ -522,7 +522,7 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 				if (parsed.isRegularMessage()) {
 					AgentResponse agentResponse = convertMessageToResponse(parsed.asMessage());
 					if (agentResponse != null) {
-						sink.tryEmitNext(agentResponse);
+						sink.tryEmitNext(agentResponse).orThrow();
 					}
 				}
 			}
