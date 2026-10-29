@@ -35,11 +35,11 @@ import java.lang.annotation.Target;
  * Example usage:
  * </p>
  *
- * <pre>{@code
+ * <pre>
  * &#64;Component
  * public class AuditHooks {
  *
-
+ *
  *     &#64;PostToolUse
  *     public void auditAllTools(HookInput.PostToolUseInput input) {
  *         log.info("Tool {} completed with result: {}",
@@ -47,16 +47,16 @@ import java.lang.annotation.Target;
  *     }
  *
  *
-&#64;PostToolUse(pattern = "Bash")
+ *     &#64;PostToolUse(pattern = "Bash")
  *     public HookOutput checkBashResults(HookInput.PostToolUseInput input) {
  *         String result = input.toolResult();
- *         if (result != null && result.contains("error")) {
+ *         if (result != null &amp;&amp; result.contains("error")) {
  *             log.warn("Bash command returned error: {}", result);
  *         }
  *         return HookOutput.allow();
  *     }
  * }
- * }</pre>
+ * </pre>
  *
  * @author Spring AI Community
  * @since 0.1.0

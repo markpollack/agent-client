@@ -35,11 +35,11 @@ import java.lang.annotation.Target;
  * Example usage:
  * </p>
  *
- * <pre>{@code
+ * <pre>
  * &#64;Component
  * public class SessionHooks {
  *
-
+ *
  *     &#64;Stop
  *     public void onSessionEnd(HookInput.StopInput input) {
  *         log.info("Agent execution stopped: {}", input.reason());
@@ -47,14 +47,14 @@ import java.lang.annotation.Target;
  *     }
  *
  *
-&#64;Stop
+ *     &#64;Stop
  *     public HookOutput cleanup(HookInput.StopInput input) {
  *         // Perform cleanup tasks
  *         cleanupTemporaryFiles();
  *         return HookOutput.allow();
  *     }
  * }
- * }</pre>
+ * </pre>
  *
  * @author Spring AI Community
  * @since 0.1.0

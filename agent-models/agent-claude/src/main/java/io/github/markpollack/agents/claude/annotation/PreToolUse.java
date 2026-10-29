@@ -36,11 +36,11 @@ import java.lang.annotation.Target;
  * Example usage:
  * </p>
  *
- * <pre>{@code
+ * <pre>
  * &#64;Component
  * public class SecurityHooks {
  *
-
+ *
  *     &#64;PreToolUse(pattern = "Bash")
  *     public HookOutput blockDangerousCommands(HookInput.PreToolUseInput input) {
  *         String command = input.getArgument("command", String.class).orElse("");
@@ -51,7 +51,7 @@ import java.lang.annotation.Target;
  *     }
  *
  *
-&#64;PreToolUse(pattern = "Write|Edit")
+ *     &#64;PreToolUse(pattern = "Write|Edit")
  *     public HookOutput validateFileWrites(HookInput.PreToolUseInput input) {
  *         String path = input.getArgument("file_path", String.class).orElse("");
  *         if (path.startsWith("/etc/")) {
@@ -60,7 +60,7 @@ import java.lang.annotation.Target;
  *         return HookOutput.allow();
  *     }
  * }
- * }</pre>
+ * </pre>
  *
  * @author Spring AI Community
  * @since 0.1.0

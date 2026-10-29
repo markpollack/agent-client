@@ -36,11 +36,11 @@ import java.lang.annotation.Target;
  * Example usage:
  * </p>
  *
- * <pre>{@code
+ * <pre>
  * &#64;Component
  * public class PromptValidationHooks {
  *
-
+ *
  *     &#64;UserPromptSubmit
  *     public HookOutput validatePrompt(HookInput.UserPromptSubmitInput input) {
  *         String prompt = input.prompt();
@@ -51,12 +51,12 @@ import java.lang.annotation.Target;
  *     }
  *
  *
-&#64;UserPromptSubmit
+ *     &#64;UserPromptSubmit
  *     public void logPrompts(HookInput.UserPromptSubmitInput input) {
  *         log.info("User submitted prompt: {}", input.prompt());
  *     }
  * }
- * }</pre>
+ * </pre>
  *
  * @author Spring AI Community
  * @since 0.1.0
