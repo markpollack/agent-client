@@ -278,23 +278,7 @@ public class SweAgentModel implements AgentApi {
 			builder.model(options.getModel());
 		}
 
-		// Set working directory
-		if (options.getWorkingDirectory() != null) {
-			builder.workingDirectory(options.getWorkingDirectory());
-		}
-		else if (request.workingDirectory() != null) {
-			builder.workingDirectory(request.workingDirectory().toString());
-		}
-
-		// Set environment variables
-		if (!options.getEnvironmentVariables().isEmpty()) {
-			builder.environmentVariables(options.getEnvironmentVariables());
-		}
-
-		// Set executable path
-		if (options.getExecutablePath() != null) {
-			builder.executablePath(options.getExecutablePath());
-		}
+		applyEnvironment(builder, options, request);
 
 		// Set max iterations: SWE-specific first, then portable fallback
 		if (options.getMaxIterations() > 0) {
@@ -412,6 +396,28 @@ public class SweAgentModel implements AgentApi {
 			case SUCCESS -> "SUCCESS";
 			case ERROR -> "ERROR";
 		};
+	}
+
+	private static void applyEnvironment(io.github.markpollack.agents.sweagentsdk.types.SweAgentOptions.Builder builder,
+			SweAgentOptions options, AgentTaskRequest request) {
+		// Set working directory
+		if (options.getWorkingDirectory() != null) {
+			builder.workingDirectory(options.getWorkingDirectory());
+		}
+		else if (request.workingDirectory() != null) {
+			builder.workingDirectory(request.workingDirectory().toString());
+		}
+
+		// Set environment variables
+		if (!options.getEnvironmentVariables().isEmpty()) {
+			builder.environmentVariables(options.getEnvironmentVariables());
+		}
+
+		// Set executable path
+		if (options.getExecutablePath() != null) {
+			builder.executablePath(options.getExecutablePath());
+		}
+
 	}
 
 }
