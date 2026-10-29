@@ -8,10 +8,8 @@ package io.github.markpollack.agents.codexsdk.transport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.codexsdk.exceptions.CodexSDKException;
-import io.github.markpollack.agents.codexsdk.types.ApprovalPolicy;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
 import io.github.markpollack.agents.codexsdk.types.ExecuteResult;
-import io.github.markpollack.agents.codexsdk.types.SandboxMode;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
@@ -19,7 +17,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -282,90 +279,7 @@ public class CLITransport {
 	// ClaudeAgentModel.buildCLIOptions): command construction is testable without a
 	// functional Codex CLI on the machine
 	static List<String> buildCommand(String codexCliPath, String prompt, ExecuteOptions options, String sessionId) {
-		List<String> command = new ArrayList<>();
-
-		// Base command. Full-auto used to have a convenience flag, but current Codex
-		// versions express that contract with global sandbox and approval options. Global
-		// options must precede the exec subcommand.
-		command.add(codexCliPath);
-		if (options.isFullAuto() && !options.isDangerouslyBypassSandbox()) {
-			command.add("--sandbox");
-			command.add(SandboxMode.WORKSPACE_WRITE.getValue());
-			command.add("--ask-for-approval");
-			command.add(ApprovalPolicy.NEVER.getValue());
-		}
-
-		if (!options.isFullAuto() && !options.isDangerouslyBypassSandbox()) {
-			command.add("--ask-for-approval");
-			command.add(options.getApprovalPolicy().getValue());
-			command.add("--sandbox");
-			command.add(options.getSandboxMode().getValue());
-		}
-		// Global overrides are repeated on every invocation, including exact-thread
-		// resume.
-		options.getConfigOverrides().forEach((key, value) -> {
-			command.add("-c");
-			command.add(key + "=" + value);
-		});
-		// Working directory via -C flag
-		if (options.getWorkingDirectory() != null) {
-			command.add("-C");
-			command.add(options.getWorkingDirectory().toString());
-		}
-		command.add("exec");
-		if (sessionId != null && !sessionId.isEmpty()) {
-			command.add("resume");
-		}
-
-		// Model is an exec-specific option (not a global flag)
-		if (options.getModel() != null && !options.getModel().isEmpty()) {
-			command.add("--model");
-			command.add(options.getModel());
-		}
-
-		// Reasoning effort: no dedicated flag — uses the -c config override. The value
-		// is quoted so it parses as a TOML string.
-		if (options.getReasoningEffort() != null && !options.getReasoningEffort().isEmpty()) {
-			command.add("-c");
-			command.add("model_reasoning_effort=\"" + options.getReasoningEffort() + "\"");
-		}
-
-		// Execution mode
-		if (options.isDangerouslyBypassSandbox()) {
-			command.add("--dangerously-bypass-approvals-and-sandbox");
-		}
-
-		for (Path additionalDirectory : options.getAdditionalDirectories()) {
-			command.add("--add-dir");
-			command.add(additionalDirectory.toString());
-		}
-
-		// Git check skip
-		if (options.isSkipGitCheck()) {
-			command.add("--skip-git-repo-check");
-		}
-
-		// JSON output mode
-		if (options.isJsonOutput()) {
-			command.add("--json");
-		}
-
-		// Output schema for structured output
-		if (options.getOutputSchema() != null) {
-			command.add("--output-schema");
-			command.add(options.getOutputSchema().toString());
-		}
-
-		// Session resume
-		if (sessionId != null && !sessionId.isEmpty()) {
-			command.add(sessionId);
-		}
-
-		// End of flags, prompt as final argument
-		command.add("--");
-		command.add(prompt);
-
-		return command;
+		return CodexCommandBuilder.build(codexCliPath, prompt, options, sessionId);
 	}
 
 	/**
