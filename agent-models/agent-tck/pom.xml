@@ -18,6 +18,10 @@
     <description>Technology Compatibility Kit for Spring AI Agent implementations - Provides abstract test classes for validating AgentModel and Sandbox implementations</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.zeroturnaround</groupId>
+            <artifactId>zt-exec</artifactId>
+        </dependency>
         <!-- Agent Model Core - for interfaces that TCK tests against -->
         <dependency>
             <groupId>io.github.markpollack</groupId>

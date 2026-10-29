@@ -13,10 +13,12 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.zeroturnaround.exec.ProcessExecutor;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 
@@ -82,7 +84,11 @@ public abstract class ProviderParityTCK extends AbstractAgentModelTCK {
 			Provider.ANTIGRAVITY, Provider.JUNIE })
 	void testSimpleFileCreationInGitDirectory() throws Exception {
 		// Initialize git in tempDir
-		new ProcessBuilder("git", "init").directory(tempDir.toFile()).start().waitFor();
+		new ProcessExecutor().command("git", "init")
+			.directory(tempDir.toFile())
+			.timeout(10, TimeUnit.SECONDS)
+			.exitValueNormal()
+			.execute();
 
 		AgentTaskRequest request = AgentTaskRequest
 			.builder("Create a file named 'parity-test.txt' with the content 'parity check'", tempDir)
