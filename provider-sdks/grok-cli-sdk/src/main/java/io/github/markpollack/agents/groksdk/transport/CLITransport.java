@@ -120,6 +120,28 @@ public class CLITransport {
 		List<String> command = new ArrayList<>();
 		command.add(grokCliPath);
 
+		addGenerationOptions(command, options);
+
+		addSchemaAndTools(command, options);
+
+		if (options.getWorkingDirectory() != null) {
+			command.add("--cwd");
+			command.add(options.getWorkingDirectory().toString());
+		}
+		if (sessionId != null && !sessionId.isEmpty()) {
+			command.add("--resume");
+			command.add(sessionId);
+		}
+
+		command.add("--output-format");
+		command.add("streaming-json");
+		command.add("--verbatim");
+		command.add("--single");
+		command.add(prompt);
+		return command;
+	}
+
+	private static void addGenerationOptions(List<String> command, ExecuteOptions options) {
 		if (options.getModel() != null && !options.getModel().isEmpty()) {
 			command.add("--model");
 			command.add(options.getModel());
@@ -140,6 +162,9 @@ public class CLITransport {
 			command.add("--system-prompt-override");
 			command.add(options.getSystemPromptOverride());
 		}
+	}
+
+	private static void addSchemaAndTools(List<String> command, ExecuteOptions options) {
 		if (options.getJsonSchema() != null && !options.getJsonSchema().isEmpty()) {
 			// --json-schema implies --output-format json, but the format is still passed
 			// explicitly below so the argv says what it means.
@@ -157,21 +182,6 @@ public class CLITransport {
 		if (options.isDisableWebSearch()) {
 			command.add("--disable-web-search");
 		}
-		if (options.getWorkingDirectory() != null) {
-			command.add("--cwd");
-			command.add(options.getWorkingDirectory().toString());
-		}
-		if (sessionId != null && !sessionId.isEmpty()) {
-			command.add("--resume");
-			command.add(sessionId);
-		}
-
-		command.add("--output-format");
-		command.add("streaming-json");
-		command.add("--verbatim");
-		command.add("--single");
-		command.add(prompt);
-		return command;
 	}
 
 }
