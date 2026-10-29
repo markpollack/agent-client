@@ -64,7 +64,7 @@ final class CodexRolloutHarvester {
 			if (candidate.isPresent()) {
 				Path path = candidate.get();
 				FileSnapshot snapshot = snapshot(path);
-				if (path.equals(previousCandidate) && snapshot != null && snapshot.equals(previousSnapshot)) {
+				if (sameSnapshot(path, previousCandidate, snapshot, previousSnapshot)) {
 					stableObservations++;
 					if (stableObservations >= 2) {
 						return readLines(path);
@@ -86,6 +86,11 @@ final class CodexRolloutHarvester {
 		// If the deadline expired while a matching file was still changing, return the
 		// latest readable snapshot. A missing match remains an honest empty trajectory.
 		return previousCandidate != null ? readLines(previousCandidate) : List.of();
+	}
+
+	private static boolean sameSnapshot(Path path, Path previousCandidate, FileSnapshot snapshot,
+			FileSnapshot previousSnapshot) {
+		return path.equals(previousCandidate) && snapshot != null && snapshot.equals(previousSnapshot);
 	}
 
 	Optional<Path> locate(String sessionId, Path workingDirectory, Instant runStartedAt) {
