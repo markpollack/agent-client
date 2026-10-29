@@ -22,6 +22,12 @@
     <name>Agent Amazon Q</name>
     <description>Spring AI AgentModel adapter for Amazon Q Developer CLI</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.63</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.69</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- Core Agent Model -->
         <dependency>

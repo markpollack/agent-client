@@ -22,6 +22,12 @@
     <name>Amazon Q CLI SDK</name>
     <description>Java SDK for Amazon Q Developer CLI</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.41</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.10</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- ZT Exec for process execution -->
         <dependency>

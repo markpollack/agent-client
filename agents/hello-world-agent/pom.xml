@@ -17,6 +17,11 @@
     <name>Hello World Agent</name>
     <description>Simple file creation agent for Spring AI Agents JBang launcher</description>
 
+    <properties>
+        <!-- Sample application excluded from the library coverage gate. -->
+        <jacoco.skip>true</jacoco.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.github.markpollack</groupId>

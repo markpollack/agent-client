@@ -17,6 +17,12 @@
     <name>Agent Launcher</name>
     <description>Core JBang launcher functionality for Spring AI Agents - AgentSpec, RunSpec, LocalConfigLoader</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.45</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.46</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- SnakeYAML for YAML parsing -->
         <dependency>

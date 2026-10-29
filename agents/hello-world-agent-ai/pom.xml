@@ -17,6 +17,11 @@
     <name>Hello World AI Agent</name>
     <description>AI-powered file creation agent using AgentClient for Spring AI Agents JBang launcher</description>
 
+    <properties>
+        <!-- Sample application excluded from the library coverage gate. -->
+        <jacoco.skip>true</jacoco.skip>
+    </properties>
+
     <dependencies>
         <!-- Agent Client for invoking AI agents -->
         <dependency>

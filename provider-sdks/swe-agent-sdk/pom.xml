@@ -17,6 +17,12 @@
     <name>SWE Agent SDK</name>
     <description>Java SDK for interacting with mini-SWE-agent CLI - Low-level binding for autonomous software engineering</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.58</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.44</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- JSON processing (versions managed by parent Jackson BOM) -->
         <dependency>

@@ -17,6 +17,12 @@
     <name>Agent Amp</name>
     <description>Spring AI Agent Model implementation for Sourcegraph Amp CLI</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.55</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.69</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- Agent Model Core -->
         <dependency>

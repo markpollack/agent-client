@@ -22,6 +22,12 @@
     <name>Antigravity CLI SDK</name>
     <description>Low-level Java SDK for Google Antigravity CLI (agy) subprocess communication</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.60</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.55</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.zeroturnaround</groupId>

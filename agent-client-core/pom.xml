@@ -17,6 +17,12 @@
     <name>Agent Client Core</name>
     <description>Client-layer facade for Spring AI Agents - AgentClient, Goal, GoalTemplate following ChatClient patterns</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.82</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.51</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- Core agent model dependency -->
         <dependency>

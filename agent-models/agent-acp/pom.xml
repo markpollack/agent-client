@@ -22,6 +22,12 @@
     <name>Agent ACP</name>
     <description>One AgentApi adapter over the Agent Client Protocol, shared by every ACP-speaking CLI</description>
 
+    <properties>
+        <!-- Own-module coverage floors: measured minus two percentage points. -->
+        <jacoco.minimum.line>0.28</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.29</jacoco.minimum.branch>
+    </properties>
+
     <dependencies>
         <!-- Core Agent Model -->
         <dependency>
