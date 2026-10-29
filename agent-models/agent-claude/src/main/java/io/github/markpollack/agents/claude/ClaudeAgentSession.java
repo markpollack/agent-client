@@ -157,7 +157,8 @@ public class ClaudeAgentSession implements AgentSession {
 		try {
 			client.close();
 		}
-		catch (Exception ignored) {
+		catch (Exception ex) {
+			logger.debug("Failed to close dead session {} before resuming", sessionId, ex);
 		}
 
 		CLIOptions options = CLIOptions.builder().resume(sessionId).build();
