@@ -128,9 +128,8 @@ public class CliAvailabilityResult {
 	public boolean equals(Object o) {
 		if (this == o)
 			return true;
-		if (o == null || getClass() != o.getClass())
+		if (!(o instanceof CliAvailabilityResult that))
 			return false;
-		CliAvailabilityResult that = (CliAvailabilityResult) o;
 		return available == that.available && Objects.equals(version, that.version)
 				&& Objects.equals(reason, that.reason);
 	}
