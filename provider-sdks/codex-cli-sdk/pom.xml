@@ -23,7 +23,7 @@
     <description>Low-level Java SDK for OpenAI Codex CLI subprocess communication</description>
 
     <properties>
-        <pmd.maxAllowedViolations>5</pmd.maxAllowedViolations>
+        <pmd.maxAllowedViolations>2</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
         <jacoco.minimum.line>0.54</jacoco.minimum.line>
         <jacoco.minimum.branch>0.36</jacoco.minimum.branch>

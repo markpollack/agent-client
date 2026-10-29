@@ -195,69 +195,15 @@ public class CLITransport {
 
 			logger.debug("Codex CLI execution completed. Exit code: {}, Duration: {}ms", exitCode, duration.toMillis());
 
-			// Codex outputs activity to stderr and final message to stdout
-			// Since zt-exec combines them by default, we parse from combined output
-			// The response appears between the "codex" marker and "tokens used" marker
-			String[] lines = combinedOutput.split("\n");
-
-			// Find the last "codex" marker and "tokens used" marker
-			int codexMarker = -1;
-			int tokensMarker = -1;
-			for (int i = lines.length - 1; i >= 0; i--) {
-				if (tokensMarker < 0 && lines[i].trim().equals("tokens used")) {
-					tokensMarker = i;
-				}
-				if (codexMarker < 0 && lines[i].trim().equals("codex")) {
-					codexMarker = i;
-				}
-				if (codexMarker >= 0 && tokensMarker >= 0) {
-					break;
-				}
-			}
-
-			String activityLog = combinedOutput;
-			String finalMessage = "";
-			if (codexMarker >= 0) {
-				// Extract text between "codex" marker and "tokens used" (or end of
-				// output)
-				int end = tokensMarker > codexMarker ? tokensMarker : lines.length;
-				if (codexMarker + 1 < end) {
-					finalMessage = String.join("\n", java.util.Arrays.copyOfRange(lines, codexMarker + 1, end));
-				}
-			}
-			else if (tokensMarker >= 0 && tokensMarker > 0) {
-				// Fallback: no "codex" marker, take everything before "tokens used"
-				finalMessage = String.join("\n", java.util.Arrays.copyOfRange(lines, 0, tokensMarker));
-			}
-			else {
-				// No markers found — treat entire output as the message
-				finalMessage = combinedOutput;
-			}
-
-			// Extract model from activity log
-			String model = extractModel(activityLog);
+			CodexOutput output = CodexOutput.parse(combinedOutput);
+			String finalMessage = output.message();
+			String activityLog = output.activityLog();
+			String model = output.model();
 
 			ExecuteResult execution = new ExecuteResult(finalMessage, activityLog, exitCode, duration, model);
-			CodexRolloutHarvester harvester = new CodexRolloutHarvester(CodexRolloutHarvester.defaultSessionsRoot(),
-					ROLLOUT_WAIT, ROLLOUT_POLL_INTERVAL);
-			Path effectiveWorkingDirectory = options.getWorkingDirectory() != null ? options.getWorkingDirectory()
-					: workingDirectory;
-			List<String> rolloutLines = harvester.harvest(execution.getSessionId(), effectiveWorkingDirectory,
-					startTime);
-			if (rolloutLines.isEmpty()) {
-				logger.warn("No flushed Codex rollout found for session {} in {}", execution.getSessionId(),
-						effectiveWorkingDirectory);
-			}
+			List<String> rolloutLines = harvestRollout(execution, options, startTime);
 
 			return new ExecuteResult(finalMessage, activityLog, exitCode, duration, model, rolloutLines);
-		}
-		catch (IOException e) {
-			Duration duration = Duration.between(startTime, Instant.now());
-			logger.error("Codex CLI execution failed after {}ms", duration.toMillis());
-			if (!options.getEnvironment().isEmpty()) {
-				throw new CodexSDKException("Failed to execute Codex CLI command with scoped environment");
-			}
-			throw new CodexSDKException("Failed to execute Codex CLI command", e);
 		}
 		catch (InterruptedException e) {
 			Duration duration = Duration.between(startTime, Instant.now());
@@ -282,26 +228,17 @@ public class CLITransport {
 		return CodexCommandBuilder.build(codexCliPath, prompt, options, sessionId);
 	}
 
-	/**
-	 * Extracts model name from Codex stderr output. Model appears in stderr like: "model:
-	 * gpt-5-codex"
-	 * @param stderr the stderr output
-	 * @return extracted model name or "codex-default" if not found
-	 */
-	private String extractModel(String stderr) {
-		if (stderr == null || stderr.isEmpty()) {
-			return "codex-default";
+	private List<String> harvestRollout(ExecuteResult execution, ExecuteOptions options, Instant startTime) {
+		CodexRolloutHarvester harvester = new CodexRolloutHarvester(CodexRolloutHarvester.defaultSessionsRoot(),
+				ROLLOUT_WAIT, ROLLOUT_POLL_INTERVAL);
+		Path effectiveWorkingDirectory = options.getWorkingDirectory() != null ? options.getWorkingDirectory()
+				: workingDirectory;
+		List<String> rolloutLines = harvester.harvest(execution.getSessionId(), effectiveWorkingDirectory, startTime);
+		if (rolloutLines.isEmpty()) {
+			logger.warn("No flushed Codex rollout found for session {} in {}", execution.getSessionId(),
+					effectiveWorkingDirectory);
 		}
-
-		// Look for "model: <model-name>" in stderr
-		String[] lines = stderr.split("\n", -1);
-		for (String line : lines) {
-			if (line.startsWith("model:")) {
-				return line.substring("model:".length()).trim();
-			}
-		}
-
-		return "codex-default";
+		return rolloutLines;
 	}
 
 	/**
