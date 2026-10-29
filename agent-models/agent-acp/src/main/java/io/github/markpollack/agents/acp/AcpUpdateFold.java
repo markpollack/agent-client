@@ -112,34 +112,14 @@ public final class AcpUpdateFold {
 		}
 		MutableStep step = this.steps.computeIfAbsent(id, MutableStep::new);
 
-		String title = str(update.get("title"));
-		if (title != null && step.title == null) {
-			step.title = title;
-		}
-		String toolKind = str(update.get("kind"));
-		if (toolKind != null) {
-			step.kind = toolKind;
-		}
-		String status = str(update.get("status"));
-		if (status != null) {
-			step.status = status;
-		}
+		mergeIdentity(update, step);
 		if (update.get("rawInput") instanceof Map<?, ?> rawInput && step.rawInput == null) {
 			step.rawInput = (Map<String, Object>) rawInput;
 		}
 		if (update.get("rawOutput") instanceof Map<?, ?> rawOutput) {
 			step.rawOutput = (Map<String, Object>) rawOutput;
 		}
-		if (update.get("locations") instanceof List<?> locations) {
-			for (Object location : locations) {
-				if (location instanceof Map<?, ?> map) {
-					String path = str(map.get("path"));
-					if (path != null && !step.locations.contains(path)) {
-						step.locations.add(path);
-					}
-				}
-			}
-		}
+		mergeLocations(update, step);
 		if (update.get("_meta") instanceof Map<?, ?> meta && step.meta == null) {
 			step.meta = (Map<String, Object>) meta;
 		}
@@ -239,6 +219,34 @@ public final class AcpUpdateFold {
 					this.rawInput, this.rawOutput);
 		}
 
+	}
+
+	private static void mergeIdentity(Map<String, Object> update, MutableStep step) {
+		String title = str(update.get("title"));
+		if (title != null && step.title == null) {
+			step.title = title;
+		}
+		String toolKind = str(update.get("kind"));
+		if (toolKind != null) {
+			step.kind = toolKind;
+		}
+		String status = str(update.get("status"));
+		if (status != null) {
+			step.status = status;
+		}
+	}
+
+	private static void mergeLocations(Map<String, Object> update, MutableStep step) {
+		if (update.get("locations") instanceof List<?> locations) {
+			for (Object location : locations) {
+				if (location instanceof Map<?, ?> map) {
+					String path = str(map.get("path"));
+					if (path != null && !step.locations.contains(path)) {
+						step.locations.add(path);
+					}
+				}
+			}
+		}
 	}
 
 }
