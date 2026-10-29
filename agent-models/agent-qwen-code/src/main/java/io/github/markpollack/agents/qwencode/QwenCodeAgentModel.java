@@ -157,17 +157,7 @@ public class QwenCodeAgentModel implements AgentApi {
 			transportOptions.setPathToQwenExecutable(options.getExecutablePath());
 		}
 
-		String workingDir = options.getWorkingDirectory();
-		if (workingDir == null && request.workingDirectory() != null) {
-			workingDir = request.workingDirectory().toString();
-		}
-		if (workingDir != null) {
-			transportOptions.setCwd(workingDir);
-		}
-
-		if (options.getEnvironmentVariables() != null && !options.getEnvironmentVariables().isEmpty()) {
-			transportOptions.setEnv(options.getEnvironmentVariables());
-		}
+		applyEnvironment(transportOptions, options, request);
 
 		return transportOptions;
 	}
@@ -191,6 +181,22 @@ public class QwenCodeAgentModel implements AgentApi {
 		AgentResponseMetadata metadata = AgentResponseMetadata.builder().model("qwen3-coder").build();
 
 		return new AgentResponse(List.of(generation), metadata);
+	}
+
+	private static void applyEnvironment(TransportOptions transportOptions, QwenCodeAgentOptions options,
+			AgentTaskRequest request) {
+		String workingDir = options.getWorkingDirectory();
+		if (workingDir == null && request.workingDirectory() != null) {
+			workingDir = request.workingDirectory().toString();
+		}
+		if (workingDir != null) {
+			transportOptions.setCwd(workingDir);
+		}
+
+		if (options.getEnvironmentVariables() != null && !options.getEnvironmentVariables().isEmpty()) {
+			transportOptions.setEnv(options.getEnvironmentVariables());
+		}
+
 	}
 
 }
