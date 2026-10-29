@@ -21,6 +21,11 @@
     <name>Agent Starters</name>
     <description>Spring Boot Starters for Spring AI Agents</description>
 
+    <properties>
+        <!-- Dependency-only starter modules have no bytecode to analyze. -->
+        <spotbugs.skip>true</spotbugs.skip>
+    </properties>
+
     <modules>
         <module>agent-starter-claude</module>
         <module>agent-starter-gemini</module>

@@ -20,6 +20,7 @@
     <properties>
         <!-- Sample application excluded from the library coverage gate. -->
         <jacoco.skip>true</jacoco.skip>
+        <spotbugs.skip>true</spotbugs.skip>
     </properties>
 
     <dependencies>
