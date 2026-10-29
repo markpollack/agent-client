@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import io.github.markpollack.claude.agent.sdk.config.PermissionMode;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
 import io.github.markpollack.journal.trace.TraceContentMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -432,110 +431,7 @@ public class ClaudeAgentProperties {
 	 * @return configured CLI options
 	 */
 	public CLIOptions buildCLIOptions() {
-		CLIOptions.Builder builder = CLIOptions.builder().model(model).timeout(timeout);
-
-		// Permission mode: explicit setting takes precedence over yolo
-		if (permissionMode != null && !permissionMode.isBlank()) {
-			builder.permissionMode(PermissionMode.fromValue(permissionMode));
-		}
-		else if (yolo) {
-			builder.permissionMode(PermissionMode.BYPASS_PERMISSIONS);
-		}
-
-		// Extended thinking
-		if (maxThinkingTokens != null) {
-			builder.maxThinkingTokens(maxThinkingTokens);
-		}
-
-		// Max tokens
-		if (maxTokens != null) {
-			builder.maxTokens(maxTokens);
-		}
-
-		// System prompt
-		if (systemPrompt != null && !systemPrompt.isBlank()) {
-			builder.systemPrompt(systemPrompt);
-		}
-
-		// Tool filtering
-		if (allowedTools != null && !allowedTools.isEmpty()) {
-			builder.allowedTools(allowedTools);
-		}
-		if (disallowedTools != null && !disallowedTools.isEmpty()) {
-			builder.disallowedTools(disallowedTools);
-		}
-
-		// Structured output
-		if (jsonSchema != null && !jsonSchema.isEmpty()) {
-			builder.jsonSchema(jsonSchema);
-		}
-
-		// Budget control
-		if (maxTurns != null) {
-			builder.maxTurns(maxTurns);
-		}
-		if (maxBudgetUsd != null) {
-			builder.maxBudgetUsd(maxBudgetUsd);
-		}
-
-		// Fallback model
-		if (fallbackModel != null && !fallbackModel.isBlank()) {
-			builder.fallbackModel(fallbackModel);
-		}
-
-		// Append system prompt (uses preset mode)
-		if (appendSystemPrompt != null && !appendSystemPrompt.isBlank()) {
-			builder.appendSystemPrompt(appendSystemPrompt);
-		}
-
-		// ============================================================
-		// Advanced options for full Python SDK parity
-		// ============================================================
-
-		// Additional context directories
-		if (addDirs != null && !addDirs.isEmpty()) {
-			builder.addDirs(addDirs.stream().map(Path::of).toList());
-		}
-
-		// Custom settings file
-		if (settings != null && !settings.isBlank()) {
-			builder.settings(settings);
-		}
-
-		// Permission prompt tool
-		if (permissionPromptToolName != null && !permissionPromptToolName.isBlank()) {
-			builder.permissionPromptToolName(permissionPromptToolName);
-		}
-
-		// Extra CLI arguments — effort rides along as "--effort <level>" until the SDK
-		// grows first-class support; an explicit extra-args "effort" entry wins
-		Map<String, String> mergedExtraArgs = new java.util.LinkedHashMap<>();
-		if (effort != null && !effort.isBlank()) {
-			mergedExtraArgs.put("effort", effort);
-		}
-		if (extraArgs != null) {
-			mergedExtraArgs.putAll(extraArgs);
-		}
-		if (!mergedExtraArgs.isEmpty()) {
-			builder.extraArgs(mergedExtraArgs);
-		}
-
-		// Environment variables
-		if (env != null && !env.isEmpty()) {
-			builder.env(env);
-		}
-
-		// Buffer size protection
-		if (maxBufferSize != null) {
-			builder.maxBufferSize(maxBufferSize);
-		}
-
-		// Unix user
-		if (user != null && !user.isBlank()) {
-			builder.user(user);
-		}
-
-		return builder.build();
+		return ClaudePropertyOptionsMapper.build(this);
 	}
 
 }
