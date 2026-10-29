@@ -361,7 +361,7 @@ public class CLITransport {
 
 	private boolean isCliDiagnosticLine(String line) {
 		return line.startsWith("Keychain initialization encountered an error:") || line.startsWith("Cannot find module")
-				|| line.startsWith("Require stack:") || line.startsWith("- /") && line.contains("node_modules/")
+				|| line.startsWith("Require stack:") || (line.startsWith("- /") && line.contains("node_modules/"))
 				|| line.startsWith("Using FileKeychain fallback") || line.startsWith("Loaded cached credentials")
 				|| line.startsWith("Using cached credentials") || line.startsWith("YOLO mode");
 	}
