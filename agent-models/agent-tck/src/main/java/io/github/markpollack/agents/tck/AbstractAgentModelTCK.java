@@ -227,6 +227,44 @@ public abstract class AbstractAgentModelTCK {
 		long endTime = System.currentTimeMillis();
 		logger.debug("Execution time: " + (endTime - startTime) + "ms");
 
+		logResponse(response);
+
+		// Assert
+		assertThat(response).isNotNull();
+		assertThat(response.getResult()).isNotNull();
+
+		// Check if the agent created a project directory (flexible - some agents may
+		// structure differently)
+		Path projectDir = tempDir.resolve("project");
+		boolean projectDirExists = Files.exists(projectDir) && Files.isDirectory(projectDir);
+
+		boolean foundReadme = findReadme(projectDir, projectDirExists);
+
+		// Look for Python script (might be in project dir or working dir)
+		boolean foundPythonScript;
+		try (var paths = Files.walk(tempDir)) {
+			foundPythonScript = paths.anyMatch(path -> path.toString().endsWith(".py"));
+		}
+
+		// Assert: Agent should complete some part of the complex task
+		// - Response should have output
+		// - At least one of: project directory, README file, or Python script should be
+		// created
+		assertThat(response.getResult().getOutput()).isNotEmpty();
+
+		boolean completedSomeTask = projectDirExists || foundReadme || foundPythonScript;
+
+		// Debug output to understand what the agent did
+		if (!completedSomeTask) {
+			logComplexTaskFailure(response, projectDir, projectDirExists, foundReadme, foundPythonScript);
+		}
+
+		assertThat(completedSomeTask)
+			.withFailMessage("Agent should create at least one of: project directory, README.md, or Python script")
+			.isTrue();
+	}
+
+	private void logResponse(AgentResponse response) {
 		// Log response details
 		logger
 			.debug("Response model: " + (response.getMetadata() != null ? response.getMetadata().getModel() : "null"));
@@ -243,15 +281,9 @@ public abstract class AbstractAgentModelTCK {
 					"Response output (first 500 chars): " + response.getResult().getOutput().substring(0, 500) + "...");
 		}
 
-		// Assert
-		assertThat(response).isNotNull();
-		assertThat(response.getResult()).isNotNull();
+	}
 
-		// Check if the agent created a project directory (flexible - some agents may
-		// structure differently)
-		Path projectDir = tempDir.resolve("project");
-		boolean projectDirExists = Files.exists(projectDir) && Files.isDirectory(projectDir);
-
+	private boolean findReadme(Path projectDir, boolean projectDirExists) throws IOException {
 		// Check for README.md (might be in project dir or working dir)
 		boolean foundReadme = false;
 		if (projectDirExists) {
@@ -271,43 +303,27 @@ public abstract class AbstractAgentModelTCK {
 			}
 		}
 
-		// Look for Python script (might be in project dir or working dir)
-		boolean foundPythonScript;
+		return foundReadme;
+	}
+
+	private void logComplexTaskFailure(AgentResponse response, Path projectDir, boolean projectDirExists,
+			boolean foundReadme, boolean foundPythonScript) {
+		logger.debug("=== DEBUG: Complex task failed ===");
+		logger.debug("Response output: " + response.getResult().getOutput());
+		logger.debug("Project dir exists: " + projectDirExists + " (at " + projectDir + ")");
+		logger.debug("Found README: " + foundReadme);
+		logger.debug("Found Python script: " + foundPythonScript);
+
+		logger.debug("Files in temp directory:");
 		try (var paths = Files.walk(tempDir)) {
-			foundPythonScript = paths.anyMatch(path -> path.toString().endsWith(".py"));
+			paths.forEach(path -> {
+				logger.debug("  " + path + " (dir: " + Files.isDirectory(path) + ")");
+			});
 		}
-
-		// Assert: Agent should complete some part of the complex task
-		// - Response should have output
-		// - At least one of: project directory, README file, or Python script should be
-		// created
-		assertThat(response.getResult().getOutput()).isNotEmpty();
-
-		boolean completedSomeTask = projectDirExists || foundReadme || foundPythonScript;
-
-		// Debug output to understand what the agent did
-		if (!completedSomeTask) {
-			logger.debug("=== DEBUG: Complex task failed ===");
-			logger.debug("Response output: " + response.getResult().getOutput());
-			logger.debug("Project dir exists: " + projectDirExists + " (at " + projectDir + ")");
-			logger.debug("Found README: " + foundReadme);
-			logger.debug("Found Python script: " + foundPythonScript);
-
-			logger.debug("Files in temp directory:");
-			try (var paths = Files.walk(tempDir)) {
-				paths.forEach(path -> {
-					logger.debug("  " + path + " (dir: " + Files.isDirectory(path) + ")");
-				});
-			}
-			catch (Exception e) {
-				logger.debug("  Error listing files: " + e.getMessage());
-			}
-			logger.debug("=== END DEBUG ===");
+		catch (Exception e) {
+			logger.debug("  Error listing files: " + e.getMessage());
 		}
-
-		assertThat(completedSomeTask)
-			.withFailMessage("Agent should create at least one of: project directory, README.md, or Python script")
-			.isTrue();
+		logger.debug("=== END DEBUG ===");
 	}
 
 	/**
