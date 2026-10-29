@@ -130,17 +130,7 @@ public class CLITransport {
 				.start();
 			child = process.getProcess();
 			future = process.getFuture();
-			long deadline = System.nanoTime() + options.getTimeout().toNanos();
-			while (!future.isDone() || !lines.isEmpty()) {
-				if (System.nanoTime() >= deadline) {
-					throw new CodexSDKException("Codex conversation turn timed out");
-				}
-				String line = lines.poll(25, TimeUnit.MILLISECONDS);
-				if (line != null) {
-					line = redact(line, options);
-					observer.accept(line);
-				}
-			}
+			deliverLines(future, lines, options, observer);
 			return future.get().getExitValue();
 		}
 		catch (InterruptedException ex) {
@@ -153,14 +143,34 @@ public class CLITransport {
 			throw new CodexSDKException("Codex CLI could not execute the conversation configuration");
 		}
 		finally {
-			// The child can emit output before zt-exec's waiting task starts. Cancelling
-			// that task before it starts would otherwise skip its cleanup entirely.
-			if (child != null && child.isAlive()) {
-				child.destroy();
+			cancelChild(child, future);
+		}
+	}
+
+	private static void deliverLines(java.util.concurrent.Future<ProcessResult> future,
+			java.util.concurrent.BlockingQueue<String> lines, ExecuteOptions options,
+			java.util.function.Consumer<String> observer) throws InterruptedException {
+		long deadline = System.nanoTime() + options.getTimeout().toNanos();
+		while (!future.isDone() || !lines.isEmpty()) {
+			if (System.nanoTime() >= deadline) {
+				throw new CodexSDKException("Codex conversation turn timed out");
 			}
-			if (future != null && !future.isDone()) {
-				future.cancel(true);
+			String line = lines.poll(25, TimeUnit.MILLISECONDS);
+			if (line != null) {
+				line = redact(line, options);
+				observer.accept(line);
 			}
+		}
+	}
+
+	private static void cancelChild(Process child, java.util.concurrent.Future<ProcessResult> future) {
+		// The child can emit output before zt-exec's waiting task starts. Cancelling
+		// that task before it starts would otherwise skip its cleanup entirely.
+		if (child != null && child.isAlive()) {
+			child.destroy();
+		}
+		if (future != null && !future.isDone()) {
+			future.cancel(true);
 		}
 	}
 
