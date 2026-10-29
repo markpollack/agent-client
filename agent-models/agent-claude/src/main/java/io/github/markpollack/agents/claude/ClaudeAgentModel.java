@@ -261,7 +261,6 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 		logger.info("Executing blocking call for goal: {}", request.goal());
 
 		Instant startTime = Instant.now();
-		StringBuilder fullText = new StringBuilder();
 
 		// Resolve trace target before client setup — fail fast on config errors
 		TraceTarget traceTarget = resolveTraceTarget();

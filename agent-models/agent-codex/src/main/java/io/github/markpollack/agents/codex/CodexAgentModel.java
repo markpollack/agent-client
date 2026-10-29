@@ -50,18 +50,16 @@ public class CodexAgentModel implements AgentApi {
 
 	private final CodexAgentOptions defaultOptions;
 
-	private final Sandbox sandbox;
-
 	/**
 	 * Create a new CodexAgentModel with the given client, options, and sandbox.
 	 * @param codexClient the Codex CLI client
 	 * @param defaultOptions default execution options
-	 * @param sandbox the sandbox for secure command execution (may be null)
+	 * @param sandbox retained for constructor compatibility; execution uses the SDK
+	 * transport
 	 */
 	public CodexAgentModel(CodexClient codexClient, CodexAgentOptions defaultOptions, Sandbox sandbox) {
 		this.codexClient = codexClient;
 		this.defaultOptions = defaultOptions != null ? defaultOptions : CodexAgentOptions.builder().build();
-		this.sandbox = sandbox;
 
 		// Set system property for executable path if provided
 		if (this.defaultOptions.getExecutablePath() != null) {

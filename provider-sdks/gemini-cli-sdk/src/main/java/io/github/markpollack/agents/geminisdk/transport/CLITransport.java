@@ -40,13 +40,10 @@ public class CLITransport {
 
 	private final Path workingDirectory;
 
-	private final Duration defaultTimeout;
-
 	private final String geminiCommand;
 
 	public CLITransport(Path workingDirectory, Duration defaultTimeout) {
 		this.workingDirectory = workingDirectory;
-		this.defaultTimeout = defaultTimeout;
 		this.geminiCommand = GeminiCliDiscovery.findGeminiCommand();
 	}
 

@@ -69,10 +69,8 @@ public class CLITransport {
 
 			logger.info("Amazon Q execution completed in {} ms with exit code {}", duration.toMillis(), exitCode);
 
-			// Extract conversation ID if present in output
-			String conversationId = extractConversationId(output);
-
-			return new ExecuteResult(output, exitCode, options.getModel(), duration, conversationId);
+			// Conversation metadata is not yet extracted from the CLI output.
+			return new ExecuteResult(output, exitCode, options.getModel(), duration, null);
 		}
 		catch (Exception e) {
 			logger.error("Amazon Q execution failed", e);
@@ -130,18 +128,6 @@ public class CLITransport {
 		command.add(prompt);
 
 		return command;
-	}
-
-	/**
-	 * Extracts conversation ID from Q output if present.
-	 * @param output the CLI output
-	 * @return the conversation ID or null
-	 */
-	private String extractConversationId(String output) {
-		// Amazon Q may include conversation metadata in output
-		// For now, return null as conversation ID extraction needs to be
-		// determined based on actual Q CLI behavior
-		return null;
 	}
 
 }

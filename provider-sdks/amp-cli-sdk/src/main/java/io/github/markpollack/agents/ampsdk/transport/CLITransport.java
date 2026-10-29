@@ -66,7 +66,7 @@ public class CLITransport {
 			options = ExecuteOptions.defaultOptions();
 		}
 
-		List<String> command = buildCommand(prompt, options);
+		List<String> command = buildCommand(ampCliPath, options);
 		Instant startTime = Instant.now();
 
 		logger.debug("Executing Amp CLI command: {}", command);
@@ -102,7 +102,7 @@ public class CLITransport {
 		}
 	}
 
-	private List<String> buildCommand(String prompt, ExecuteOptions options) {
+	static List<String> buildCommand(String ampCliPath, ExecuteOptions options) {
 		List<String> command = new ArrayList<>();
 
 		// Base command

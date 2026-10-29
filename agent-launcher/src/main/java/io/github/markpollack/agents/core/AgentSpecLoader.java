@@ -67,7 +67,7 @@ public final class AgentSpecLoader {
 			Map<String, Object> data = yaml.load(is);
 			log.info("Loaded YAML data for agent from classpath: {}", agentId);
 
-			return parseAgentSpec(data, agentId);
+			return parseAgentSpec(data);
 		}
 		catch (IOException e) {
 			log.error("Failed to load agent spec from classpath: {}", resourcePath, e);
@@ -95,7 +95,7 @@ public final class AgentSpecLoader {
 			Map<String, Object> data = yaml.load(yamlContent);
 			log.info("Loaded YAML data for agent from filesystem: {}", agentId);
 
-			return parseAgentSpec(data, agentId);
+			return parseAgentSpec(data);
 		}
 		catch (IOException e) {
 			log.error("Failed to load agent spec from filesystem: {}", agentFile, e);
@@ -106,10 +106,9 @@ public final class AgentSpecLoader {
 	/**
 	 * Parse agent specification from YAML data.
 	 * @param data YAML data
-	 * @param agentId agent identifier for logging
 	 * @return parsed agent specification
 	 */
-	private static AgentSpec parseAgentSpec(Map<String, Object> data, String agentId) {
+	private static AgentSpec parseAgentSpec(Map<String, Object> data) {
 		String id = getString(data, "id");
 		String version = getString(data, "version");
 		Map<String, AgentSpec.InputDef> inputs = parseInputDefs(getMap(data, "inputs"));

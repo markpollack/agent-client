@@ -36,18 +36,16 @@ public class AmazonQAgentModel implements AgentApi {
 
 	private final AmazonQAgentOptions defaultOptions;
 
-	private final Sandbox sandbox;
-
 	/**
 	 * Create a new AmazonQAgentModel with the given client, options, and sandbox.
 	 * @param amazonQClient the Amazon Q CLI client
 	 * @param defaultOptions default execution options
-	 * @param sandbox the sandbox for secure command execution (may be null)
+	 * @param sandbox retained for constructor compatibility; execution uses the SDK
+	 * transport
 	 */
 	public AmazonQAgentModel(AmazonQClient amazonQClient, AmazonQAgentOptions defaultOptions, Sandbox sandbox) {
 		this.amazonQClient = amazonQClient;
 		this.defaultOptions = defaultOptions != null ? defaultOptions : AmazonQAgentOptions.builder().build();
-		this.sandbox = sandbox;
 
 		// Set system property for executable path if provided
 		if (this.defaultOptions.getExecutablePath() != null) {

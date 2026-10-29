@@ -134,7 +134,7 @@ public class GeminiClient implements AutoCloseable {
 		Instant endTime = Instant.now();
 
 		Duration duration = Duration.between(startTime, endTime);
-		Metadata metadata = buildMetadata(options, duration, messages);
+		Metadata metadata = buildMetadata(options, duration);
 
 		return QueryResult.of(messages, metadata, ResultStatus.SUCCESS);
 	}
@@ -213,7 +213,7 @@ public class GeminiClient implements AutoCloseable {
 		}
 	}
 
-	private Metadata buildMetadata(CLIOptions options, Duration duration, List<Message> messages) {
+	private Metadata buildMetadata(CLIOptions options, Duration duration) {
 		return Metadata.builder()
 			.model(options.getModel() != null ? options.getModel() : "gemini-default")
 			.timestamp(Instant.now())

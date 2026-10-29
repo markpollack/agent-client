@@ -38,18 +38,16 @@ public class AmpAgentModel implements AgentApi {
 
 	private final AmpAgentOptions defaultOptions;
 
-	private final Sandbox sandbox;
-
 	/**
 	 * Create a new AmpAgentModel with the given client, options, and sandbox.
 	 * @param ampClient the Amp CLI client
 	 * @param defaultOptions default execution options
-	 * @param sandbox the sandbox for secure command execution (may be null)
+	 * @param sandbox retained for constructor compatibility; execution uses the SDK
+	 * transport
 	 */
 	public AmpAgentModel(AmpClient ampClient, AmpAgentOptions defaultOptions, Sandbox sandbox) {
 		this.ampClient = ampClient;
 		this.defaultOptions = defaultOptions != null ? defaultOptions : new AmpAgentOptions();
-		this.sandbox = sandbox;
 
 		// Set system property for executable path if provided
 		if (this.defaultOptions.getExecutablePath() != null) {
