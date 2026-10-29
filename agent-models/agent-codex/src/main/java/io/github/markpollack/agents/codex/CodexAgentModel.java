@@ -167,43 +167,52 @@ public class CodexAgentModel implements AgentApi {
 
 		// Portable option fallbacks (when request is not CodexAgentOptions)
 		if (request.options() != null && !(request.options() instanceof CodexAgentOptions)) {
-			builder.fullAuto(request.options().isAutoApprove());
-			// Portable effort values (low/medium/high) are all valid Codex
-			// model_reasoning_effort values — direct passthrough
-			if (request.options().getEffort() != null) {
-				builder.reasoningEffort(request.options().getEffort());
-			}
+			applyPortableOptions(builder, request.options());
 		}
 
 		// Override with request-specific options if present
 		if (request.options() != null && request.options() instanceof CodexAgentOptions requestOptions) {
-			if (requestOptions.getModel() != null) {
-				builder.model(requestOptions.getModel());
-			}
-			if (requestOptions.getReasoningEffort() != null) {
-				builder.reasoningEffort(requestOptions.getReasoningEffort());
-			}
-			if (requestOptions.getTimeout() != null) {
-				builder.timeout(requestOptions.getTimeout());
-			}
-			if (requestOptions.getSandboxMode() != null) {
-				builder.sandboxMode(requestOptions.getSandboxMode());
-			}
-			if (requestOptions.getApprovalPolicy() != null) {
-				builder.approvalPolicy(requestOptions.getApprovalPolicy());
-			}
-			if (requestOptions.getOutputSchema() != null) {
-				builder.outputSchema(requestOptions.getOutputSchema());
-			}
-			builder.fullAuto(requestOptions.isFullAuto());
-			builder.skipGitCheck(requestOptions.isSkipGitCheck());
-			builder.dangerouslyBypassSandbox(requestOptions.isDangerouslyBypassSandbox());
-			if (!requestOptions.getAdditionalDirectories().isEmpty()) {
-				builder.additionalDirectories(requestOptions.getAdditionalDirectories());
-			}
+			applyNativeOptions(builder, requestOptions);
 		}
 
 		return builder.build();
+	}
+
+	private static void applyNativeOptions(CodexAgentOptions.Builder builder, CodexAgentOptions requestOptions) {
+		if (requestOptions.getModel() != null) {
+			builder.model(requestOptions.getModel());
+		}
+		if (requestOptions.getReasoningEffort() != null) {
+			builder.reasoningEffort(requestOptions.getReasoningEffort());
+		}
+		if (requestOptions.getTimeout() != null) {
+			builder.timeout(requestOptions.getTimeout());
+		}
+		if (requestOptions.getSandboxMode() != null) {
+			builder.sandboxMode(requestOptions.getSandboxMode());
+		}
+		if (requestOptions.getApprovalPolicy() != null) {
+			builder.approvalPolicy(requestOptions.getApprovalPolicy());
+		}
+		if (requestOptions.getOutputSchema() != null) {
+			builder.outputSchema(requestOptions.getOutputSchema());
+		}
+		builder.fullAuto(requestOptions.isFullAuto());
+		builder.skipGitCheck(requestOptions.isSkipGitCheck());
+		builder.dangerouslyBypassSandbox(requestOptions.isDangerouslyBypassSandbox());
+		if (!requestOptions.getAdditionalDirectories().isEmpty()) {
+			builder.additionalDirectories(requestOptions.getAdditionalDirectories());
+		}
+	}
+
+	private static void applyPortableOptions(CodexAgentOptions.Builder builder,
+			io.github.markpollack.agents.model.AgentOptions requestOptions) {
+		builder.fullAuto(requestOptions.isAutoApprove());
+		// Portable effort values (low/medium/high) are all valid Codex
+		// model_reasoning_effort values — direct passthrough
+		if (requestOptions.getEffort() != null) {
+			builder.reasoningEffort(requestOptions.getEffort());
+		}
 	}
 
 	private ExecuteOptions toExecuteOptions(CodexAgentOptions options, AgentTaskRequest request) {
