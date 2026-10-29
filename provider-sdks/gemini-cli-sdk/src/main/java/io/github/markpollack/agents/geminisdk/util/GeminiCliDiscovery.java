@@ -104,33 +104,7 @@ public class GeminiCliDiscovery {
 	 */
 	private static CliAvailabilityResult performCliCheck(String command) {
 		try {
-			ProcessExecutor executor;
-
-			// If using nvm-installed CLI, execute it with the correct Node.js to avoid
-			// shebang issues
-			if (command.contains("/.nvm/")) {
-				String nvmNodePath = extractNvmNodePath(command);
-				if (nvmNodePath != null) {
-					String nodePath = nvmNodePath + "/node";
-					executor = new ProcessExecutor().command(nodePath, command, "--version")
-						.timeout(10, java.util.concurrent.TimeUnit.SECONDS)
-						.readOutput(true)
-						.exitValueNormal();
-					logger.trace("Using direct Node.js execution: {} {}", nodePath, command);
-				}
-				else {
-					executor = new ProcessExecutor().command(command, "--version")
-						.timeout(10, java.util.concurrent.TimeUnit.SECONDS)
-						.readOutput(true)
-						.exitValueNormal();
-				}
-			}
-			else {
-				executor = new ProcessExecutor().command(command, "--version")
-					.timeout(10, java.util.concurrent.TimeUnit.SECONDS)
-					.readOutput(true)
-					.exitValueNormal();
-			}
+			ProcessExecutor executor = versionCheckExecutor(command);
 
 			ProcessResult result = executor.execute();
 
@@ -172,6 +146,37 @@ public class GeminiCliDiscovery {
 			logger.trace("Unexpected error checking CLI availability for {}: {}", command, reason);
 			return CliAvailabilityResult.unavailable(reason, e);
 		}
+	}
+
+	private static ProcessExecutor versionCheckExecutor(String command) {
+		ProcessExecutor executor;
+
+		// If using nvm-installed CLI, execute it with the correct Node.js to avoid
+		// shebang issues
+		if (command.contains("/.nvm/")) {
+			String nvmNodePath = extractNvmNodePath(command);
+			if (nvmNodePath != null) {
+				String nodePath = nvmNodePath + "/node";
+				executor = new ProcessExecutor().command(nodePath, command, "--version")
+					.timeout(10, java.util.concurrent.TimeUnit.SECONDS)
+					.readOutput(true)
+					.exitValueNormal();
+				logger.trace("Using direct Node.js execution: {} {}", nodePath, command);
+			}
+			else {
+				executor = new ProcessExecutor().command(command, "--version")
+					.timeout(10, java.util.concurrent.TimeUnit.SECONDS)
+					.readOutput(true)
+					.exitValueNormal();
+			}
+		}
+		else {
+			executor = new ProcessExecutor().command(command, "--version")
+				.timeout(10, java.util.concurrent.TimeUnit.SECONDS)
+				.readOutput(true)
+				.exitValueNormal();
+		}
+		return executor;
 	}
 
 	/**
