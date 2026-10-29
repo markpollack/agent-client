@@ -823,34 +823,7 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 			return null;
 		}
 		try {
-			Path transcript = null;
-			if (sessionId != null && !sessionId.isBlank()) {
-				// Session ids are globally unique — search by filename
-				String fileName = sessionId + ".jsonl";
-				try (java.util.stream.Stream<Path> stream = Files.walk(projectsDir, 2)) {
-					transcript = stream.filter(p -> p.getFileName().toString().equals(fileName))
-						.findFirst()
-						.orElse(null);
-				}
-			}
-			if (transcript == null) {
-				// Fallback (no/unknown sessionId, e.g. failed runs): newest transcript
-				// under the working directory's project slug. May mis-pick under
-				// concurrent runs in the same directory — the log line records which
-				// file was taken.
-				String slug = effectiveWorkingDir.toAbsolutePath()
-					.normalize()
-					.toString()
-					.replaceAll("[^A-Za-z0-9]", "-");
-				Path slugDir = projectsDir.resolve(slug);
-				if (Files.isDirectory(slugDir)) {
-					try (java.util.stream.Stream<Path> stream = Files.list(slugDir)) {
-						transcript = stream.filter(p -> p.getFileName().toString().endsWith(".jsonl"))
-							.max(Comparator.comparingLong(p -> p.toFile().lastModified()))
-							.orElse(null);
-					}
-				}
-			}
+			Path transcript = findTranscript(sessionId, projectsDir, effectiveWorkingDir);
 			if (transcript == null) {
 				logger.warn(
 						"Transcript archive: no transcript found (sessionId={}, projectsDir={}, cwd={}) — "
@@ -869,6 +842,34 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 			logger.warn("Transcript archive failed (best-effort): {}", ex.getMessage());
 			return null;
 		}
+	}
+
+	private static Path findTranscript(String sessionId, Path projectsDir, Path effectiveWorkingDir)
+			throws IOException {
+		Path transcript = null;
+		if (sessionId != null && !sessionId.isBlank()) {
+			// Session ids are globally unique — search by filename
+			String fileName = sessionId + ".jsonl";
+			try (java.util.stream.Stream<Path> stream = Files.walk(projectsDir, 2)) {
+				transcript = stream.filter(p -> p.getFileName().toString().equals(fileName)).findFirst().orElse(null);
+			}
+		}
+		if (transcript == null) {
+			// Fallback (no/unknown sessionId, e.g. failed runs): newest transcript
+			// under the working directory's project slug. May mis-pick under
+			// concurrent runs in the same directory — the log line records which
+			// file was taken.
+			String slug = effectiveWorkingDir.toAbsolutePath().normalize().toString().replaceAll("[^A-Za-z0-9]", "-");
+			Path slugDir = projectsDir.resolve(slug);
+			if (Files.isDirectory(slugDir)) {
+				try (java.util.stream.Stream<Path> stream = Files.list(slugDir)) {
+					transcript = stream.filter(p -> p.getFileName().toString().endsWith(".jsonl"))
+						.max(Comparator.comparingLong(p -> p.toFile().lastModified()))
+						.orElse(null);
+				}
+			}
+		}
+		return transcript;
 	}
 
 	/**
