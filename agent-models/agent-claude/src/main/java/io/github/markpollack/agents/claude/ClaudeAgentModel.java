@@ -478,8 +478,10 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 	 * it matters, since they keep modifying the project after the request is abandoned.
 	 */
 	public void interrupt() {
-		for (ClaudeSyncClient client : this.inFlight) {
-			this.inFlight.remove(client);
+		Iterator<ClaudeSyncClient> clients = this.inFlight.iterator();
+		while (clients.hasNext()) {
+			ClaudeSyncClient client = clients.next();
+			clients.remove();
 			try {
 				client.close();
 			}
