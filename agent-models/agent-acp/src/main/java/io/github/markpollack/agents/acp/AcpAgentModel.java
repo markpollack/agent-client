@@ -361,12 +361,7 @@ public class AcpAgentModel implements AgentApi {
 		}
 		providerFields.putAll(this.profile.providerFields(run));
 
-		if (this.captureEnabled && run.trajectory() != null) {
-			Object capture = this.profile.capture(run);
-			if (capture != null) {
-				providerFields.put("phaseCapture", capture);
-			}
-		}
+		addCapture(providerFields, run);
 
 		AgentGeneration generation = new AgentGeneration(run.answer(),
 				new AgentGenerationMetadata(finishReason, Map.copyOf(providerFields)));
@@ -461,6 +456,16 @@ public class AcpAgentModel implements AgentApi {
 
 		public AcpAgentModel build() {
 			return new AcpAgentModel(this.profile, this.command, this.defaultOptions, this.captureEnabled);
+		}
+
+	}
+
+	private void addCapture(Map<String, Object> providerFields, AcpRunRecord run) {
+		if (this.captureEnabled && run.trajectory() != null) {
+			Object capture = this.profile.capture(run);
+			if (capture != null) {
+				providerFields.put("phaseCapture", capture);
+			}
 		}
 
 	}
