@@ -43,10 +43,12 @@ public class AmazonQAgentOptions implements AgentOptions {
 	private AmazonQAgentOptions() {
 	}
 
+	@Override
 	public String getModel() {
 		return model;
 	}
 
+	@Override
 	public Duration getTimeout() {
 		return timeout;
 	}

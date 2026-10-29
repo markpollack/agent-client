@@ -53,6 +53,7 @@ public class CodexAgentOptions implements AgentOptions {
 	private CodexAgentOptions() {
 	}
 
+	@Override
 	public String getModel() {
 		return model;
 	}
@@ -69,6 +70,7 @@ public class CodexAgentOptions implements AgentOptions {
 		return reasoningEffort;
 	}
 
+	@Override
 	public Duration getTimeout() {
 		return timeout;
 	}

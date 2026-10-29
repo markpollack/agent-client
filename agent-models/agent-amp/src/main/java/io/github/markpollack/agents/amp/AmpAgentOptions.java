@@ -61,6 +61,7 @@ public class AmpAgentOptions implements AgentOptions {
 		this.model = model;
 	}
 
+	@Override
 	public String getModel() {
 		return model;
 	}
@@ -69,6 +70,7 @@ public class AmpAgentOptions implements AgentOptions {
 		this.model = model;
 	}
 
+	@Override
 	public Duration getTimeout() {
 		return timeout;
 	}
@@ -77,6 +79,7 @@ public class AmpAgentOptions implements AgentOptions {
 		this.timeout = timeout;
 	}
 
+	@Override
 	public String getWorkingDirectory() {
 		return workingDirectory;
 	}
@@ -85,6 +88,7 @@ public class AmpAgentOptions implements AgentOptions {
 		this.workingDirectory = workingDirectory;
 	}
 
+	@Override
 	public Map<String, String> getEnvironmentVariables() {
 		return environmentVariables;
 	}

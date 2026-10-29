@@ -154,6 +154,7 @@ public class ClaudeAgentOptions implements AgentOptions {
 		this.model = model;
 	}
 
+	@Override
 	public String getModel() {
 		return model;
 	}
@@ -162,6 +163,7 @@ public class ClaudeAgentOptions implements AgentOptions {
 		this.model = model;
 	}
 
+	@Override
 	public Duration getTimeout() {
 		return timeout;
 	}
@@ -170,6 +172,7 @@ public class ClaudeAgentOptions implements AgentOptions {
 		this.timeout = timeout;
 	}
 
+	@Override
 	public String getWorkingDirectory() {
 		return workingDirectory;
 	}
@@ -178,6 +181,7 @@ public class ClaudeAgentOptions implements AgentOptions {
 		this.workingDirectory = workingDirectory;
 	}
 
+	@Override
 	public Map<String, String> getEnvironmentVariables() {
 		return environmentVariables;
 	}
@@ -290,6 +294,7 @@ public class ClaudeAgentOptions implements AgentOptions {
 		this.disallowedTools = disallowedTools != null ? disallowedTools : List.of();
 	}
 
+	@Override
 	public Map<String, Object> getJsonSchema() {
 		return jsonSchema;
 	}
@@ -306,6 +311,7 @@ public class ClaudeAgentOptions implements AgentOptions {
 		this.mcpServers = mcpServers != null ? mcpServers : new HashMap<>();
 	}
 
+	@Override
 	public Integer getMaxTurns() {
 		return maxTurns;
 	}
