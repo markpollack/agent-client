@@ -57,38 +57,8 @@ public class ClaudeAgentAutoConfiguration {
 			.yolo(properties.isYolo())
 			.executablePath(properties.getExecutablePath());
 
-		// Reasoning effort
-		if (properties.getEffort() != null && !properties.getEffort().isBlank()) {
-			optionsBuilder.effort(properties.getEffort());
-		}
-
-		// Extended thinking
-		if (properties.getMaxThinkingTokens() != null) {
-			optionsBuilder.maxThinkingTokens(properties.getMaxThinkingTokens());
-		}
-
-		// Max tokens
-		if (properties.getMaxTokens() != null) {
-			optionsBuilder.maxTokens(properties.getMaxTokens());
-		}
-
-		// System prompt
-		if (properties.getSystemPrompt() != null && !properties.getSystemPrompt().isBlank()) {
-			optionsBuilder.systemPrompt(properties.getSystemPrompt());
-		}
-
-		// Tool filtering
-		if (properties.getAllowedTools() != null && !properties.getAllowedTools().isEmpty()) {
-			optionsBuilder.allowedTools(properties.getAllowedTools());
-		}
-		if (properties.getDisallowedTools() != null && !properties.getDisallowedTools().isEmpty()) {
-			optionsBuilder.disallowedTools(properties.getDisallowedTools());
-		}
-
-		// Structured output
-		if (properties.getJsonSchema() != null && !properties.getJsonSchema().isEmpty()) {
-			optionsBuilder.jsonSchema(properties.getJsonSchema());
-		}
+		applyGenerationOptions(optionsBuilder, properties);
+		applyToolOptions(optionsBuilder, properties);
 
 		// MCP servers from YAML configuration
 		Map<String, McpServerConfig> mcpServers = mcpProperties.toMcpServerConfigs();
@@ -121,6 +91,46 @@ public class ClaudeAgentAutoConfiguration {
 		hookRegistryProvider.ifAvailable(builder::hookRegistry);
 
 		return builder.build();
+	}
+
+	private static void applyGenerationOptions(ClaudeAgentOptions.Builder optionsBuilder,
+			ClaudeAgentProperties properties) {
+		// Reasoning effort
+		if (properties.getEffort() != null && !properties.getEffort().isBlank()) {
+			optionsBuilder.effort(properties.getEffort());
+		}
+
+		// Extended thinking
+		if (properties.getMaxThinkingTokens() != null) {
+			optionsBuilder.maxThinkingTokens(properties.getMaxThinkingTokens());
+		}
+
+		// Max tokens
+		if (properties.getMaxTokens() != null) {
+			optionsBuilder.maxTokens(properties.getMaxTokens());
+		}
+
+		// System prompt
+		if (properties.getSystemPrompt() != null && !properties.getSystemPrompt().isBlank()) {
+			optionsBuilder.systemPrompt(properties.getSystemPrompt());
+		}
+
+	}
+
+	private static void applyToolOptions(ClaudeAgentOptions.Builder optionsBuilder, ClaudeAgentProperties properties) {
+		// Tool filtering
+		if (properties.getAllowedTools() != null && !properties.getAllowedTools().isEmpty()) {
+			optionsBuilder.allowedTools(properties.getAllowedTools());
+		}
+		if (properties.getDisallowedTools() != null && !properties.getDisallowedTools().isEmpty()) {
+			optionsBuilder.disallowedTools(properties.getDisallowedTools());
+		}
+
+		// Structured output
+		if (properties.getJsonSchema() != null && !properties.getJsonSchema().isEmpty()) {
+			optionsBuilder.jsonSchema(properties.getJsonSchema());
+		}
+
 	}
 
 }
