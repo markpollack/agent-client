@@ -6,8 +6,11 @@
 package io.github.markpollack.agents.tck;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -45,6 +48,22 @@ class ProviderParityContractTest extends ProviderParityTCK {
 	@Override
 	protected String getProvider() {
 		return this.provider;
+	}
+
+	@Test
+	void complexTaskDoesNotWriteToStandardOutput() throws IOException {
+		var output = new ByteArrayOutputStream();
+		PrintStream original = System.out;
+		try (var captured = new PrintStream(output, true, StandardCharsets.UTF_8)) {
+			System.setOut(captured);
+			try {
+				testComplexTask();
+			}
+			finally {
+				System.setOut(original);
+			}
+		}
+		assertThat(output.toString(StandardCharsets.UTF_8)).isEmpty();
 	}
 
 	@Test

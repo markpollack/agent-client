@@ -5,6 +5,8 @@
 
 package io.github.markpollack.agents.tck;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.fail;
  * </p>
  */
 public abstract class AbstractAgentModelTCK {
+
+	private static final Logger logger = LoggerFactory.getLogger(AbstractAgentModelTCK.class);
 
 	/**
 	 * The agent model implementation under test. Must be set by concrete test classes.
@@ -210,10 +214,10 @@ public abstract class AbstractAgentModelTCK {
 				+ "and create a simple Python script that prints 'Hello from complex task'";
 		AgentTaskRequest request = AgentTaskRequest.builder(taskDescription, tempDir).build();
 
-		System.out.println("=== AGENT TASK DEBUG ===");
-		System.out.println("Request: " + taskDescription);
-		System.out.println("Working directory: " + tempDir);
-		System.out.println("Agent model: " + agentModel.getClass().getSimpleName());
+		logger.debug("=== AGENT TASK DEBUG ===");
+		logger.debug("Request: " + taskDescription);
+		logger.debug("Working directory: " + tempDir);
+		logger.debug("Agent model: " + agentModel.getClass().getSimpleName());
 
 		long startTime = System.currentTimeMillis();
 
@@ -221,21 +225,21 @@ public abstract class AbstractAgentModelTCK {
 		AgentResponse response = agentModel.call(request);
 
 		long endTime = System.currentTimeMillis();
-		System.out.println("Execution time: " + (endTime - startTime) + "ms");
+		logger.debug("Execution time: " + (endTime - startTime) + "ms");
 
 		// Log response details
-		System.out.println(
-				"Response model: " + (response.getMetadata() != null ? response.getMetadata().getModel() : "null"));
-		System.out.println("Response duration: "
+		logger
+			.debug("Response model: " + (response.getMetadata() != null ? response.getMetadata().getModel() : "null"));
+		logger.debug("Response duration: "
 				+ (response.getMetadata() != null ? response.getMetadata().getDuration() : "null"));
-		System.out.println("Response output length: "
+		logger.debug("Response output length: "
 				+ (response.getResult() != null ? response.getResult().getOutput().length() : 0));
 
 		if (response.getResult() != null && response.getResult().getOutput().length() < 1000) {
-			System.out.println("Response output: " + response.getResult().getOutput());
+			logger.debug("Response output: " + response.getResult().getOutput());
 		}
 		else if (response.getResult() != null) {
-			System.out.println(
+			logger.debug(
 					"Response output (first 500 chars): " + response.getResult().getOutput().substring(0, 500) + "...");
 		}
 
@@ -283,22 +287,22 @@ public abstract class AbstractAgentModelTCK {
 
 		// Debug output to understand what the agent did
 		if (!completedSomeTask) {
-			System.out.println("=== DEBUG: Complex task failed ===");
-			System.out.println("Response output: " + response.getResult().getOutput());
-			System.out.println("Project dir exists: " + projectDirExists + " (at " + projectDir + ")");
-			System.out.println("Found README: " + foundReadme);
-			System.out.println("Found Python script: " + foundPythonScript);
+			logger.debug("=== DEBUG: Complex task failed ===");
+			logger.debug("Response output: " + response.getResult().getOutput());
+			logger.debug("Project dir exists: " + projectDirExists + " (at " + projectDir + ")");
+			logger.debug("Found README: " + foundReadme);
+			logger.debug("Found Python script: " + foundPythonScript);
 
-			System.out.println("Files in temp directory:");
+			logger.debug("Files in temp directory:");
 			try {
 				Files.walk(tempDir).forEach(path -> {
-					System.out.println("  " + path + " (dir: " + Files.isDirectory(path) + ")");
+					logger.debug("  " + path + " (dir: " + Files.isDirectory(path) + ")");
 				});
 			}
 			catch (Exception e) {
-				System.out.println("  Error listing files: " + e.getMessage());
+				logger.debug("  Error listing files: " + e.getMessage());
 			}
-			System.out.println("=== END DEBUG ===");
+			logger.debug("=== END DEBUG ===");
 		}
 
 		assertThat(completedSomeTask)
