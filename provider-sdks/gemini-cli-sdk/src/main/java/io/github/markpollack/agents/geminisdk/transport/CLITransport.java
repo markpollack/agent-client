@@ -166,6 +166,10 @@ public class CLITransport {
 	 * @return the command line arguments as a list
 	 */
 	public List<String> buildCommand(String prompt, CLIOptions options) {
+		return buildCommand(geminiCommand, prompt, options);
+	}
+
+	static List<String> buildCommand(String geminiCommand, String prompt, CLIOptions options) {
 		List<String> command = new ArrayList<>();
 
 		// Use getGeminiCommand to handle NVM Node.js wrapper if needed
@@ -173,6 +177,31 @@ public class CLITransport {
 			.getGeminiCommand(geminiCommand);
 		Collections.addAll(command, geminiCmd);
 
+		addModelAndModes(command, options);
+
+		addSandboxAndExtensions(command, options);
+
+		// Add allowed MCP server names if MCP servers are configured
+		String allowedMcpNames = options.getAllowedMcpServerNames();
+		if (allowedMcpNames != null) {
+			command.add("--allowed-mcp-server-names");
+			command.add(allowedMcpNames);
+		}
+
+		// Add output format if specified (e.g., "json" for structured output)
+		if (options.getOutputFormat() != null && !options.getOutputFormat().trim().isEmpty()) {
+			command.add("-o");
+			command.add(options.getOutputFormat());
+		}
+
+		// Add prompt (must be last parameter for CLI compatibility)
+		command.add("-p");
+		command.add(prompt);
+
+		return command;
+	}
+
+	private static void addModelAndModes(List<String> command, CLIOptions options) {
 		// Add model flag if specified
 		if (options.getModel() != null && !options.getModel().trim().isEmpty()) {
 			command.add("-m");
@@ -199,6 +228,9 @@ public class CLITransport {
 			command.add("-s");
 		}
 
+	}
+
+	private static void addSandboxAndExtensions(List<String> command, CLIOptions options) {
 		// Add sandbox image if specified
 		if (options.getSandboxImage() != null && !options.getSandboxImage().trim().isEmpty()) {
 			command.add("--sandbox-image");
@@ -226,24 +258,6 @@ public class CLITransport {
 			}
 		}
 
-		// Add allowed MCP server names if MCP servers are configured
-		String allowedMcpNames = options.getAllowedMcpServerNames();
-		if (allowedMcpNames != null) {
-			command.add("--allowed-mcp-server-names");
-			command.add(allowedMcpNames);
-		}
-
-		// Add output format if specified (e.g., "json" for structured output)
-		if (options.getOutputFormat() != null && !options.getOutputFormat().trim().isEmpty()) {
-			command.add("-o");
-			command.add(options.getOutputFormat());
-		}
-
-		// Add prompt (must be last parameter for CLI compatibility)
-		command.add("-p");
-		command.add(prompt);
-
-		return command;
 	}
 
 	/**
