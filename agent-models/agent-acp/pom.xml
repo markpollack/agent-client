@@ -23,7 +23,7 @@
     <description>One AgentApi adapter over the Agent Client Protocol, shared by every ACP-speaking CLI</description>
 
     <properties>
-        <pmd.maxAllowedViolations>4</pmd.maxAllowedViolations>
+        <pmd.maxAllowedViolations>3</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
         <jacoco.minimum.line>0.28</jacoco.minimum.line>
         <jacoco.minimum.branch>0.29</jacoco.minimum.branch>

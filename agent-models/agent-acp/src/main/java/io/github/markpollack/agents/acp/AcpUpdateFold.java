@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -47,6 +48,10 @@ import java.util.TreeMap;
  */
 public final class AcpUpdateFold {
 
+	// Client-side affordances with no bearing on what the run did.
+	private static final Set<String> IGNORED_UPDATE_KINDS = Set.of("user_message_chunk", "available_commands_update",
+			"current_mode_update", "plan", "config_option_update", "usage_update");
+
 	private final StringBuilder answer = new StringBuilder();
 
 	private final StringBuilder thinking = new StringBuilder();
@@ -80,7 +85,7 @@ public final class AcpUpdateFold {
 		}
 
 		String kind = str(update.get("sessionUpdate"));
-		if (kind == null) {
+		if (kind == null || IGNORED_UPDATE_KINDS.contains(kind)) {
 			return;
 		}
 		switch (kind) {
@@ -93,11 +98,6 @@ public final class AcpUpdateFold {
 				this.thinking.append(text(update.get("content")));
 			}
 			case "tool_call", "tool_call_update" -> foldToolCall(update);
-			// Client-side affordances with no bearing on what the run did.
-			case "user_message_chunk", "available_commands_update", "current_mode_update", "plan",
-					"config_option_update", "usage_update" ->
-				{
-				}
 			default -> this.unknownKinds.merge(kind, 1, Integer::sum);
 		}
 	}
