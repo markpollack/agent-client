@@ -166,41 +166,55 @@ public class ExecuteResult {
 			return parse(stdout, stderr, exitCode, duration);
 		}
 		try {
-			JsonNode result = null;
-			boolean sawToolError = false;
-			boolean successfulToolAfterLastError = false;
+			StreamStatus status = new StreamStatus();
 			for (String line : stdout.split("\\R", -1)) {
 				if (line.isBlank()) {
 					continue;
 				}
 				JsonNode event = MAPPER.readTree(line);
-				JsonNode update = event.path("step_update");
-				if ("step_update".equals(event.path("event").asText(""))
-						&& "tool".equals(update.path("step_type").asText(""))) {
-					String state = update.path("state").asText("");
-					if ("ERROR".equalsIgnoreCase(state)) {
-						sawToolError = true;
-						successfulToolAfterLastError = false;
-					}
-					else if (sawToolError && isSuccessfulToolState(state)) {
-						successfulToolAfterLastError = true;
-					}
-				}
-				if ("result".equals(event.path("event").asText(""))) {
-					result = event.path("result");
-				}
+				status.accept(event);
 			}
-			if (result == null) {
+			if (status.result == null) {
 				return unstructured(stdout, stderr, exitCode, duration);
 			}
-			boolean unrecoveredError = (sawToolError && !successfulToolAfterLastError)
-					|| (reportsError(result) && !sawToolError);
-			return parseEnvelope(result, stdout, stderr, exitCode, duration, unrecoveredError);
+			return parseEnvelope(status.result, stdout, stderr, exitCode, duration, status.hasUnrecoveredError());
 		}
 		catch (Exception ex) {
 			logger.debug("Antigravity output was not stream-json: {}", ex.getMessage());
 			return unstructured(stdout, stderr, exitCode, duration);
 		}
+	}
+
+	private static final class StreamStatus {
+
+		private JsonNode result;
+
+		private boolean sawToolError;
+
+		private boolean successfulToolAfterLastError;
+
+		void accept(JsonNode event) {
+			JsonNode update = event.path("step_update");
+			if ("step_update".equals(event.path("event").asText(""))
+					&& "tool".equals(update.path("step_type").asText(""))) {
+				String state = update.path("state").asText("");
+				if ("ERROR".equalsIgnoreCase(state)) {
+					sawToolError = true;
+					successfulToolAfterLastError = false;
+				}
+				else if (sawToolError && isSuccessfulToolState(state)) {
+					successfulToolAfterLastError = true;
+				}
+			}
+			if ("result".equals(event.path("event").asText(""))) {
+				result = event.path("result");
+			}
+		}
+
+		boolean hasUnrecoveredError() {
+			return (sawToolError && !successfulToolAfterLastError) || (reportsError(result) && !sawToolError);
+		}
+
 	}
 
 	private static ExecuteResult parseEnvelope(JsonNode root, String rawOutput, String stderr, int exitCode,
