@@ -29,6 +29,8 @@ import io.github.markpollack.sandbox.LocalSandbox;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.opentest4j.TestAbortedException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,6 +50,31 @@ class ProviderParityContractTest extends ProviderParityTCK {
 	@Override
 	protected String getProvider() {
 		return this.provider;
+	}
+
+	@Test
+	@EnabledOnOs(OS.LINUX)
+	void complexTaskClosesWorkspaceDirectoryHandles() throws IOException {
+		long before = openWorkspaceDescriptors();
+		try (var openDirectory = Files.list(tempDir)) {
+			assertThat(openWorkspaceDescriptors()).isGreaterThan(before);
+		}
+		assertThat(openWorkspaceDescriptors()).isEqualTo(before);
+		testComplexTask();
+		assertThat(openWorkspaceDescriptors()).isEqualTo(before);
+	}
+
+	private long openWorkspaceDescriptors() throws IOException {
+		try (var descriptors = Files.list(Path.of("/proc/self/fd"))) {
+			return descriptors.filter(descriptor -> {
+				try {
+					return Files.readSymbolicLink(descriptor).startsWith(tempDir);
+				}
+				catch (IOException ex) {
+					return false;
+				}
+			}).count();
+		}
 	}
 
 	@Test

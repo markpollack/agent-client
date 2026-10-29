@@ -272,10 +272,10 @@ public abstract class AbstractAgentModelTCK {
 		}
 
 		// Look for Python script (might be in project dir or working dir)
-		boolean foundPythonScript = Files.walk(tempDir)
-			.filter(path -> path.toString().endsWith(".py"))
-			.findAny()
-			.isPresent();
+		boolean foundPythonScript;
+		try (var paths = Files.walk(tempDir)) {
+			foundPythonScript = paths.anyMatch(path -> path.toString().endsWith(".py"));
+		}
 
 		// Assert: Agent should complete some part of the complex task
 		// - Response should have output
@@ -294,8 +294,8 @@ public abstract class AbstractAgentModelTCK {
 			logger.debug("Found Python script: " + foundPythonScript);
 
 			logger.debug("Files in temp directory:");
-			try {
-				Files.walk(tempDir).forEach(path -> {
+			try (var paths = Files.walk(tempDir)) {
+				paths.forEach(path -> {
 					logger.debug("  " + path + " (dir: " + Files.isDirectory(path) + ")");
 				});
 			}
