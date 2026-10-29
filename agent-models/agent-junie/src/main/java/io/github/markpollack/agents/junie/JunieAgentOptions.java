@@ -72,8 +72,8 @@ public class JunieAgentOptions implements AgentOptions {
 		this.effort = builder.effort;
 		this.timeout = builder.timeout;
 		this.workingDirectory = builder.workingDirectory;
-		this.environmentVariables = (builder.environmentVariables != null)
-				? Map.copyOf(builder.environmentVariables) : Map.of();
+		this.environmentVariables = (builder.environmentVariables != null) ? Map.copyOf(builder.environmentVariables)
+				: Map.of();
 		this.maxTurns = builder.maxTurns;
 		this.systemInstructions = builder.systemInstructions;
 		this.jsonSchema = (builder.jsonSchema != null) ? Map.copyOf(builder.jsonSchema) : Map.of();

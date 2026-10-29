@@ -134,11 +134,13 @@ class ClaudeAgentJournalCaptureIT {
 			.as("Should have tool_use trace events")
 			.isTrue();
 
-		// Step 1c: the turn ceiling must be IN the record, not merely enforced at runtime.
+		// Step 1c: the turn ceiling must be IN the record, not merely enforced at
+		// runtime.
 		// Claude Code takes maxTurns as a caller-side option and never echoes it back, so
 		// this model is its only source. Without it the trace carries maxTurns=-1, and a
 		// numTurns of 3 could mean "finished" or "cut off at 3" — two different processes
-		// recorded identically. A journal that cannot tell those apart is worse than none,
+		// recorded identically. A journal that cannot tell those apart is worse than
+		// none,
 		// because it looks authoritative.
 		assertThat(resultLine).contains("\"maxTurns\":3");
 
