@@ -153,6 +153,29 @@ public class CLITransport {
 		List<String> command = new ArrayList<>();
 		command.add(agyCliPath);
 
+		addModelAndPermissions(command, options);
+
+		addWorkspaceDirectories(command, options);
+
+		if (options.getJsonSchema() != null && !options.getJsonSchema().isEmpty()) {
+			command.add("--json-schema");
+			command.add(options.getJsonSchema());
+		}
+		if (conversationId != null && !conversationId.isEmpty()) {
+			command.add("--conversation");
+			command.add(conversationId);
+		}
+
+		command.add("--print-timeout");
+		command.add(formatTimeout(options.getTimeout()));
+		command.add("--output-format");
+		command.add("stream-json");
+		command.add("--print");
+		command.add(prompt);
+		return command;
+	}
+
+	private static void addModelAndPermissions(List<String> command, ExecuteOptions options) {
 		if (options.getModel() != null && !options.getModel().isEmpty()) {
 			command.add("--model");
 			command.add(options.getModel());
@@ -175,6 +198,9 @@ public class CLITransport {
 		if (options.isSandbox()) {
 			command.add("--sandbox");
 		}
+	}
+
+	private static void addWorkspaceDirectories(List<String> command, ExecuteOptions options) {
 		// The working directory must be declared explicitly. agy resolves reads against
 		// the process working directory but will not WRITE into it unless it is part of
 		// the workspace; with no active workspace it diverts writes to a shared
@@ -193,22 +219,6 @@ public class CLITransport {
 			command.add("--add-dir");
 			command.add(dir);
 		}
-		if (options.getJsonSchema() != null && !options.getJsonSchema().isEmpty()) {
-			command.add("--json-schema");
-			command.add(options.getJsonSchema());
-		}
-		if (conversationId != null && !conversationId.isEmpty()) {
-			command.add("--conversation");
-			command.add(conversationId);
-		}
-
-		command.add("--print-timeout");
-		command.add(formatTimeout(options.getTimeout()));
-		command.add("--output-format");
-		command.add("stream-json");
-		command.add("--print");
-		command.add(prompt);
-		return command;
 	}
 
 	/**
