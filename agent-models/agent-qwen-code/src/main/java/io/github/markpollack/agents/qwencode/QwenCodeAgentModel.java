@@ -112,22 +112,26 @@ public class QwenCodeAgentModel implements AgentApi {
 		}
 
 		if (request.options() != null && request.options() instanceof QwenCodeAgentOptions requestOptions) {
-			if (requestOptions.getModel() != null) {
-				builder.model(requestOptions.getModel());
-			}
-			if (requestOptions.getTimeout() != null) {
-				builder.timeout(requestOptions.getTimeout());
-			}
-			if (requestOptions.getPermissionMode() != null) {
-				builder.permissionMode(requestOptions.getPermissionMode());
-			}
-			if (requestOptions.getExecutablePath() != null) {
-				builder.executablePath(requestOptions.getExecutablePath());
-			}
-			builder.yolo(requestOptions.isYolo());
+			applyNativeOptions(builder, requestOptions);
 		}
 
 		return builder.build();
+	}
+
+	private static void applyNativeOptions(QwenCodeAgentOptions.Builder builder, QwenCodeAgentOptions requestOptions) {
+		if (requestOptions.getModel() != null) {
+			builder.model(requestOptions.getModel());
+		}
+		if (requestOptions.getTimeout() != null) {
+			builder.timeout(requestOptions.getTimeout());
+		}
+		if (requestOptions.getPermissionMode() != null) {
+			builder.permissionMode(requestOptions.getPermissionMode());
+		}
+		if (requestOptions.getExecutablePath() != null) {
+			builder.executablePath(requestOptions.getExecutablePath());
+		}
+		builder.yolo(requestOptions.isYolo());
 	}
 
 	private TransportOptions toTransportOptions(QwenCodeAgentOptions options, AgentTaskRequest request) {
