@@ -216,24 +216,7 @@ public class GeminiAgentModel implements AgentApi {
 		}
 		builder.yoloMode(autoApprove);
 
-		// MCP servers: translate portable definitions to Gemini format
-		Map<String, Object> mcpServers = new LinkedHashMap<>();
-
-		AgentOptions portableOptions = request.options();
-		if (portableOptions != null && portableOptions.getMcpServerDefinitions() != null) {
-			for (Map.Entry<String, McpServerDefinition> entry : portableOptions.getMcpServerDefinitions().entrySet()) {
-				mcpServers.put(entry.getKey(), toGeminiMcpConfig(entry.getValue()));
-			}
-		}
-
-		if (!mcpServers.isEmpty()) {
-			builder.mcpServers(mcpServers);
-		}
-
-		// Set JSON output mode when jsonSchema is present
-		if (portableOptions != null && portableOptions.getJsonSchema() != null) {
-			builder.outputFormat("json");
-		}
+		applyPortableOptions(builder, request.options());
 
 		return builder.build();
 	}
@@ -416,6 +399,27 @@ public class GeminiAgentModel implements AgentApi {
 		// NVM Node.js paths internally
 
 		return environment;
+	}
+
+	private void applyPortableOptions(CLIOptions.Builder builder, AgentOptions portableOptions) {
+		// MCP servers: translate portable definitions to Gemini format
+		Map<String, Object> mcpServers = new LinkedHashMap<>();
+
+		if (portableOptions != null && portableOptions.getMcpServerDefinitions() != null) {
+			for (Map.Entry<String, McpServerDefinition> entry : portableOptions.getMcpServerDefinitions().entrySet()) {
+				mcpServers.put(entry.getKey(), toGeminiMcpConfig(entry.getValue()));
+			}
+		}
+
+		if (!mcpServers.isEmpty()) {
+			builder.mcpServers(mcpServers);
+		}
+
+		// Set JSON output mode when jsonSchema is present
+		if (portableOptions != null && portableOptions.getJsonSchema() != null) {
+			builder.outputFormat("json");
+		}
+
 	}
 
 }
