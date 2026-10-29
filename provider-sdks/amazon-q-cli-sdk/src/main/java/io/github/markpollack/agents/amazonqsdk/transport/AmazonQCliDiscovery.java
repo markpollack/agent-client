@@ -35,14 +35,9 @@ public class AmazonQCliDiscovery {
 	 */
 	public static String discoverQCli() {
 		// 1. Check Q_CLI_PATH environment variable
-		String envPath = System.getenv(ENV_Q_CLI_PATH);
-		if (envPath != null && !envPath.isEmpty()) {
-			Path qPath = Paths.get(envPath);
-			if (Files.exists(qPath) && Files.isExecutable(qPath)) {
-				logger.info("Found Amazon Q CLI via Q_CLI_PATH: {}", envPath);
-				return envPath;
-			}
-			logger.warn("Q_CLI_PATH set but not executable: {}", envPath);
+		String envPath = findEnvironmentOverride();
+		if (envPath != null) {
+			return envPath;
 		}
 
 		// 2. Try 'which q' command
@@ -66,6 +61,19 @@ public class AmazonQCliDiscovery {
 
 		throw new AmazonQSDKException(
 				"Amazon Q CLI not found. Install from https://aws.amazon.com/q/developer/ or set Q_CLI_PATH environment variable.");
+	}
+
+	private static String findEnvironmentOverride() {
+		String envPath = System.getenv(ENV_Q_CLI_PATH);
+		if (envPath != null && !envPath.isEmpty()) {
+			Path qPath = Paths.get(envPath);
+			if (Files.exists(qPath) && Files.isExecutable(qPath)) {
+				logger.info("Found Amazon Q CLI via Q_CLI_PATH: {}", envPath);
+				return envPath;
+			}
+			logger.warn("Q_CLI_PATH set but not executable: {}", envPath);
+		}
+		return null;
 	}
 
 	private static String tryWhichCommand() {
