@@ -25,182 +25,134 @@ import java.util.Set;
  * methods for fluent configuration. All options include validation and sensible defaults
  * for production use.
  *
+ * @param model The Gemini model to use for processing.
+ *
+ * <p>
+ * Corresponds to the {@code -m, --model} CLI flag. Supports model names like:
+ * <ul>
+ * <li>{@code gemini-2.5-pro} - High-quality model for complex tasks</li>
+ * <li>{@code gemini-2.5-flash} - Fast model for quick responses</li>
+ * <li>{@code models/gemini-2.5-pro} - Fully qualified model names</li>
+ * </ul>
+ *
+ * See {@link #validateModelName(String)} for validation rules.
+ * @param yoloMode Whether to automatically accept all actions (YOLO mode).
+ *
+ * <p>
+ * Corresponds to the {@code -y, --yolo} CLI flag. When {@code true}, the CLI will
+ * automatically approve all tool executions and file modifications without prompting for
+ * user confirmation. This is essential for autonomous operation.
+ *
+ * <p>
+ * Defaults to {@code true} for programmatic usage.
+ * @param allFiles Whether to include all files in the current directory context.
+ *
+ * <p>
+ * Corresponds to the {@code -a, --all-files} CLI flag. When {@code true}, the CLI will
+ * include all files in the working directory in the context provided to the model. Use
+ * with caution as this can significantly increase token usage and processing time.
+ *
+ * <p>
+ * Defaults to {@code false} for controlled context management.
+ * @param timeout Maximum time to wait for CLI command completion.
+ *
+ * <p>
+ * This is an SDK-specific timeout, not a CLI flag. It controls how long the Java process
+ * will wait for the Gemini CLI to respond before timing out. The timeout includes both
+ * model processing time and network latency.
+ *
+ * <p>
+ * Defaults to 2 minutes. Maximum allowed is 30 minutes.
+ * @param debug Whether to run in debug mode for enhanced logging.
+ *
+ * <p>
+ * Corresponds to the {@code -d, --debug} CLI flag. When {@code true}, the CLI will output
+ * detailed debug information including request/response details, timing information, and
+ * internal processing steps.
+ *
+ * <p>
+ * Useful for troubleshooting but may impact performance. Defaults to {@code false}.
+ * @param sandbox Whether to run the CLI in a sandboxed environment.
+ *
+ * <p>
+ * Corresponds to the {@code -s, --sandbox} CLI flag. When {@code true}, the CLI will
+ * execute in an isolated environment for enhanced security. This is particularly useful
+ * when processing untrusted code or data.
+ *
+ * <p>
+ * Defaults to {@code false}. May require additional setup depending on environment.
+ * @param sandboxImage Custom sandbox image URI for containerized execution.
+ *
+ * <p>
+ * Corresponds to the {@code --sandbox-image} CLI flag. Specifies a custom container image
+ * to use when {@link #sandbox} is enabled. The image should contain the necessary runtime
+ * environment for code execution.
+ *
+ * <p>
+ * Only used when {@link #sandbox} is {@code true}. Defaults to {@code null} to use the
+ * CLI's default sandbox image.
+ * @param includeDirectories Additional directories to include in the workspace context.
+ *
+ * <p>
+ * Corresponds to the {@code --include-directories} CLI flag. These directories will be
+ * made available to the model in addition to the current working directory. Useful for
+ * providing broader context or accessing shared libraries.
+ *
+ * <p>
+ * Each directory path should be absolute or relative to the working directory. Defaults
+ * to an empty set.
+ * @param extensions Specific extensions to enable for this session.
+ *
+ * <p>
+ * Corresponds to the {@code -e, --extensions} CLI flag. When specified, only the listed
+ * extensions will be available. If empty or null, all available extensions are used by
+ * default.
+ *
+ * <p>
+ * Extensions provide additional capabilities like language-specific tools, integrations,
+ * or specialized processing modes.
+ * @param proxy Proxy configuration for network requests.
+ *
+ * <p>
+ * Corresponds to the {@code --proxy} CLI flag. Specifies a proxy server for all network
+ * communication in the format: {@code schema://user:password@host:port}
+ *
+ * <p>
+ * Examples:
+ * <ul>
+ * <li>{@code http://proxy.company.com:8080}</li>
+ * <li>{@code https://user:pass@secure-proxy.com:443}</li>
+ * <li>{@code socks5://localhost:1080}</li>
+ * </ul>
+ *
+ * <p>
+ * Defaults to {@code null} for direct connections.
+ * @param mcpServers MCP server configurations to make available during this session.
+ *
+ * <p>
+ * Each entry maps a server name to its configuration (a JSON-serializable map). The SDK
+ * writes these to {@code .gemini/settings.json} in the working directory before CLI
+ * invocation and cleans up afterward.
+ *
+ * <p>
+ * The server names are passed to {@code --allowed-mcp-server-names} to filter which
+ * configured servers the CLI may use.
+ *
+ * <p>
+ * Defaults to an empty map (no MCP servers).
+ * @param outputFormat Output format mode for the CLI response.
+ *
+ * <p>
+ * Corresponds to the {@code -o, --output-format} CLI flag. When set to {@code "json"},
+ * the CLI constrains output to valid JSON.
+ *
+ * <p>
+ * Defaults to {@code null} (no output format constraint).
  * @see <a href="https://github.com/google-gemini/gemini-cli">Gemini CLI Documentation</a>
  */
-public record CLIOptions(
-		/**
-		 * The Gemini model to use for processing.
-		 *
-		 * <p>
-		 * Corresponds to the {@code -m, --model} CLI flag. Supports model names like:
-		 * <ul>
-		 * <li>{@code gemini-2.5-pro} - High-quality model for complex tasks</li>
-		 * <li>{@code gemini-2.5-flash} - Fast model for quick responses</li>
-		 * <li>{@code models/gemini-2.5-pro} - Fully qualified model names</li>
-		 * </ul>
-		 *
-		 * @see #validateModelName(String) for validation rules
-		 */
-		String model,
-
-		/**
-		 * Whether to automatically accept all actions (YOLO mode).
-		 *
-		 * <p>
-		 * Corresponds to the {@code -y, --yolo} CLI flag. When {@code true}, the CLI will
-		 * automatically approve all tool executions and file modifications without
-		 * prompting for user confirmation. This is essential for autonomous operation.
-		 *
-		 * <p>
-		 * Defaults to {@code true} for programmatic usage.
-		 */
-		boolean yoloMode,
-
-		/**
-		 * Whether to include all files in the current directory context.
-		 *
-		 * <p>
-		 * Corresponds to the {@code -a, --all-files} CLI flag. When {@code true}, the CLI
-		 * will include all files in the working directory in the context provided to the
-		 * model. Use with caution as this can significantly increase token usage and
-		 * processing time.
-		 *
-		 * <p>
-		 * Defaults to {@code false} for controlled context management.
-		 */
-		boolean allFiles,
-
-		/**
-		 * Maximum time to wait for CLI command completion.
-		 *
-		 * <p>
-		 * This is an SDK-specific timeout, not a CLI flag. It controls how long the Java
-		 * process will wait for the Gemini CLI to respond before timing out. The timeout
-		 * includes both model processing time and network latency.
-		 *
-		 * <p>
-		 * Defaults to 2 minutes. Maximum allowed is 30 minutes.
-		 */
-		Duration timeout,
-
-		/**
-		 * Whether to run in debug mode for enhanced logging.
-		 *
-		 * <p>
-		 * Corresponds to the {@code -d, --debug} CLI flag. When {@code true}, the CLI
-		 * will output detailed debug information including request/response details,
-		 * timing information, and internal processing steps.
-		 *
-		 * <p>
-		 * Useful for troubleshooting but may impact performance. Defaults to
-		 * {@code false}.
-		 */
-		boolean debug,
-
-		/**
-		 * Whether to run the CLI in a sandboxed environment.
-		 *
-		 * <p>
-		 * Corresponds to the {@code -s, --sandbox} CLI flag. When {@code true}, the CLI
-		 * will execute in an isolated environment for enhanced security. This is
-		 * particularly useful when processing untrusted code or data.
-		 *
-		 * <p>
-		 * Defaults to {@code false}. May require additional setup depending on
-		 * environment.
-		 */
-		boolean sandbox,
-
-		/**
-		 * Custom sandbox image URI for containerized execution.
-		 *
-		 * <p>
-		 * Corresponds to the {@code --sandbox-image} CLI flag. Specifies a custom
-		 * container image to use when {@link #sandbox} is enabled. The image should
-		 * contain the necessary runtime environment for code execution.
-		 *
-		 * <p>
-		 * Only used when {@link #sandbox} is {@code true}. Defaults to {@code null} to
-		 * use the CLI's default sandbox image.
-		 */
-		String sandboxImage,
-
-		/**
-		 * Additional directories to include in the workspace context.
-		 *
-		 * <p>
-		 * Corresponds to the {@code --include-directories} CLI flag. These directories
-		 * will be made available to the model in addition to the current working
-		 * directory. Useful for providing broader context or accessing shared libraries.
-		 *
-		 * <p>
-		 * Each directory path should be absolute or relative to the working directory.
-		 * Defaults to an empty set.
-		 */
-		Set<String> includeDirectories,
-
-		/**
-		 * Specific extensions to enable for this session.
-		 *
-		 * <p>
-		 * Corresponds to the {@code -e, --extensions} CLI flag. When specified, only the
-		 * listed extensions will be available. If empty or null, all available extensions
-		 * are used by default.
-		 *
-		 * <p>
-		 * Extensions provide additional capabilities like language-specific tools,
-		 * integrations, or specialized processing modes.
-		 */
-		Set<String> extensions,
-
-		/**
-		 * Proxy configuration for network requests.
-		 *
-		 * <p>
-		 * Corresponds to the {@code --proxy} CLI flag. Specifies a proxy server for all
-		 * network communication in the format: {@code schema://user:password@host:port}
-		 *
-		 * <p>
-		 * Examples:
-		 * <ul>
-		 * <li>{@code http://proxy.company.com:8080}</li>
-		 * <li>{@code https://user:pass@secure-proxy.com:443}</li>
-		 * <li>{@code socks5://localhost:1080}</li>
-		 * </ul>
-		 *
-		 * <p>
-		 * Defaults to {@code null} for direct connections.
-		 */
-		String proxy,
-
-		/**
-		 * MCP server configurations to make available during this session.
-		 *
-		 * <p>
-		 * Each entry maps a server name to its configuration (a JSON-serializable map).
-		 * The SDK writes these to {@code .gemini/settings.json} in the working directory
-		 * before CLI invocation and cleans up afterward.
-		 *
-		 * <p>
-		 * The server names are passed to {@code --allowed-mcp-server-names} to filter
-		 * which configured servers the CLI may use.
-		 *
-		 * <p>
-		 * Defaults to an empty map (no MCP servers).
-		 */
-		Map<String, Object> mcpServers,
-
-		/**
-		 * Output format mode for the CLI response.
-		 *
-		 * <p>
-		 * Corresponds to the {@code -o, --output-format} CLI flag. When set to
-		 * {@code "json"}, the CLI constrains output to valid JSON.
-		 *
-		 * <p>
-		 * Defaults to {@code null} (no output format constraint).
-		 */
-		String outputFormat) {
+public record CLIOptions(String model, boolean yoloMode, boolean allFiles, Duration timeout, boolean debug,
+		boolean sandbox, String sandboxImage, Set<String> includeDirectories, Set<String> extensions, String proxy,
+		Map<String, Object> mcpServers, String outputFormat) {
 
 	public CLIOptions {
 		// Apply defaults for null values
