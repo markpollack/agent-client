@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for jsonSchema propagation through AgentClient to AgentModel.
+ * Unit tests for jsonSchema propagation through AgentClient to AgentApi.
  */
 class AgentClientJsonSchemaTest {
 

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Implementation of {@link AgentModel} for Amazon Q Developer CLI-based agents.
+ * Implementation of {@link AgentApi} for Amazon Q Developer CLI-based agents.
  *
  * <p>
  * This adapter bridges Spring AI's agent abstraction with the Amazon Q CLI, providing
@@ -28,7 +28,7 @@ import java.util.Map;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class AmazonQAgentModel implements AgentModel {
+public class AmazonQAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(AmazonQAgentModel.class);
 

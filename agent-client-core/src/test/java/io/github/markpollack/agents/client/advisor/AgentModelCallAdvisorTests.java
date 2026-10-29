@@ -16,7 +16,7 @@ import io.github.markpollack.agents.client.AgentClientResponse;
 import io.github.markpollack.agents.client.Goal;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisorChain;
 import io.github.markpollack.agents.model.AgentGeneration;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -36,7 +36,7 @@ class AgentModelCallAdvisorTests {
 
 	@Test
 	void shouldCallAgentModelWithCorrectRequest() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		ArgumentCaptor<AgentTaskRequest> taskRequestCaptor = ArgumentCaptor.forClass(AgentTaskRequest.class);
 		AgentResponse mockResponse = new AgentResponse(List.of(mock(AgentGeneration.class)));
 		given(agentModel.call(taskRequestCaptor.capture())).willReturn(mockResponse);
@@ -66,7 +66,7 @@ class AgentModelCallAdvisorTests {
 
 	@Test
 	void shouldPreserveContextFromRequest() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		AgentResponse mockResponse = new AgentResponse(List.of(mock(AgentGeneration.class)));
 		given(agentModel.call(any(AgentTaskRequest.class))).willReturn(mockResponse);
 
@@ -88,14 +88,14 @@ class AgentModelCallAdvisorTests {
 
 	@Test
 	void shouldHaveLowestPrecedence() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		AgentModelCallAdvisor advisor = new AgentModelCallAdvisor(agentModel);
 		assertThat(advisor.getOrder()).isEqualTo(Integer.MAX_VALUE);
 	}
 
 	@Test
 	void shouldHaveName() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		AgentModelCallAdvisor advisor = new AgentModelCallAdvisor(agentModel);
 		assertThat(advisor.getName()).isEqualTo(AgentModelCallAdvisor.class.getName());
 	}

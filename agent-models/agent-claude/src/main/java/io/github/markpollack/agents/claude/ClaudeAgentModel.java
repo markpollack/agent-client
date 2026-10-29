@@ -26,7 +26,7 @@ import io.github.markpollack.journal.trace.TraceContentMode;
 import io.github.markpollack.journal.trace.TraceRawMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
@@ -67,7 +67,7 @@ import java.util.function.Consumer;
  * This is the primary entry point for Claude Code CLI integration. It supports:
  * </p>
  * <ul>
- * <li>{@link AgentModel#call} - Blocking execution</li>
+ * <li>{@link AgentApi#call} - Blocking execution</li>
  * <li>{@link StreamingAgentModel#stream} - Reactive Flux-based streaming</li>
  * <li>{@link IterableAgentModel#iterate} - Iterator-based consumption</li>
  * </ul>
@@ -100,7 +100,7 @@ import java.util.function.Consumer;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, IterableAgentModel, AutoCloseable {
+public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, IterableAgentModel, AutoCloseable {
 
 	private static final Logger logger = LoggerFactory.getLogger(ClaudeAgentModel.class);
 
@@ -254,7 +254,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		return hookRegistry;
 	}
 
-	// ========== AgentModel (Blocking) ==========
+	// ========== AgentApi (Blocking) ==========
 
 	@Override
 	public AgentResponse call(AgentTaskRequest request) {
@@ -296,8 +296,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			// uninterpretable: a run reporting 26 turns either finished or was cut off,
 			// and a record that cannot tell those apart is modelling two different
 			// processes as one.
-			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns()
-					: SessionLogParser.UNKNOWN_MAX_TURNS;
+			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns() : SessionLogParser.UNKNOWN_MAX_TURNS;
 			capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path(),
 					traceContentMode, TraceRawMode.NONE, maxTurns);
 		}

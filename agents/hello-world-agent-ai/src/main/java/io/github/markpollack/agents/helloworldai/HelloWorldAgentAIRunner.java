@@ -20,7 +20,7 @@ import io.github.markpollack.agents.gemini.GeminiAgentModel;
 import io.github.markpollack.agents.gemini.GeminiAgentOptions;
 import io.github.markpollack.agents.geminisdk.GeminiClient;
 import io.github.markpollack.agents.geminisdk.util.GeminiCliDiscovery;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.sandbox.LocalSandbox;
 
 import java.nio.file.Files;
@@ -67,7 +67,7 @@ public class HelloWorldAgentAIRunner implements AgentRunner {
 			}
 
 			// Create AI agent based on provider
-			AgentModel agentModel = createAgentModel(provider, spec.cwd());
+			AgentApi agentModel = createAgentModel(provider, spec.cwd());
 			if (agentModel == null) {
 				return Result.fail("Failed to create agent model for provider: " + provider);
 			}
@@ -117,7 +117,7 @@ public class HelloWorldAgentAIRunner implements AgentRunner {
 		}
 	}
 
-	private AgentModel createAgentModel(String provider, Path workingDirectory) {
+	private AgentApi createAgentModel(String provider, Path workingDirectory) {
 		try {
 			switch (provider.toLowerCase()) {
 				case "claude":
@@ -135,7 +135,7 @@ public class HelloWorldAgentAIRunner implements AgentRunner {
 		}
 	}
 
-	private AgentModel createClaudeAgent(Path workingDirectory) {
+	private AgentApi createClaudeAgent(Path workingDirectory) {
 		// Check if Claude CLI is available
 		if (!isClaudeCliAvailable()) {
 			log.warn("Claude CLI not available");
@@ -150,7 +150,7 @@ public class HelloWorldAgentAIRunner implements AgentRunner {
 		return ClaudeAgentModel.builder().workingDirectory(workingDirectory).defaultOptions(options).build();
 	}
 
-	private AgentModel createGeminiAgent(Path workingDirectory) {
+	private AgentApi createGeminiAgent(Path workingDirectory) {
 		// Check if Gemini CLI is available
 		if (!isGeminiCliAvailable()) {
 			log.warn("Gemini CLI not available");

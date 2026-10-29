@@ -9,7 +9,7 @@ import io.github.markpollack.agents.amp.AmpAgentModel;
 import io.github.markpollack.agents.amp.AmpAgentOptions;
 import io.github.markpollack.agents.ampsdk.AmpClient;
 import io.github.markpollack.agents.ampsdk.types.ExecuteOptions;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.sandbox.Sandbox;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -54,7 +54,7 @@ public class AmpAgentAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentModel agentModel(AmpClient ampClient, AmpAgentProperties properties,
+	public AgentApi agentModel(AmpClient ampClient, AmpAgentProperties properties,
 			ObjectProvider<Sandbox> sandboxProvider) {
 
 		AmpAgentOptions options = AmpAgentOptions.builder()

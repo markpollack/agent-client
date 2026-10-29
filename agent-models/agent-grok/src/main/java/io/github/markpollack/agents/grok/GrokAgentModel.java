@@ -21,7 +21,7 @@ import io.github.markpollack.agents.groksdk.types.ExecuteResult;
 import io.github.markpollack.agents.groksdk.types.PermissionMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * @author Mark Pollack
  * @since 0.27.0
  */
-public class GrokAgentModel implements AgentModel {
+public class GrokAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(GrokAgentModel.class);
 

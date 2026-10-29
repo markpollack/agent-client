@@ -31,7 +31,7 @@ import io.github.markpollack.agents.codexsdk.CodexClient;
 import io.github.markpollack.agents.gemini.GeminiAgentModel;
 import io.github.markpollack.agents.gemini.GeminiAgentOptions;
 import io.github.markpollack.agents.geminisdk.GeminiClient;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.sandbox.LocalSandbox;
 import org.zeroturnaround.exec.ProcessExecutor;
 

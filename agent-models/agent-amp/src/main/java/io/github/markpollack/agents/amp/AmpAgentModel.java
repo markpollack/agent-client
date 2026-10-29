@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Implementation of {@link AgentModel} for Sourcegraph Amp CLI-based agents.
+ * Implementation of {@link AgentApi} for Sourcegraph Amp CLI-based agents.
  *
  * <p>
  * This adapter bridges Spring AI's agent abstraction with the Amp CLI, providing
@@ -30,7 +30,7 @@ import java.util.Map;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class AmpAgentModel implements AgentModel {
+public class AmpAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(AmpAgentModel.class);
 

@@ -11,7 +11,7 @@ import java.util.Map;
 
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -19,7 +19,7 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
 /**
  * Mock agent model for testing AgentClient functionality.
  */
-class MockAgentModel implements AgentModel {
+class MockAgentModel implements AgentApi {
 
 	AgentTaskRequest lastRequest;
 

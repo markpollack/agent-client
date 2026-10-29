@@ -13,7 +13,6 @@ import java.util.function.Consumer;
 
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisor;
 import io.github.markpollack.agents.model.AgentApi;
-import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.mcp.McpServerCatalog;
 
@@ -23,12 +22,12 @@ import io.github.markpollack.agents.model.mcp.McpServerCatalog;
  * <p>
  * This interface provides a fluent API for interacting with autonomous agents while
  * hiding the complexity of the underlying model layer. It follows Spring AI's two-layer
- * architecture where AgentClient is the high-level API and AgentModel is the low-level
+ * architecture where AgentClient is the high-level API and AgentApi is the low-level
  * model interface.
  * </p>
  *
  * <p>
- * Use {@link AgentClient#builder(AgentModel)} to prepare an instance.
+ * Use {@link AgentClient#builder(AgentApi)} to prepare an instance.
  * </p>
  *
  * @author Mark Pollack

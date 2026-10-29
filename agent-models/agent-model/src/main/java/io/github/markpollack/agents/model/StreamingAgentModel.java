@@ -15,7 +15,7 @@ import reactor.core.publisher.Flux;
  * This is one of three programming models for agent execution:
  * </p>
  * <ul>
- * <li>{@link AgentModel} - Blocking/imperative</li>
+ * <li>{@link AgentApi} - Blocking/imperative</li>
  * <li>{@link StreamingAgentModel} - Reactive with Flux (this interface)</li>
  * <li>{@link IterableAgentModel} - Iterator/callback based</li>
  * </ul>

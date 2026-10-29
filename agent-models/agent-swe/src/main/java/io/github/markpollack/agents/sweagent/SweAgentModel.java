@@ -15,7 +15,7 @@ import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
 import io.github.markpollack.sandbox.Sandbox;
@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Implementation of {@link AgentModel} for SWE-bench Agent CLI-based agents.
+ * Implementation of {@link AgentApi} for SWE-bench Agent CLI-based agents.
  *
  * <p>
  * This adapter bridges Spring AI's agent abstraction with the mini-SWE-agent CLI,
@@ -41,7 +41,7 @@ import java.util.Map;
  * @author Mark Pollack
  * @since 1.1.0
  */
-public class SweAgentModel implements AgentModel {
+public class SweAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(SweAgentModel.class);
 

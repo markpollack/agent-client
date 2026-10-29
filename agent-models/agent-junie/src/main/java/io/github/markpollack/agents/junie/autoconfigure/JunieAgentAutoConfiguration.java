@@ -7,7 +7,7 @@ package io.github.markpollack.agents.junie.autoconfigure;
 
 import io.github.markpollack.agents.junie.JunieAgentModel;
 import io.github.markpollack.agents.junie.JunieAgentOptions;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -27,7 +27,7 @@ public class JunieAgentAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentModel agentModel(JunieAgentProperties properties) {
+	public AgentApi agentModel(JunieAgentProperties properties) {
 		JunieAgentOptions options = JunieAgentOptions.builder()
 			.model(properties.getModel())
 			.effort(properties.getEffort())

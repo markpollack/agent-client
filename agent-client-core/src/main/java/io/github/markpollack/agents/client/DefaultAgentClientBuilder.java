@@ -14,7 +14,6 @@ import java.util.Objects;
 
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisor;
 import io.github.markpollack.agents.model.AgentApi;
-import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.mcp.McpServerCatalog;
 

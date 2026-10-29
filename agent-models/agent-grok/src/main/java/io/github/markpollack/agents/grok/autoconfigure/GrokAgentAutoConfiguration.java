@@ -11,9 +11,7 @@ import io.github.markpollack.agents.grok.GrokAgentModel;
 import io.github.markpollack.agents.grok.GrokAgentOptions;
 import io.github.markpollack.agents.groksdk.GrokClient;
 import io.github.markpollack.agents.groksdk.types.ExecuteOptions;
-import io.github.markpollack.agents.model.AgentModel;
-import io.github.markpollack.agents.model.AgentResponse;
-import io.github.markpollack.agents.model.AgentTaskRequest;
+import io.github.markpollack.agents.model.AgentApi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -50,17 +48,17 @@ public class GrokAgentAutoConfiguration {
 	 * The Grok adapter, on whichever plane is configured.
 	 *
 	 * <p>
-	 * Both branches return the same {@code AgentModel} contract, and the ACP branch
-	 * returns the <em>shared</em> {@link AcpAgentModel} rather than a Grok subclass of
-	 * it. That is the whole design decision made visible: what Grok needs beyond the
-	 * protocol is a {@link GrokAcpProfile}, not a type of its own.
+	 * Both branches return the same {@code AgentApi} contract, and the ACP branch returns
+	 * the <em>shared</em> {@link AcpAgentModel} rather than a Grok subclass of it. That
+	 * is the whole design decision made visible: what Grok needs beyond the protocol is a
+	 * {@link GrokAcpProfile}, not a type of its own.
 	 * @param grokClient the CLI client, used only by the CLI plane
 	 * @param properties the configured properties
 	 * @return the adapter
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentModel agentModel(GrokClient grokClient, GrokAgentProperties properties) {
+	public AgentApi agentModel(GrokClient grokClient, GrokAgentProperties properties) {
 		GrokAgentOptions options = GrokAgentOptions.builder()
 			.model(properties.getModel())
 			.reasoningEffort(properties.getReasoningEffort())
@@ -75,21 +73,7 @@ public class GrokAgentAutoConfiguration {
 				.command(properties.getExecutablePath())
 				.defaultOptions(options)
 				.build();
-			// AcpAgentModel implements the current AgentApi; AgentModel is the deprecated
-			// alias this bean is still typed as. Both methods are delegated explicitly
-			// rather than using a `acp::call` method reference, which would quietly
-			// substitute the interface default for isAvailable().
-			return new AgentModel() {
-				@Override
-				public AgentResponse call(AgentTaskRequest request) {
-					return acp.call(request);
-				}
-
-				@Override
-				public boolean isAvailable() {
-					return acp.isAvailable();
-				}
-			};
+			return acp;
 		}
 		return new GrokAgentModel(grokClient, options);
 	}

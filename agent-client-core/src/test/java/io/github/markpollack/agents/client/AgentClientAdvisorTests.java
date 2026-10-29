@@ -14,7 +14,7 @@ import org.mockito.ArgumentCaptor;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisor;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisorChain;
 import io.github.markpollack.agents.model.AgentGeneration;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 
@@ -33,7 +33,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void advisorsExecuteInCorrectOrder() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		List<String> executionLog = new ArrayList<>();
 
 		// Create mock response
@@ -63,7 +63,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void advisorsCanModifyContext() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		// Create mock response
 		AgentResponse agentResponse = new AgentResponse(List.of(mock(AgentGeneration.class)));
 		given(agentModel.call(any(AgentTaskRequest.class))).willReturn(agentResponse);
@@ -101,7 +101,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void multipleAdvisorsCanShareContextData() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		// Create mock response
 		AgentResponse agentResponse = new AgentResponse(List.of(mock(AgentGeneration.class)));
 		given(agentModel.call(any(AgentTaskRequest.class))).willReturn(agentResponse);
@@ -160,7 +160,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void clientWithoutAdvisorsStillWorks() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		// Create mock response
 		AgentResponse agentResponse = new AgentResponse(List.of(mock(AgentGeneration.class)));
 		given(agentModel.call(any(AgentTaskRequest.class))).willReturn(agentResponse);
@@ -177,7 +177,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void mutatePreservesAdvisors() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		// Create advisor
 		AgentCallAdvisor advisor = new LoggingAdvisor("test", 100, new ArrayList<>());
 
@@ -238,7 +238,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void requestAdvisorsCanBeAddedViaFluentAPI() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		List<String> executionLog = new ArrayList<>();
 
 		// Create mock response
@@ -262,7 +262,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void requestAdvisorsCanBeAddedViaListAPI() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		List<String> executionLog = new ArrayList<>();
 
 		// Create mock response
@@ -286,7 +286,7 @@ class AgentClientAdvisorTests {
 
 	@Test
 	void requestAdvisorsAreCombinedWithDefaultAdvisors() {
-		AgentModel agentModel = mock(AgentModel.class);
+		AgentApi agentModel = mock(AgentApi.class);
 		List<String> executionLog = new ArrayList<>();
 
 		// Create mock response

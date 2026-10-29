@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import io.github.markpollack.claude.agent.sdk.hooks.HookRegistry;
 import io.github.markpollack.claude.agent.sdk.types.control.HookEvent;
 import io.github.markpollack.claude.agent.sdk.types.control.HookOutput;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.IterableAgentModel;
 import io.github.markpollack.agents.model.StreamingAgentModel;
@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests verify the consolidated model implements all three programming models:
  * </p>
  * <ul>
- * <li>{@link AgentModel} - Blocking/imperative</li>
+ * <li>{@link AgentApi} - Blocking/imperative</li>
  * <li>{@link StreamingAgentModel} - Reactive with Flux</li>
  * <li>{@link IterableAgentModel} - Iterator-based</li>
  * </ul>
@@ -254,9 +254,9 @@ class ClaudeAgentModelTest {
 		}
 
 		@Test
-		@DisplayName("Should implement AgentModel (blocking)")
+		@DisplayName("Should implement AgentApi (blocking)")
 		void implementsAgentModel() {
-			assertThat(model).isInstanceOf(AgentModel.class);
+			assertThat(model).isInstanceOf(AgentApi.class);
 		}
 
 		@Test
@@ -364,10 +364,10 @@ class ClaudeAgentModelTest {
 		}
 
 		@Test
-		@DisplayName("Model can be assigned to AgentModel functional interface")
+		@DisplayName("Model can be assigned to AgentApi functional interface")
 		void canAssignToAgentModel() {
 			// Verify functional interface assignment works
-			AgentModel blockingModel = model;
+			AgentApi blockingModel = model;
 			assertThat(blockingModel).isNotNull();
 		}
 
@@ -390,7 +390,7 @@ class ClaudeAgentModelTest {
 		@Test
 		@DisplayName("All three interfaces reference same instance")
 		void sameInstanceForAllInterfaces() {
-			AgentModel blockingModel = model;
+			AgentApi blockingModel = model;
 			StreamingAgentModel streamingModel = model;
 			IterableAgentModel iterableModel = model;
 

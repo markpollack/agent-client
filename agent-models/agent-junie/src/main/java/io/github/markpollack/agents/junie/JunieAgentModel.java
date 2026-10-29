@@ -8,7 +8,7 @@ package io.github.markpollack.agents.junie;
 import java.nio.file.Path;
 
 import io.github.markpollack.agents.acp.AcpAgentModel;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 
@@ -42,7 +42,7 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
  * @author Mark Pollack
  * @since 0.30.0
  */
-public class JunieAgentModel implements AgentModel {
+public class JunieAgentModel implements AgentApi {
 
 	private final AcpAgentModel delegate;
 

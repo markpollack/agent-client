@@ -40,7 +40,7 @@ public class ClaudeAgentAutoConfiguration {
 	 * <p>
 	 * The model implements all three programming styles:
 	 * <ul>
-	 * <li>{@link io.github.markpollack.agents.model.AgentModel} - Blocking</li>
+	 * <li>{@link io.github.markpollack.agents.model.AgentApi} - Blocking</li>
 	 * <li>{@link io.github.markpollack.agents.model.StreamingAgentModel} - Reactive</li>
 	 * <li>{@link io.github.markpollack.agents.model.IterableAgentModel} - Iterator</li>
 	 * </ul>

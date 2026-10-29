@@ -8,7 +8,7 @@ package io.github.markpollack.agents.tck;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -25,13 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * Test Compatibility Kit (TCK) for testing any AgentModel implementation with any
- * Sandbox.
+ * Test Compatibility Kit (TCK) for testing any AgentApi implementation with any Sandbox.
  *
  * <p>
- * This abstract test class defines the standard test suite that all AgentModel
+ * This abstract test class defines the standard test suite that all AgentApi
  * implementations must pass when used with any Sandbox implementation. Concrete test
- * classes should extend this class and provide the specific AgentModel and Sandbox
+ * classes should extend this class and provide the specific AgentApi and Sandbox
  * implementations in their setup methods.
  * </p>
  *
@@ -46,7 +45,7 @@ public abstract class AbstractAgentModelTCK {
 	/**
 	 * The agent model implementation under test. Must be set by concrete test classes.
 	 */
-	protected AgentModel agentModel;
+	protected AgentApi agentModel;
 
 	/**
 	 * The sandbox implementation used by the agent. Must be set by concrete test classes.

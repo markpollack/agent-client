@@ -21,7 +21,7 @@ import io.github.markpollack.sandbox.LocalSandbox;
 import io.github.markpollack.agents.gemini.GeminiAgentOptions;
 import io.github.markpollack.agents.geminisdk.GeminiClient;
 import io.github.markpollack.agents.geminisdk.util.GeminiCliDiscovery;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -108,7 +108,7 @@ class AgentClientHelloWorldSmokeTest {
 	/**
 	 * Common test execution logic for both providers.
 	 */
-	private AgentClientResponse executeHelloWorldTest(AgentModel agentModel, String providerName) throws Exception {
+	private AgentClientResponse executeHelloWorldTest(AgentApi agentModel, String providerName) throws Exception {
 		// Create client and execute hello world task
 		AgentClient client = AgentClient.create(agentModel);
 

@@ -15,7 +15,7 @@ import java.util.Iterator;
  * This is one of three programming models for agent execution:
  * </p>
  * <ul>
- * <li>{@link AgentModel} - Blocking/imperative</li>
+ * <li>{@link AgentApi} - Blocking/imperative</li>
  * <li>{@link StreamingAgentModel} - Reactive with Flux</li>
  * <li>{@link IterableAgentModel} - Iterator/callback based (this interface)</li>
  * </ul>

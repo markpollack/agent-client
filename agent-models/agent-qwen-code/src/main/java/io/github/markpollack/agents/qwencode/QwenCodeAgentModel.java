@@ -18,14 +18,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
 
 /**
- * Implementation of {@link AgentModel} for Qwen Code CLI-based agents.
+ * Implementation of {@link AgentApi} for Qwen Code CLI-based agents.
  *
  * <p>
  * This adapter bridges Spring AI's agent abstraction with the Qwen Code CLI via the
@@ -35,7 +35,7 @@ import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
  * @author Spring AI Community
  * @since 0.12.0
  */
-public class QwenCodeAgentModel implements AgentModel {
+public class QwenCodeAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(QwenCodeAgentModel.class);
 

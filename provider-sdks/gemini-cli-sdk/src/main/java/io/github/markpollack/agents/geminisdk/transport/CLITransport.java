@@ -162,8 +162,8 @@ public class CLITransport {
 
 	/**
 	 * Builds the command line arguments for a query with specified options. This is
-	 * exposed publicly to support the sandbox execution pattern where the AgentModel
-	 * builds the command and executes it via a Sandbox.
+	 * exposed publicly to support the sandbox execution pattern where the AgentApi builds
+	 * the command and executes it via a Sandbox.
 	 * @param prompt the query prompt
 	 * @param options the CLI options
 	 * @return the command line arguments as a list
@@ -251,7 +251,7 @@ public class CLITransport {
 
 	/**
 	 * Parses the output from external command execution into messages. This is exposed
-	 * publicly to support the sandbox execution pattern where the AgentModel executes
+	 * publicly to support the sandbox execution pattern where the AgentApi executes
 	 * commands via a Sandbox and then parses the results.
 	 * @param output the command output to parse
 	 * @param options the CLI options used for the command (for future use)

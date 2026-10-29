@@ -42,7 +42,7 @@ import static org.mockito.Mockito.when;
  * Tests for GeminiAgentModel sandbox integration using dependency injection pattern.
  *
  * These tests prove the key accomplishments: - Interface-based dependency injection with
- * Sandbox - AgentModel-centric pattern: SDK builds command -> Sandbox executes -> SDK
+ * Sandbox - AgentApi-centric pattern: SDK builds command -> Sandbox executes -> SDK
  * parses result - Clean separation: SDKs handle protocol, AgentModels handle execution
  */
 class GeminiAgentModelSandboxTest {

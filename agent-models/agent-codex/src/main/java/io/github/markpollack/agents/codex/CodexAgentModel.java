@@ -29,7 +29,7 @@ import io.github.markpollack.journal.codex.CodexPhaseCapture;
 import io.github.markpollack.journal.codex.CodexSessionParser;
 
 /**
- * Implementation of {@link AgentModel} for OpenAI Codex CLI-based agents.
+ * Implementation of {@link AgentApi} for OpenAI Codex CLI-based agents.
  *
  * <p>
  * This adapter bridges Spring AI's agent abstraction with the Codex CLI, providing
@@ -40,7 +40,7 @@ import io.github.markpollack.journal.codex.CodexSessionParser;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class CodexAgentModel implements AgentModel {
+public class CodexAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(CodexAgentModel.class);
 

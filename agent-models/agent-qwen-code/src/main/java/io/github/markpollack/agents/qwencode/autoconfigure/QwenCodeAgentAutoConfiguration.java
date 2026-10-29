@@ -5,7 +5,7 @@
 
 package io.github.markpollack.agents.qwencode.autoconfigure;
 
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.qwencode.QwenCodeAgentModel;
 import io.github.markpollack.agents.qwencode.QwenCodeAgentOptions;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -27,7 +27,7 @@ public class QwenCodeAgentAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentModel agentModel(QwenCodeAgentProperties properties) {
+	public AgentApi agentModel(QwenCodeAgentProperties properties) {
 		QwenCodeAgentOptions options = QwenCodeAgentOptions.builder()
 			.model(properties.getModel())
 			.timeout(properties.getTimeout())

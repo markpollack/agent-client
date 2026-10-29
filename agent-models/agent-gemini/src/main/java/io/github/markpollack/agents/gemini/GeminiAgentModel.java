@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.geminisdk.transport.CLITransport;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
@@ -38,7 +38,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Implementation of {@link AgentModel} for Google Gemini CLI-based agents.
+ * Implementation of {@link AgentApi} for Google Gemini CLI-based agents.
  *
  * <p>
  * This adapter bridges Spring AI's agent abstraction with the Gemini CLI, providing
@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
  * @author Mark Pollack
  * @since 1.1.0
  */
-public class GeminiAgentModel implements AgentModel {
+public class GeminiAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(GeminiAgentModel.class);
 
@@ -103,7 +103,7 @@ public class GeminiAgentModel implements AgentModel {
 
 			QueryResult result;
 			if (sandbox != null) {
-				// Use sandbox for execution (AgentModel-centric pattern)
+				// Use sandbox for execution (AgentApi-centric pattern)
 				result = executeViaSandbox(prompt, cliOptions, request);
 			}
 			else {
@@ -143,8 +143,8 @@ public class GeminiAgentModel implements AgentModel {
 	}
 
 	/**
-	 * Executes a query via sandbox using the AgentModel-centric pattern. SDK builds
-	 * command -> Sandbox executes -> SDK parses result.
+	 * Executes a query via sandbox using the AgentApi-centric pattern. SDK builds command
+	 * -> Sandbox executes -> SDK parses result.
 	 */
 	private QueryResult executeViaSandbox(String prompt, CLIOptions cliOptions, AgentTaskRequest request)
 			throws GeminiSDKException, IOException, InterruptedException,

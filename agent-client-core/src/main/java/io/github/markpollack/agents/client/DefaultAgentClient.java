@@ -19,7 +19,6 @@ import io.github.markpollack.agents.client.advisor.AgentModelCallAdvisor;
 import io.github.markpollack.agents.client.advisor.DefaultAgentCallAdvisorChain;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisor;
 import io.github.markpollack.agents.model.AgentApi;
-import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;

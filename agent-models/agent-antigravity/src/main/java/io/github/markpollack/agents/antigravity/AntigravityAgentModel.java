@@ -20,7 +20,7 @@ import io.github.markpollack.agents.antigravitysdk.types.ExecuteOptions;
 import io.github.markpollack.agents.antigravitysdk.types.ExecuteResult;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * @author Mark Pollack
  * @since 0.27.0
  */
-public class AntigravityAgentModel implements AgentModel {
+public class AntigravityAgentModel implements AgentApi {
 
 	private static final Logger logger = LoggerFactory.getLogger(AntigravityAgentModel.class);
 
