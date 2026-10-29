@@ -23,7 +23,7 @@
     <description>AgentApi adapter for the Google Antigravity CLI (agy)</description>
 
     <properties>
-        <pmd.maxAllowedViolations>2</pmd.maxAllowedViolations>
+        <pmd.maxAllowedViolations>0</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
         <jacoco.minimum.line>0.50</jacoco.minimum.line>
         <jacoco.minimum.branch>0.24</jacoco.minimum.branch>

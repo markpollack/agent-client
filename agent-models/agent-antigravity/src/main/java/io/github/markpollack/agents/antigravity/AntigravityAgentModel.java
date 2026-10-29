@@ -108,45 +108,55 @@ public class AntigravityAgentModel implements AgentApi {
 
 		// Portable fallbacks — the path a cross-provider caller takes.
 		if (request.options() != null && !(request.options() instanceof AntigravityAgentOptions)) {
-			if (request.options().getModel() != null) {
-				builder.model(request.options().getModel());
-			}
-			// Portable low/medium/high are exactly agy's --effort values.
-			if (request.options().getEffort() != null) {
-				builder.reasoningEffort(request.options().getEffort());
-			}
-			if (request.options().getTimeout() != null) {
-				builder.timeout(request.options().getTimeout());
-			}
-			if (request.options().getJsonSchema() != null && !request.options().getJsonSchema().isEmpty()) {
-				builder.jsonSchema(request.options().getJsonSchema());
-			}
-			builder.dangerouslySkipPermissions(request.options().isAutoApprove());
+			applyPortableOptions(builder, request.options());
 		}
 
 		if (request.options() instanceof AntigravityAgentOptions requestOptions) {
-			if (requestOptions.getModel() != null) {
-				builder.model(requestOptions.getModel());
-			}
-			if (requestOptions.getReasoningEffort() != null) {
-				builder.reasoningEffort(requestOptions.getReasoningEffort());
-			}
-			if (requestOptions.getTimeout() != null) {
-				builder.timeout(requestOptions.getTimeout());
-			}
-			if (requestOptions.getExecutionMode() != null) {
-				builder.executionMode(requestOptions.getExecutionMode());
-			}
-			if (!requestOptions.getAdditionalDirectories().isEmpty()) {
-				builder.additionalDirectories(requestOptions.getAdditionalDirectories());
-			}
-			if (!requestOptions.getJsonSchema().isEmpty()) {
-				builder.jsonSchema(requestOptions.getJsonSchema());
-			}
-			builder.dangerouslySkipPermissions(requestOptions.isDangerouslySkipPermissions());
+			applyNativeOptions(builder, requestOptions);
 		}
 
 		return builder.build();
+	}
+
+	private static void applyNativeOptions(AntigravityAgentOptions.Builder builder,
+			AntigravityAgentOptions requestOptions) {
+		if (requestOptions.getModel() != null) {
+			builder.model(requestOptions.getModel());
+		}
+		if (requestOptions.getReasoningEffort() != null) {
+			builder.reasoningEffort(requestOptions.getReasoningEffort());
+		}
+		if (requestOptions.getTimeout() != null) {
+			builder.timeout(requestOptions.getTimeout());
+		}
+		if (requestOptions.getExecutionMode() != null) {
+			builder.executionMode(requestOptions.getExecutionMode());
+		}
+		if (!requestOptions.getAdditionalDirectories().isEmpty()) {
+			builder.additionalDirectories(requestOptions.getAdditionalDirectories());
+		}
+		if (!requestOptions.getJsonSchema().isEmpty()) {
+			builder.jsonSchema(requestOptions.getJsonSchema());
+		}
+		builder.dangerouslySkipPermissions(requestOptions.isDangerouslySkipPermissions());
+	}
+
+	private static void applyPortableOptions(AntigravityAgentOptions.Builder builder,
+			io.github.markpollack.agents.model.AgentOptions requestOptions) {
+		if (requestOptions.getModel() != null) {
+			builder.model(requestOptions.getModel());
+		}
+		// Portable low/medium/high are exactly agy's --effort values.
+		if (requestOptions.getEffort() != null) {
+			builder.reasoningEffort(requestOptions.getEffort());
+		}
+		if (requestOptions.getTimeout() != null) {
+			builder.timeout(requestOptions.getTimeout());
+		}
+		if (requestOptions.getJsonSchema() != null && !requestOptions.getJsonSchema().isEmpty()) {
+			builder.jsonSchema(requestOptions.getJsonSchema());
+		}
+		builder.dangerouslySkipPermissions(requestOptions.isAutoApprove());
 	}
 
 	private ExecuteOptions toExecuteOptions(AntigravityAgentOptions options, AgentTaskRequest request) {
