@@ -11,6 +11,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -170,7 +171,7 @@ public class ClaudeAgentMcpProperties {
 				return null;
 			}
 
-			return switch (type.toLowerCase()) {
+			return switch (type.toLowerCase(Locale.ROOT)) {
 				case "stdio" -> new McpServerConfig.McpStdioServerConfig(command, args, env);
 				case "sse" -> new McpServerConfig.McpSseServerConfig(url, headers);
 				case "http" -> new McpServerConfig.McpHttpServerConfig(url);

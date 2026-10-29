@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -219,7 +220,7 @@ public record CLIOptions(String model, boolean yoloMode, boolean allFiles, Durat
 					"Invalid proxy format: " + proxy + ". Expected format: schema://[user:password@]host:port");
 		}
 
-		String scheme = proxy.substring(0, proxy.indexOf("://")).toLowerCase();
+		String scheme = proxy.substring(0, proxy.indexOf("://")).toLowerCase(Locale.ROOT);
 		List<String> validSchemes = List.of("http", "https", "socks4", "socks5");
 		if (!validSchemes.contains(scheme)) {
 			throw new IllegalArgumentException(

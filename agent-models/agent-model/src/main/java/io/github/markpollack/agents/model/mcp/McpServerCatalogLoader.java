@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -86,7 +87,7 @@ final class McpServerCatalogLoader {
 		if (type == null) {
 			type = "stdio";
 		}
-		return switch (type.toLowerCase()) {
+		return switch (type.toLowerCase(Locale.ROOT)) {
 			case "stdio" -> parseStdio(node);
 			case "sse" -> parseSse(node);
 			case "http" -> parseHttp(node);
