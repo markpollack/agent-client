@@ -21,3 +21,9 @@ ERRORPRONE_DISABLED: TypeParameterUnusedInFormals (2026-10-29)
 PROJECT_ERRORPRONE_DISABLED_REASON: MissingOverride (22): fix. The async work will reshape the session and model interfaces; @Override turns a silently broken override into a compile error. NotJavadoc (12): fix. Move each comment to the element it documents, or make it a plain /* comment. The rest: fix as the kit recommends. ModifyCollectionInEnhancedForLoop, StreamResourceLeak and StringCaseLocaleUsage (use Locale.ROOT) may be real defects, not style. (2026-10-29)
 
 PROJECT_ERRORPRONE_API_EXCEPTION: Temporary, Owner 2026-10-29: the 4 findings are public API (AgentResponseMetadata.get/getRequired, AgentClientResponse.getPhaseCapture, the setup-context accessors) decided in the async design (ASYNC-4/5). Re-enable in the async implementation; ASYNC-5 is not done while this check is off.
+
+PMD_MECHANISM: ratchet (2026-10-29)
+
+PROJECT_PMD_RATCHET_REASON: Owner 2026-10-29: agent-claude's execution-path violations are left to ASYNC-5, which rebuilds that path; its ratchet must reach 0 there.
+
+PROJECT_PMD_SCOPE: Fix every PMD violation outside agent-models/agent-claude to zero. In agent-claude, fix option-mapping hotspots in ClaudeAgentModel.buildCLIOptions, ClaudeAgentProperties, ClaudeAgentOptions, ClaudeAgentAutoConfiguration and ClaudeHookBeanPostProcessor. Retain only execution-path hotspots in ClaudeAgentModel.call/iterate/stream and its class size, ClaudeAgentSession and ClaudeAgentSessionRegistry; set the module ratchet to the measured remainder. CPD stays at zero. (2026-10-29)

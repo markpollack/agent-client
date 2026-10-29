@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+
+<!-- PMD 7.28.0: 70 initial violations in 23 included modules at the kit thresholds.
+     Fix each hotspot and lower its module's PMD allowance; CPD always permits zero blocks.
+     Main sources include the published TCK. Sample applications are excluded in their POMs.
+     Structural exemptions below are the kit's wire-container/interface and record-constructor
+     exemptions: method logic remains measured. No named class or method is exempted. -->
+<ruleset name="agent-client-size-and-complexity"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>Method and class size, complexity and parameter count for Agent Client.</description>
+
+    <rule ref="category/java/design.xml/CognitiveComplexity">
+        <properties>
+            <property name="reportLevel" value="15"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <property name="methodReportLevel" value="10"/>
+            <property name="classReportLevel" value="80"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/NcssCount">
+        <properties>
+            <property name="methodReportLevel" value="30"/>
+            <property name="classReportLevel" value="300"/>
+            <property name="violationSuppressXPath"
+                      value="self::ClassDeclaration[@Interface = true()] | self::ClassDeclaration[pmd-java:modifiers() = 'final'][ClassBody/RecordDeclaration][not(ClassBody/FieldDeclaration[not(pmd-java:modifiers() = 'static')])][not(ClassBody/ClassDeclaration[not(@Interface = true())][ClassBody/*[not(self::FieldDeclaration[pmd-java:modifiers() = 'static']) and not(self::ConstructorDeclaration[pmd-java:modifiers() = 'private'])]])]"/>
+        </properties>
+    </rule>
+
+    <rule name="LongLambda"
+          language="java"
+          message="A lambda body has 30 or more statements; give it a name: extract a method"
+          class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <description>A lambda body with 30 or more statements, counted the way NCSS counts a method's.</description>
+        <priority>3</priority>
+        <properties>
+            <property name="xpath">
+                <value><![CDATA[
+//LambdaExpression[Block][
+  count(Block//(LocalVariableDeclaration | ExpressionStatement | ReturnStatement | IfStatement
+      | ForStatement | ForeachStatement | WhileStatement | DoStatement | TryStatement
+      | ThrowStatement | SwitchStatement | BreakStatement | ContinueStatement
+      | SynchronizedStatement | YieldStatement | LocalClassStatement)) >= 30]
+]]></value>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="7"/>
+            
+            <property name="violationSuppressXPath"
+                      value="./ancestor::ConstructorDeclaration[1][parent::RecordBody] | ./ancestor::MethodDeclaration[1][parent::RecordBody][ModifierList/Annotation[@SimpleName = 'JsonCreator']]"/>
+        </properties>
+    </rule>
+
+</ruleset>

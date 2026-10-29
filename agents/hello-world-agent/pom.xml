@@ -18,6 +18,8 @@
     <description>Simple file creation agent for Spring AI Agents JBang launcher</description>
 
     <properties>
+        <pmd.skip>true</pmd.skip>
+        <cpd.skip>true</cpd.skip>
         <!-- Sample application excluded from the library coverage gate. -->
         <jacoco.skip>true</jacoco.skip>
         <spotbugs.skip>true</spotbugs.skip>
