@@ -158,38 +158,7 @@ public class GeminiAgentModel implements AgentApi {
 		List<String> command = geminiClient.buildCommand(prompt, cliOptions);
 		logger.info("Gemini command: {}", String.join(" ", command));
 
-		// 2. Create ExecSpec with environment variables
-		Map<String, String> environment = new java.util.HashMap<>();
-		environment.put("GEMINI_CLI_ENTRYPOINT", "sdk-java");
-
-		// Yolo means "skip all permission gates" — including the trusted-folder gate
-		// newer Gemini CLIs enforce in headless runs (exit 55 in untrusted dirs
-		// otherwise). Env var rather than --skip-trust: older CLIs ignore unknown env
-		// vars but reject unknown flags.
-		if (cliOptions.isYoloMode()) {
-			environment.put("GEMINI_CLI_TRUST_WORKSPACE", "true");
-		}
-
-		// Add API key - prefer GEMINI_API_KEY over GOOGLE_API_KEY
-		String apiKey = System.getenv("GEMINI_API_KEY");
-		if (apiKey == null) {
-			apiKey = System.getenv("GOOGLE_API_KEY");
-			logger.debug("Using GOOGLE_API_KEY as fallback");
-		}
-		else {
-			logger.debug("Using GEMINI_API_KEY");
-		}
-		if (apiKey != null) {
-			// Only set GEMINI_API_KEY to avoid confusion in Gemini CLI
-			environment.put("GEMINI_API_KEY", apiKey);
-			logger.debug("API key configured for Gemini CLI");
-		}
-		else {
-			logger.warn("No API key found - Gemini CLI may fail");
-		}
-
-		// NVM environment variables and PATH are not needed - getGeminiCommand() handles
-		// NVM Node.js paths internally
+		Map<String, String> environment = sandboxEnvironment(cliOptions);
 
 		ExecSpec spec = ExecSpec.builder().command(command).env(environment).timeout(cliOptions.getTimeout()).build();
 
@@ -410,6 +379,43 @@ public class GeminiAgentModel implements AgentApi {
 			case TIMEOUT -> "TIMEOUT";
 			case CANCELLED -> "CANCELLED";
 		};
+	}
+
+	private static Map<String, String> sandboxEnvironment(CLIOptions cliOptions) {
+		// 2. Create ExecSpec with environment variables
+		Map<String, String> environment = new java.util.HashMap<>();
+		environment.put("GEMINI_CLI_ENTRYPOINT", "sdk-java");
+
+		// Yolo means "skip all permission gates" — including the trusted-folder gate
+		// newer Gemini CLIs enforce in headless runs (exit 55 in untrusted dirs
+		// otherwise). Env var rather than --skip-trust: older CLIs ignore unknown env
+		// vars but reject unknown flags.
+		if (cliOptions.isYoloMode()) {
+			environment.put("GEMINI_CLI_TRUST_WORKSPACE", "true");
+		}
+
+		// Add API key - prefer GEMINI_API_KEY over GOOGLE_API_KEY
+		String apiKey = System.getenv("GEMINI_API_KEY");
+		if (apiKey == null) {
+			apiKey = System.getenv("GOOGLE_API_KEY");
+			logger.debug("Using GOOGLE_API_KEY as fallback");
+		}
+		else {
+			logger.debug("Using GEMINI_API_KEY");
+		}
+		if (apiKey != null) {
+			// Only set GEMINI_API_KEY to avoid confusion in Gemini CLI
+			environment.put("GEMINI_API_KEY", apiKey);
+			logger.debug("API key configured for Gemini CLI");
+		}
+		else {
+			logger.warn("No API key found - Gemini CLI may fail");
+		}
+
+		// NVM environment variables and PATH are not needed - getGeminiCommand() handles
+		// NVM Node.js paths internally
+
+		return environment;
 	}
 
 }
