@@ -14,6 +14,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MutablePropertySources;
 
 /**
@@ -40,33 +41,36 @@ public class DeprecatedPropertyMigrator implements EnvironmentPostProcessor {
 	@Override
 	public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
 		Map<String, Object> migratedProperties = new HashMap<>();
-		boolean warned = false;
-
 		for (var source : environment.getPropertySources()) {
-			if (source instanceof org.springframework.core.env.EnumerablePropertySource<?> enumerable) {
+			if (source instanceof EnumerablePropertySource<?> enumerable) {
 				for (String name : enumerable.getPropertyNames()) {
-					for (Map.Entry<String, String> mapping : PREFIX_MAPPINGS.entrySet()) {
-						if (name.startsWith(mapping.getKey())) {
-							String newName = name.replace(mapping.getKey(), mapping.getValue());
-							if (environment.getProperty(newName) == null) {
-								Object value = enumerable.getProperty(name);
-								migratedProperties.put(newName, value);
-								if (!warned) {
-									logger.warn("Deprecated property prefix 'spring.ai.agents.*' detected. "
-											+ "Migrate to 'agent-client.*'. Old prefix will be removed in a future release.");
-									warned = true;
-								}
-								logger.info("Migrated property: {} -> {}", name, newName);
-							}
-						}
-					}
+					migrateProperty(name, enumerable, environment, migratedProperties);
 				}
 			}
 		}
-
 		if (!migratedProperties.isEmpty()) {
 			MutablePropertySources sources = environment.getPropertySources();
 			sources.addFirst(new MapPropertySource("deprecatedAgentClientProperties", migratedProperties));
+		}
+	}
+
+	private void migrateProperty(String name, EnumerablePropertySource<?> source, ConfigurableEnvironment environment,
+			Map<String, Object> migratedProperties) {
+		for (Map.Entry<String, String> mapping : PREFIX_MAPPINGS.entrySet()) {
+			if (!name.startsWith(mapping.getKey())) {
+				continue;
+			}
+			String newName = name.replace(mapping.getKey(), mapping.getValue());
+			// Sources are visited in precedence order, so retain the first legacy value.
+			if (environment.getProperty(newName) != null || migratedProperties.get(newName) != null) {
+				continue;
+			}
+			if (migratedProperties.isEmpty()) {
+				logger.warn("Deprecated property prefix 'spring.ai.agents.*' detected. "
+						+ "Migrate to 'agent-client.*'. Old prefix will be removed in a future release.");
+			}
+			migratedProperties.put(newName, source.getProperty(name));
+			logger.info("Migrated property: {} -> {}", name, newName);
 		}
 	}
 

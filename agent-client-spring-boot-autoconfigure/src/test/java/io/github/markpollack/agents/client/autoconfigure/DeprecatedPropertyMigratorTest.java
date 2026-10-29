@@ -6,6 +6,7 @@
 package io.github.markpollack.agents.client.autoconfigure;
 
 import java.util.Map;
+import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.MapPropertySource;
@@ -40,6 +41,26 @@ class DeprecatedPropertyMigratorTest {
 		new DeprecatedPropertyMigrator().postProcessEnvironment(environment, null);
 		assertThat(environment.getProperty("application.name")).isEqualTo("test");
 		assertThat(environment.getPropertySources().contains("deprecatedAgentClientProperties")).isFalse();
+	}
+
+	@Test
+	void retainsHighestPriorityLegacyValueAcrossSources() {
+		var environment = environment(Map.of("spring.ai.agents.codex.model", "higher-priority"));
+		environment.getPropertySources()
+			.addLast(new MapPropertySource("defaults", Map.of("spring.ai.agents.codex.model", "lower-priority")));
+		new DeprecatedPropertyMigrator().postProcessEnvironment(environment, null);
+		assertThat(environment.getProperty("agent-client.codex.model")).isEqualTo("higher-priority");
+	}
+
+	@Test
+	void nullLegacyValueFallsThroughToLowerPrioritySource() {
+		Map<String, Object> highPriority = new HashMap<>();
+		highPriority.put("spring.ai.agents.codex.model", null);
+		var environment = environment(highPriority);
+		environment.getPropertySources()
+			.addLast(new MapPropertySource("defaults", Map.of("spring.ai.agents.codex.model", "fallback")));
+		new DeprecatedPropertyMigrator().postProcessEnvironment(environment, null);
+		assertThat(environment.getProperty("agent-client.codex.model")).isEqualTo("fallback");
 	}
 
 	private StandardEnvironment environment(Map<String, Object> properties) {
