@@ -36,14 +36,9 @@ public class CodexCliDiscovery {
 	 */
 	public static String discoverCodexCli() {
 		// 1. Check environment variable first (highest priority)
-		String envPath = System.getenv(ENV_CODEX_CLI_PATH);
-		if (envPath != null && !envPath.isEmpty()) {
-			Path codexPath = Paths.get(envPath);
-			if (Files.exists(codexPath) && Files.isExecutable(codexPath)) {
-				logger.info("Found Codex CLI via {} environment variable: {}", ENV_CODEX_CLI_PATH, envPath);
-				return envPath;
-			}
-			logger.warn("{} points to non-existent or non-executable file: {}", ENV_CODEX_CLI_PATH, envPath);
+		String envPath = findEnvironmentOverride();
+		if (envPath != null) {
+			return envPath;
 		}
 
 		// 2. Try 'which codex' on Unix-like systems
@@ -74,6 +69,19 @@ public class CodexCliDiscovery {
 
 		throw new CodexSDKException("Codex CLI not found. Please install via 'npm install -g @openai/codex' or "
 				+ "'brew install codex', or set " + ENV_CODEX_CLI_PATH + " environment variable");
+	}
+
+	private static String findEnvironmentOverride() {
+		String envPath = System.getenv(ENV_CODEX_CLI_PATH);
+		if (envPath != null && !envPath.isEmpty()) {
+			Path codexPath = Paths.get(envPath);
+			if (Files.exists(codexPath) && Files.isExecutable(codexPath)) {
+				logger.info("Found Codex CLI via {} environment variable: {}", ENV_CODEX_CLI_PATH, envPath);
+				return envPath;
+			}
+			logger.warn("{} points to non-existent or non-executable file: {}", ENV_CODEX_CLI_PATH, envPath);
+		}
+		return null;
 	}
 
 	private static String tryWhichCommand() {
