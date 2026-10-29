@@ -102,57 +102,66 @@ public class GrokAgentModel implements AgentApi {
 		// Portable fallbacks — the path taken when the caller passes provider-neutral
 		// options, which is how a cross-provider caller drives every CLI identically.
 		if (request.options() != null && !(request.options() instanceof GrokAgentOptions)) {
-			if (request.options().getModel() != null) {
-				builder.model(request.options().getModel());
-			}
-			// Portable effort values (low/medium/high) are all valid --reasoning-effort
-			// values, so this is a direct passthrough.
-			if (request.options().getEffort() != null) {
-				builder.reasoningEffort(request.options().getEffort());
-			}
-			if (request.options().getTimeout() != null) {
-				builder.timeout(request.options().getTimeout());
-			}
-			if (request.options().getMaxTurns() != null) {
-				builder.maxTurns(request.options().getMaxTurns());
-			}
-			if (request.options().getJsonSchema() != null && !request.options().getJsonSchema().isEmpty()) {
-				builder.jsonSchema(request.options().getJsonSchema());
-			}
-			if (request.options().isAutoApprove()) {
-				builder.permissionMode(PermissionMode.BYPASS_PERMISSIONS);
-			}
+			applyPortableOptions(builder, request.options());
 		}
 
 		if (request.options() instanceof GrokAgentOptions requestOptions) {
-			if (requestOptions.getModel() != null) {
-				builder.model(requestOptions.getModel());
-			}
-			if (requestOptions.getReasoningEffort() != null) {
-				builder.reasoningEffort(requestOptions.getReasoningEffort());
-			}
-			if (requestOptions.getTimeout() != null) {
-				builder.timeout(requestOptions.getTimeout());
-			}
-			if (requestOptions.getPermissionMode() != null) {
-				builder.permissionMode(requestOptions.getPermissionMode());
-			}
-			if (requestOptions.getMaxTurns() != null) {
-				builder.maxTurns(requestOptions.getMaxTurns());
-			}
-			if (!requestOptions.getJsonSchema().isEmpty()) {
-				builder.jsonSchema(requestOptions.getJsonSchema());
-			}
-			if (!requestOptions.getAllowedTools().isEmpty()) {
-				builder.allowedTools(requestOptions.getAllowedTools());
-			}
-			if (!requestOptions.getDisallowedTools().isEmpty()) {
-				builder.disallowedTools(requestOptions.getDisallowedTools());
-			}
-			builder.disableWebSearch(requestOptions.isDisableWebSearch());
+			applyNativeOptions(builder, requestOptions);
 		}
 
 		return builder.build();
+	}
+
+	private static void applyNativeOptions(GrokAgentOptions.Builder builder, GrokAgentOptions requestOptions) {
+		if (requestOptions.getModel() != null) {
+			builder.model(requestOptions.getModel());
+		}
+		if (requestOptions.getReasoningEffort() != null) {
+			builder.reasoningEffort(requestOptions.getReasoningEffort());
+		}
+		if (requestOptions.getTimeout() != null) {
+			builder.timeout(requestOptions.getTimeout());
+		}
+		if (requestOptions.getPermissionMode() != null) {
+			builder.permissionMode(requestOptions.getPermissionMode());
+		}
+		if (requestOptions.getMaxTurns() != null) {
+			builder.maxTurns(requestOptions.getMaxTurns());
+		}
+		if (!requestOptions.getJsonSchema().isEmpty()) {
+			builder.jsonSchema(requestOptions.getJsonSchema());
+		}
+		if (!requestOptions.getAllowedTools().isEmpty()) {
+			builder.allowedTools(requestOptions.getAllowedTools());
+		}
+		if (!requestOptions.getDisallowedTools().isEmpty()) {
+			builder.disallowedTools(requestOptions.getDisallowedTools());
+		}
+		builder.disableWebSearch(requestOptions.isDisableWebSearch());
+	}
+
+	private static void applyPortableOptions(GrokAgentOptions.Builder builder,
+			io.github.markpollack.agents.model.AgentOptions requestOptions) {
+		if (requestOptions.getModel() != null) {
+			builder.model(requestOptions.getModel());
+		}
+		// Portable effort values (low/medium/high) are all valid --reasoning-effort
+		// values, so this is a direct passthrough.
+		if (requestOptions.getEffort() != null) {
+			builder.reasoningEffort(requestOptions.getEffort());
+		}
+		if (requestOptions.getTimeout() != null) {
+			builder.timeout(requestOptions.getTimeout());
+		}
+		if (requestOptions.getMaxTurns() != null) {
+			builder.maxTurns(requestOptions.getMaxTurns());
+		}
+		if (requestOptions.getJsonSchema() != null && !requestOptions.getJsonSchema().isEmpty()) {
+			builder.jsonSchema(requestOptions.getJsonSchema());
+		}
+		if (requestOptions.isAutoApprove()) {
+			builder.permissionMode(PermissionMode.BYPASS_PERMISSIONS);
+		}
 	}
 
 	private ExecuteOptions toExecuteOptions(GrokAgentOptions options, AgentTaskRequest request) {
