@@ -1,0 +1,1 @@
+TypeParameterUnusedInFormals  Temporary, Owner 2026-10-29: the 4 findings are public API (AgentResponseMetadata.get/getRequired, AgentClientResponse.getPhaseCapture, the setup-context accessors) decided in the async design (ASYNC-4/5). Re-enable in the async implementation; ASYNC-5 is not done while this check is off.

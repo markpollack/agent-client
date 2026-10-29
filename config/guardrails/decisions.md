@@ -16,6 +16,8 @@ PROJECT_JACOCO_REMEDIATION: add default-phase own-module tests for agent-models/
 
 JACOCO_FLOORS: agent-client-core 82/51; agent-client-spring-boot-autoconfigure 98/91; agent-launcher 45/46; agent-models/agent-acp 28/29; agent-models/agent-amazon-q 63/69; agent-models/agent-amp 55/69; agent-models/agent-antigravity 50/24; agent-models/agent-claude 42/41; agent-models/agent-codex 52/29; agent-models/agent-gemini 57/42; agent-models/agent-grok 55/38; agent-models/agent-junie 51/54; agent-models/agent-model 58/50; agent-models/agent-qwen-code 74/63; agent-models/agent-swe 56/36; agent-models/agent-tck 79/62; provider-sdks/amazon-q-cli-sdk 41/10; provider-sdks/amp-cli-sdk 10/0; provider-sdks/antigravity-cli-sdk 60/55; provider-sdks/codex-cli-sdk 54/36; provider-sdks/gemini-cli-sdk 32/20; provider-sdks/grok-cli-sdk 60/45; provider-sdks/swe-agent-sdk 58/44 (2026-10-29)
 
-ERRORPRONE_DISABLED: none
+ERRORPRONE_DISABLED: TypeParameterUnusedInFormals (2026-10-29)
 
 PROJECT_ERRORPRONE_DISABLED_REASON: MissingOverride (22): fix. The async work will reshape the session and model interfaces; @Override turns a silently broken override into a compile error. NotJavadoc (12): fix. Move each comment to the element it documents, or make it a plain /* comment. The rest: fix as the kit recommends. ModifyCollectionInEnhancedForLoop, StreamResourceLeak and StringCaseLocaleUsage (use Locale.ROOT) may be real defects, not style. (2026-10-29)
+
+PROJECT_ERRORPRONE_API_EXCEPTION: Temporary, Owner 2026-10-29: the 4 findings are public API (AgentResponseMetadata.get/getRequired, AgentClientResponse.getPhaseCapture, the setup-context accessors) decided in the async design (ASYNC-4/5). Re-enable in the async implementation; ASYNC-5 is not done while this check is off.

@@ -80,6 +80,53 @@
     </modules>
 
     <profiles>
+        <!-- Main-source compiler checks on JDK 21+, with warnings failing the build.
+             Triage new default checks when upgrading Error Prone.
+             Reactor results must be used except for the documented API exclusions.
+             NullAway adoption is separate from this profile. -->
+        <profile>
+            <id>errorprone</id>
+            <activation>
+                <jdk>[21,)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-compile</id>
+                                <configuration>
+                                    <!-- errorprone.failOnWarning and errorprone.extraArgs are properties so that
+                                         `measure` can run the same profile in report mode:
+                                         -Derrorprone.failOnWarning=false -Derrorprone.extraArgs=-XepAllErrorsAsWarnings -->
+                                    <failOnWarning>${errorprone.failOnWarning}</failOnWarning>
+                                    <compilerArgs>
+                                        <arg>-XDcompilePolicy=simple</arg>
+                                        <arg>-Xmaxerrs</arg>
+                                        <arg>10000</arg>
+                                        <arg>-Xmaxwarns</arg>
+                                        <arg>10000</arg>
+                                        <arg>--should-stop=ifError=FLOW</arg>
+                                        <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+                                        <!-- Temporary public API exception; see configs/errorprone/disabled-checks.txt. -->
+                                        <arg>-Xplugin:ErrorProne -Xep:TypeParameterUnusedInFormals:OFF -Xep:SystemOut:ERROR -XepOpt:CheckReturnValue:Packages=reactor.core.publisher -XepOpt:CheckReturnValue:ApiExclusionList=${maven.multiModuleProjectDirectory}/config/errorprone/reactor-ignorable-results.txt ${errorprone.extraArgs}</arg>
+                                    </compilerArgs>
+                                    <annotationProcessorPaths>
+                                        <path>
+                                            <groupId>com.google.errorprone</groupId>
+                                            <artifactId>error_prone_core</artifactId>
+                                            <version>${errorprone.version}</version>
+                                        </path>
+                                    </annotationProcessorPaths>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>release</id>
             <build>
@@ -229,10 +276,13 @@
 
     <properties>
         <java.version>21</java.version>
-        <!-- Per-module coverage measured by each module's own default-phase tests. -->
+        <errorprone.version>2.50.0</errorprone.version>
+        <errorprone.failOnWarning>true</errorprone.failOnWarning>
+        <errorprone.extraArgs/>
         <spotbugs-maven-plugin.version>4.9.8.5</spotbugs-maven-plugin.version>
         <spotbugs.version>4.10.4</spotbugs.version>
         <spotbugs.includeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs/spotbugs-include.xml</spotbugs.includeFilterFile>
+        <!-- Per-module coverage measured by each module's own default-phase tests. -->
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <jacoco.propertyName>argLine</jacoco.propertyName>
         <skipTests>false</skipTests>
