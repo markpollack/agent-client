@@ -69,12 +69,7 @@ public class CodexAgentModel implements AgentApi {
 
 	@Override
 	public AgentResponse call(AgentTaskRequest request) {
-		// Extract goal/prompt from request, with portable system prompt prepended
-		String goal = request.goal();
-		if (request.options() != null && request.options().getSystemInstructions() != null
-				&& !request.options().getSystemInstructions().isEmpty()) {
-			goal = request.options().getSystemInstructions() + "\n\n" + goal;
-		}
+		String goal = formatPrompt(request);
 		logger.info("Executing Codex agent with goal: {}", goal);
 
 		// Merge options
@@ -285,6 +280,16 @@ public class CodexAgentModel implements AgentApi {
 			.build();
 
 		return new AgentResponse(List.of(generation), metadata);
+	}
+
+	private static String formatPrompt(AgentTaskRequest request) {
+		// Extract goal/prompt from request, with portable system prompt prepended
+		String goal = request.goal();
+		if (request.options() != null && request.options().getSystemInstructions() != null
+				&& !request.options().getSystemInstructions().isEmpty()) {
+			goal = request.options().getSystemInstructions() + "\n\n" + goal;
+		}
+		return goal;
 	}
 
 }
