@@ -41,14 +41,9 @@ public class AntigravityCliDiscovery {
 	 * @throws AntigravitySDKException if the CLI cannot be found
 	 */
 	public static String discoverAntigravityCli() {
-		String envPath = System.getenv(ENV_ANTIGRAVITY_CLI_PATH);
-		if (envPath != null && !envPath.isEmpty()) {
-			Path agyPath = Paths.get(envPath);
-			if (Files.exists(agyPath) && Files.isExecutable(agyPath)) {
-				logger.info("Found Antigravity CLI via {} environment variable: {}", ENV_ANTIGRAVITY_CLI_PATH, envPath);
-				return envPath;
-			}
-			logger.warn("{} points to a non-existent or non-executable file: {}", ENV_ANTIGRAVITY_CLI_PATH, envPath);
+		String envPath = findEnvironmentOverride();
+		if (envPath != null) {
+			return envPath;
 		}
 
 		String whichResult = tryWhichCommand();
@@ -70,6 +65,19 @@ public class AntigravityCliDiscovery {
 		throw new AntigravitySDKException("Antigravity CLI (agy) not found. Install it from"
 				+ " https://antigravity.google — the npm distribution is discontinued — or set "
 				+ ENV_ANTIGRAVITY_CLI_PATH + " to its location.");
+	}
+
+	private static String findEnvironmentOverride() {
+		String envPath = System.getenv(ENV_ANTIGRAVITY_CLI_PATH);
+		if (envPath != null && !envPath.isEmpty()) {
+			Path agyPath = Paths.get(envPath);
+			if (Files.exists(agyPath) && Files.isExecutable(agyPath)) {
+				logger.info("Found Antigravity CLI via {} environment variable: {}", ENV_ANTIGRAVITY_CLI_PATH, envPath);
+				return envPath;
+			}
+			logger.warn("{} points to a non-existent or non-executable file: {}", ENV_ANTIGRAVITY_CLI_PATH, envPath);
+		}
+		return null;
 	}
 
 	private static String tryWhichCommand() {
