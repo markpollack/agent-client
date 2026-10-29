@@ -35,14 +35,9 @@ public class GrokCliDiscovery {
 	 * @throws GrokSDKException if the CLI cannot be found
 	 */
 	public static String discoverGrokCli() {
-		String envPath = System.getenv(ENV_GROK_CLI_PATH);
-		if (envPath != null && !envPath.isEmpty()) {
-			Path grokPath = Paths.get(envPath);
-			if (Files.exists(grokPath) && Files.isExecutable(grokPath)) {
-				logger.info("Found Grok CLI via {} environment variable: {}", ENV_GROK_CLI_PATH, envPath);
-				return envPath;
-			}
-			logger.warn("{} points to a non-existent or non-executable file: {}", ENV_GROK_CLI_PATH, envPath);
+		String envPath = findEnvironmentOverride();
+		if (envPath != null) {
+			return envPath;
 		}
 
 		String whichResult = tryWhichCommand();
@@ -67,6 +62,19 @@ public class GrokCliDiscovery {
 
 		throw new GrokSDKException("Grok CLI not found. Install it from https://grok.com/cli, or set "
 				+ ENV_GROK_CLI_PATH + " to its location.");
+	}
+
+	private static String findEnvironmentOverride() {
+		String envPath = System.getenv(ENV_GROK_CLI_PATH);
+		if (envPath != null && !envPath.isEmpty()) {
+			Path grokPath = Paths.get(envPath);
+			if (Files.exists(grokPath) && Files.isExecutable(grokPath)) {
+				logger.info("Found Grok CLI via {} environment variable: {}", ENV_GROK_CLI_PATH, envPath);
+				return envPath;
+			}
+			logger.warn("{} points to a non-existent or non-executable file: {}", ENV_GROK_CLI_PATH, envPath);
+		}
+		return null;
 	}
 
 	private static String tryWhichCommand() {
