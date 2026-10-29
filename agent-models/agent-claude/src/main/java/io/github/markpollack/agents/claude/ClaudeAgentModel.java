@@ -276,7 +276,8 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build()) {
-			this.inFlight.add(tracked = client);
+			tracked = client;
+			this.inFlight.add(client);
 
 			String prompt = formatPrompt(request);
 			client.connect(prompt);
@@ -507,7 +508,8 @@ public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, Iterable
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build()) {
-			this.inFlight.add(tracked = client);
+			tracked = client;
+			this.inFlight.add(client);
 
 			String prompt = formatPrompt(request);
 			client.connect(prompt);
