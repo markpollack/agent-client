@@ -27,3 +27,13 @@ PMD_MECHANISM: ratchet (2026-10-29)
 PROJECT_PMD_RATCHET_REASON: Owner 2026-10-29: agent-claude's execution-path violations are left to ASYNC-5, which rebuilds that path; its ratchet must reach 0 there.
 
 PROJECT_PMD_SCOPE: Fix every PMD violation outside agent-models/agent-claude to zero. In agent-claude, fix option-mapping hotspots in ClaudeAgentModel.buildCLIOptions, ClaudeAgentProperties, ClaudeAgentOptions, ClaudeAgentAutoConfiguration and ClaudeHookBeanPostProcessor. Retain only execution-path hotspots in ClaudeAgentModel.call/iterate/stream and its class size, ClaudeAgentSession and ClaudeAgentSessionRegistry; set the module ratchet to the measured remainder. CPD stays at zero. (2026-10-29)
+
+ARCHUNIT_CYCLES: scope agent-models/agent-amazon-q, agent-models/agent-amp, agent-models/agent-antigravity, agent-models/agent-claude, agent-models/agent-codex, agent-models/agent-gemini, agent-models/agent-grok, agent-models/agent-junie, agent-models/agent-qwen-code, provider-sdks/amazon-q-cli-sdk, provider-sdks/amp-cli-sdk, provider-sdks/antigravity-cli-sdk, provider-sdks/codex-cli-sdk, provider-sdks/grok-cli-sdk (2026-10-30)
+
+PROJECT_ARCHUNIT_SCOPE_REASON: Owner 2026-10-30: cycles in agent-client-core and agent-model are left to the async design; the SDK package cycles are deferred because breaages.
+
+PROJECT_ARCHUNIT_SDK_REASON: The preceding Owner quotation is preserved as received; the complete preceding instruction defers provider-sdks/gemini-cli-sdk and provider-sdks/swe-agent-sdk because breaking their cycles moves public types between packages, a breaking change outside this pass. (2026-10-30)
+
+PROJECT_ARCHUNIT_SINGLE_PACKAGE_DEFERRED: agent-client-spring-boot-autoconfigure, agent-launcher, agent-models/agent-acp, agent-models/agent-swe, agent-models/agent-tck; kit 0.3.2 cannot evaluate its package rule for these single-package modules. Leave them outside the ArchUnit gate pending the kit fix; do not install a failOnEmptyShould override. (2026-10-30)
+
+PROJECT_ARCHUNIT_INTRODUCED_CYCLE: ClaudeAgentProperties and ClaudePropertyOptionsMapper: introduced by this pass, fixed in 09c322e before gate installation; no public or protected signature changed. (2026-10-30)

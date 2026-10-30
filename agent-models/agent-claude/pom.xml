@@ -104,5 +104,13 @@
             <artifactId>claude-code-capture</artifactId>
             <version>${agent-journal.version}</version>
         </dependency>
+
+        <!-- Package and top-level class cycle checks over this module's main classes. -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

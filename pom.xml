@@ -275,6 +275,7 @@
     </profiles>
 
     <properties>
+        <archunit.version>1.4.1</archunit.version>
         <java.version>21</java.version>
         <errorprone.version>2.50.0</errorprone.version>
         <errorprone.failOnWarning>true</errorprone.failOnWarning>
