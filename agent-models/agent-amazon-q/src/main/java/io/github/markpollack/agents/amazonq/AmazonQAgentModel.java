@@ -28,7 +28,9 @@ import java.util.Map;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class AmazonQAgentModel implements AgentApi {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class AmazonQAgentModel implements AgentModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(AmazonQAgentModel.class);
 

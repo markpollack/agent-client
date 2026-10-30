@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import io.github.markpollack.agents.model.AgentGeneration;
-import io.github.markpollack.agents.model.AgentApi;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -170,7 +170,9 @@ class ProviderParityContractTest extends ProviderParityTCK {
 		}
 	}
 
-	private static class FileTaskDouble implements AgentApi {
+	// AgentModel kept for compatibility until the AgentApi migration release
+	@SuppressWarnings("removal")
+	private static class FileTaskDouble implements AgentModel {
 
 		private static final Pattern CREATE_FILE = Pattern
 			.compile("Create a file named '([^']+)' with the content '([^']+)'");

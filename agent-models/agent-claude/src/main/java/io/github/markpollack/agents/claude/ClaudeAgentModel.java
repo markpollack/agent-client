@@ -26,7 +26,7 @@ import io.github.markpollack.journal.trace.TraceContentMode;
 import io.github.markpollack.journal.trace.TraceRawMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
-import io.github.markpollack.agents.model.AgentApi;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
@@ -99,7 +99,9 @@ import java.util.function.Consumer;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class ClaudeAgentModel implements AgentApi, StreamingAgentModel, IterableAgentModel, AutoCloseable {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, IterableAgentModel, AutoCloseable {
 
 	private static final Logger logger = LoggerFactory.getLogger(ClaudeAgentModel.class);
 

@@ -1,6 +1,6 @@
 # java-guardrails decisions
 
-PROJECT_KIT_VERSION: java-guardrails 0.3.2, installed with npx skills add markpollack/java-guardrails; Owner-authorized update, keep installed copy fixed for this pass (2026-10-29)
+PROJECT_KIT_VERSION: java-guardrails 0.3.3, globally installed end-user copy; Owner-authorized for the AgentModel compatibility follow-up, keep installed copy fixed and existing gate scope unchanged (2026-10-30)
 
 GATE_ORDER: jacoco, spotbugs, errorprone, pmd, archunit (2026-10-28)
 
@@ -37,3 +37,9 @@ PROJECT_ARCHUNIT_SDK_REASON: The preceding Owner quotation is preserved as recei
 PROJECT_ARCHUNIT_SINGLE_PACKAGE_DEFERRED: agent-client-spring-boot-autoconfigure, agent-launcher, agent-models/agent-acp, agent-models/agent-swe, agent-models/agent-tck; kit 0.3.2 cannot evaluate its package rule for these single-package modules. Leave them outside the ArchUnit gate pending the kit fix; do not install a failOnEmptyShould override. (2026-10-30)
 
 PROJECT_ARCHUNIT_INTRODUCED_CYCLE: ClaudeAgentProperties and ClaudePropertyOptionsMapper: introduced by this pass, fixed in 09c322e before gate installation; no public or protected signature changed. (2026-10-30)
+
+PROJECT_AGENTMODEL_COMPATIBILITY: Owner 2026-10-30: restore the AgentModel provider supertypes, bean return types, published TCK field and Grok ACP wrapper from 2655def. Defer the AgentApi migration to its own release after async. Keep the accepted EnvironmentPostProcessor package/key move and other changes from d8fcd10.
+
+PROJECT_AGENTMODEL_REMOVAL_SUPPRESSIONS: Owner-authorized exception to the kit source-suppression rule: narrow @SuppressWarnings("removal") on 10 provider classes, 6 bean methods and the published TCK field, plus its in-module test double (17 production, 1 test). Reason at each site: AgentModel kept for compatibility until the AgentApi migration release. Compiler removal warnings remain enabled and unsuppressed new uses must fail. (2026-10-30)
+
+PROJECT_ARCHUNIT_FOLLOWUP_SCOPE: Owner 2026-10-30: adopting installed kit 0.3.3 for this follow-up does not widen the ArchUnit gate; the five single-package modules listed above remain outside it.

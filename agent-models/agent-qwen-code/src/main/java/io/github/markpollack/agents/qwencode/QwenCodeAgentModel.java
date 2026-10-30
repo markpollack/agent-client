@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
@@ -35,7 +36,9 @@ import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
  * @author Spring AI Community
  * @since 0.12.0
  */
-public class QwenCodeAgentModel implements AgentApi {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class QwenCodeAgentModel implements AgentModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(QwenCodeAgentModel.class);
 

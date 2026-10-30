@@ -15,6 +15,7 @@ import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
@@ -41,7 +42,9 @@ import java.util.Map;
  * @author Mark Pollack
  * @since 1.1.0
  */
-public class SweAgentModel implements AgentApi {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class SweAgentModel implements AgentModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(SweAgentModel.class);
 

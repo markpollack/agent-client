@@ -9,7 +9,7 @@ import io.github.markpollack.agents.antigravity.AntigravityAgentModel;
 import io.github.markpollack.agents.antigravity.AntigravityAgentOptions;
 import io.github.markpollack.agents.antigravitysdk.AntigravityClient;
 import io.github.markpollack.agents.antigravitysdk.types.ExecuteOptions;
-import io.github.markpollack.agents.model.AgentApi;
+import io.github.markpollack.agents.model.AgentModel;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -44,7 +44,9 @@ public class AntigravityAgentAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentApi agentModel(AntigravityClient antigravityClient, AntigravityAgentProperties properties) {
+	// AgentModel kept for compatibility until the AgentApi migration release
+	@SuppressWarnings("removal")
+	public AgentModel agentModel(AntigravityClient antigravityClient, AntigravityAgentProperties properties) {
 		AntigravityAgentOptions options = AntigravityAgentOptions.builder()
 			.model(properties.getModel())
 			.reasoningEffort(properties.getEffort())

@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import io.github.markpollack.agents.model.AgentApi;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentTaskRequest;
@@ -49,7 +49,9 @@ public abstract class AbstractAgentModelTCK {
 	/**
 	 * The agent model implementation under test. Must be set by concrete test classes.
 	 */
-	protected AgentApi agentModel;
+	// AgentModel kept for compatibility until the AgentApi migration release
+	@SuppressWarnings("removal")
+	protected AgentModel agentModel;
 
 	/**
 	 * The sandbox implementation used by the agent. Must be set by concrete test classes.

@@ -40,7 +40,9 @@ import io.github.markpollack.journal.codex.CodexSessionParser;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class CodexAgentModel implements AgentApi {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class CodexAgentModel implements AgentModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(CodexAgentModel.class);
 

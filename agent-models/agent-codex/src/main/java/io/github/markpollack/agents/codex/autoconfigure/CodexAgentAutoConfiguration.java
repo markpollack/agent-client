@@ -9,7 +9,7 @@ import io.github.markpollack.agents.codex.CodexAgentModel;
 import io.github.markpollack.agents.codex.CodexAgentOptions;
 import io.github.markpollack.agents.codexsdk.CodexClient;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
-import io.github.markpollack.agents.model.AgentApi;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.sandbox.Sandbox;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -49,7 +49,9 @@ public class CodexAgentAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentApi agentModel(CodexClient codexClient, CodexAgentProperties properties,
+	// AgentModel kept for compatibility until the AgentApi migration release
+	@SuppressWarnings("removal")
+	public AgentModel agentModel(CodexClient codexClient, CodexAgentProperties properties,
 			ObjectProvider<Sandbox> sandboxProvider) {
 
 		CodexAgentOptions options = CodexAgentOptions.builder()

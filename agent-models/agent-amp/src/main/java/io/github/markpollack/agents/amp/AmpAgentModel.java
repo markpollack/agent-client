@@ -30,7 +30,9 @@ import java.util.Map;
  * @author Spring AI Community
  * @since 0.1.0
  */
-public class AmpAgentModel implements AgentApi {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class AmpAgentModel implements AgentModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(AmpAgentModel.class);
 

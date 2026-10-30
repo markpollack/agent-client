@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.geminisdk.transport.CLITransport;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
+import io.github.markpollack.agents.model.AgentModel;
 import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.model.AgentResponse;
@@ -48,7 +49,9 @@ import java.util.stream.Collectors;
  * @author Mark Pollack
  * @since 1.1.0
  */
-public class GeminiAgentModel implements AgentApi {
+// AgentModel kept for compatibility until the AgentApi migration release
+@SuppressWarnings("removal")
+public class GeminiAgentModel implements AgentModel {
 
 	private static final Logger logger = LoggerFactory.getLogger(GeminiAgentModel.class);
 

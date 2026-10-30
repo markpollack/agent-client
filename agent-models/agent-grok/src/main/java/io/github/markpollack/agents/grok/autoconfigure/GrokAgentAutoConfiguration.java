@@ -11,7 +11,9 @@ import io.github.markpollack.agents.grok.GrokAgentModel;
 import io.github.markpollack.agents.grok.GrokAgentOptions;
 import io.github.markpollack.agents.groksdk.GrokClient;
 import io.github.markpollack.agents.groksdk.types.ExecuteOptions;
-import io.github.markpollack.agents.model.AgentApi;
+import io.github.markpollack.agents.model.AgentModel;
+import io.github.markpollack.agents.model.AgentResponse;
+import io.github.markpollack.agents.model.AgentTaskRequest;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -58,7 +60,9 @@ public class GrokAgentAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public AgentApi agentModel(GrokClient grokClient, GrokAgentProperties properties) {
+	// AgentModel kept for compatibility until the AgentApi migration release
+	@SuppressWarnings("removal")
+	public AgentModel agentModel(GrokClient grokClient, GrokAgentProperties properties) {
 		GrokAgentOptions options = GrokAgentOptions.builder()
 			.model(properties.getModel())
 			.reasoningEffort(properties.getReasoningEffort())
@@ -73,7 +77,21 @@ public class GrokAgentAutoConfiguration {
 				.command(properties.getExecutablePath())
 				.defaultOptions(options)
 				.build();
-			return acp;
+			// AcpAgentModel implements the current AgentApi; AgentModel is the deprecated
+			// alias this bean is still typed as. Both methods are delegated explicitly
+			// rather than using a `acp::call` method reference, which would quietly
+			// substitute the interface default for isAvailable().
+			return new AgentModel() {
+				@Override
+				public AgentResponse call(AgentTaskRequest request) {
+					return acp.call(request);
+				}
+
+				@Override
+				public boolean isAvailable() {
+					return acp.isAvailable();
+				}
+			};
 		}
 		return new GrokAgentModel(grokClient, options);
 	}
