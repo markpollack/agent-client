@@ -22,6 +22,14 @@
     <description>Spring Boot Starter for Amazon Q Developer CLI Agent</description>
 
     <dependencies>
+        <!-- Agent Client (includes AgentClient.Builder autoconfiguration) -->
+        <dependency>
+            <groupId>io.github.markpollack</groupId>
+            <artifactId>agent-client-spring-boot-autoconfigure</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+
+        <!-- Amazon Q Agent Model (includes autoconfiguration) -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-amazon-q</artifactId>
