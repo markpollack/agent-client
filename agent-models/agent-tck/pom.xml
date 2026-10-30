@@ -29,6 +29,10 @@
             <groupId>org.zeroturnaround</groupId>
             <artifactId>zt-exec</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
         <!-- Agent Model Core - for interfaces that TCK tests against -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
