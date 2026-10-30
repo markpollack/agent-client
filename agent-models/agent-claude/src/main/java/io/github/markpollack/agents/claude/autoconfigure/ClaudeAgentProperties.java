@@ -431,7 +431,18 @@ public class ClaudeAgentProperties {
 	 * @return configured CLI options
 	 */
 	public CLIOptions buildCLIOptions() {
-		return ClaudePropertyOptionsMapper.build(this);
+		CLIOptions.Builder builder = CLIOptions.builder().model(getModel()).timeout(getTimeout());
+		ClaudePropertyOptionsMapper.applyPermissions(builder, getPermissionMode(), isYolo());
+		ClaudePropertyOptionsMapper.applyGeneration(builder, getMaxThinkingTokens(), getMaxTokens(), getSystemPrompt());
+		ClaudePropertyOptionsMapper.applyToolsAndSchema(builder, getAllowedTools(), getDisallowedTools(),
+				getJsonSchema());
+		ClaudePropertyOptionsMapper.applyBudgetAndPrompts(builder, getMaxTurns(), getMaxBudgetUsd(), getFallbackModel(),
+				getAppendSystemPrompt());
+		ClaudePropertyOptionsMapper.applyAdvancedSettings(builder, getAddDirs(), getSettings(),
+				getPermissionPromptToolName());
+		ClaudePropertyOptionsMapper.applyExtraArgs(builder, getEffort(), getExtraArgs());
+		ClaudePropertyOptionsMapper.applyEnvironment(builder, getEnv(), getMaxBufferSize(), getUser());
+		return builder.build();
 	}
 
 }

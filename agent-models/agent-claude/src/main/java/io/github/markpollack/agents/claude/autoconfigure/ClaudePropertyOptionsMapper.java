@@ -6,6 +6,7 @@ package io.github.markpollack.agents.claude.autoconfigure;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.List;
 import io.github.markpollack.claude.agent.sdk.config.PermissionMode;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
 
@@ -15,77 +16,68 @@ final class ClaudePropertyOptionsMapper {
 	private ClaudePropertyOptionsMapper() {
 	}
 
-	static CLIOptions build(ClaudeAgentProperties properties) {
-		CLIOptions.Builder builder = CLIOptions.builder().model(properties.getModel()).timeout(properties.getTimeout());
-		applyPermissions(builder, properties);
-		applyGeneration(builder, properties);
-		applyToolsAndSchema(builder, properties);
-		applyBudgetAndPrompts(builder, properties);
-		applyAdvancedSettings(builder, properties);
-		applyExtraArgs(builder, properties);
-		applyEnvironment(builder, properties);
-		return builder.build();
-	}
-
-	private static void applyPermissions(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyPermissions(CLIOptions.Builder builder, String permissionMode, boolean yolo) {
 		// Permission mode: explicit setting takes precedence over yolo
-		if (properties.getPermissionMode() != null && !properties.getPermissionMode().isBlank()) {
-			builder.permissionMode(PermissionMode.fromValue(properties.getPermissionMode()));
+		if (permissionMode != null && !permissionMode.isBlank()) {
+			builder.permissionMode(PermissionMode.fromValue(permissionMode));
 		}
-		else if (properties.isYolo()) {
+		else if (yolo) {
 			builder.permissionMode(PermissionMode.BYPASS_PERMISSIONS);
 		}
 	}
 
-	private static void applyGeneration(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyGeneration(CLIOptions.Builder builder, Integer maxThinkingTokens, Integer maxTokens,
+			String systemPrompt) {
 		// Extended thinking
-		if (properties.getMaxThinkingTokens() != null) {
-			builder.maxThinkingTokens(properties.getMaxThinkingTokens());
+		if (maxThinkingTokens != null) {
+			builder.maxThinkingTokens(maxThinkingTokens);
 		}
 
 		// Max tokens
-		if (properties.getMaxTokens() != null) {
-			builder.maxTokens(properties.getMaxTokens());
+		if (maxTokens != null) {
+			builder.maxTokens(maxTokens);
 		}
 
 		// System prompt
-		if (properties.getSystemPrompt() != null && !properties.getSystemPrompt().isBlank()) {
-			builder.systemPrompt(properties.getSystemPrompt());
+		if (systemPrompt != null && !systemPrompt.isBlank()) {
+			builder.systemPrompt(systemPrompt);
 		}
 	}
 
-	private static void applyToolsAndSchema(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyToolsAndSchema(CLIOptions.Builder builder, List<String> allowedTools, List<String> disallowedTools,
+			Map<String, Object> jsonSchema) {
 		// Tool filtering
-		if (properties.getAllowedTools() != null && !properties.getAllowedTools().isEmpty()) {
-			builder.allowedTools(properties.getAllowedTools());
+		if (allowedTools != null && !allowedTools.isEmpty()) {
+			builder.allowedTools(allowedTools);
 		}
-		if (properties.getDisallowedTools() != null && !properties.getDisallowedTools().isEmpty()) {
-			builder.disallowedTools(properties.getDisallowedTools());
+		if (disallowedTools != null && !disallowedTools.isEmpty()) {
+			builder.disallowedTools(disallowedTools);
 		}
 
 		// Structured output
-		if (properties.getJsonSchema() != null && !properties.getJsonSchema().isEmpty()) {
-			builder.jsonSchema(properties.getJsonSchema());
+		if (jsonSchema != null && !jsonSchema.isEmpty()) {
+			builder.jsonSchema(jsonSchema);
 		}
 	}
 
-	private static void applyBudgetAndPrompts(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyBudgetAndPrompts(CLIOptions.Builder builder, Integer maxTurns, Double maxBudgetUsd,
+			String fallbackModel, String appendSystemPrompt) {
 		// Budget control
-		if (properties.getMaxTurns() != null) {
-			builder.maxTurns(properties.getMaxTurns());
+		if (maxTurns != null) {
+			builder.maxTurns(maxTurns);
 		}
-		if (properties.getMaxBudgetUsd() != null) {
-			builder.maxBudgetUsd(properties.getMaxBudgetUsd());
+		if (maxBudgetUsd != null) {
+			builder.maxBudgetUsd(maxBudgetUsd);
 		}
 
 		// Fallback model
-		if (properties.getFallbackModel() != null && !properties.getFallbackModel().isBlank()) {
-			builder.fallbackModel(properties.getFallbackModel());
+		if (fallbackModel != null && !fallbackModel.isBlank()) {
+			builder.fallbackModel(fallbackModel);
 		}
 
 		// Append system prompt (uses preset mode)
-		if (properties.getAppendSystemPrompt() != null && !properties.getAppendSystemPrompt().isBlank()) {
-			builder.appendSystemPrompt(properties.getAppendSystemPrompt());
+		if (appendSystemPrompt != null && !appendSystemPrompt.isBlank()) {
+			builder.appendSystemPrompt(appendSystemPrompt);
 		}
 
 		// ============================================================
@@ -93,52 +85,54 @@ final class ClaudePropertyOptionsMapper {
 		// ============================================================
 	}
 
-	private static void applyAdvancedSettings(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyAdvancedSettings(CLIOptions.Builder builder, List<String> addDirs, String settings,
+			String permissionPromptToolName) {
 		// Additional context directories
-		if (properties.getAddDirs() != null && !properties.getAddDirs().isEmpty()) {
-			builder.addDirs(properties.getAddDirs().stream().map(Path::of).toList());
+		if (addDirs != null && !addDirs.isEmpty()) {
+			builder.addDirs(addDirs.stream().map(Path::of).toList());
 		}
 
 		// Custom settings file
-		if (properties.getSettings() != null && !properties.getSettings().isBlank()) {
-			builder.settings(properties.getSettings());
+		if (settings != null && !settings.isBlank()) {
+			builder.settings(settings);
 		}
 
 		// Permission prompt tool
-		if (properties.getPermissionPromptToolName() != null && !properties.getPermissionPromptToolName().isBlank()) {
-			builder.permissionPromptToolName(properties.getPermissionPromptToolName());
+		if (permissionPromptToolName != null && !permissionPromptToolName.isBlank()) {
+			builder.permissionPromptToolName(permissionPromptToolName);
 		}
 	}
 
-	private static void applyExtraArgs(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyExtraArgs(CLIOptions.Builder builder, String effort, Map<String, String> extraArgs) {
 		// Extra CLI arguments — effort rides along as "--effort <level>" until the SDK
 		// grows first-class support; an explicit extra-args "effort" entry wins
 		Map<String, String> mergedExtraArgs = new java.util.LinkedHashMap<>();
-		if (properties.getEffort() != null && !properties.getEffort().isBlank()) {
-			mergedExtraArgs.put("effort", properties.getEffort());
+		if (effort != null && !effort.isBlank()) {
+			mergedExtraArgs.put("effort", effort);
 		}
-		if (properties.getExtraArgs() != null) {
-			mergedExtraArgs.putAll(properties.getExtraArgs());
+		if (extraArgs != null) {
+			mergedExtraArgs.putAll(extraArgs);
 		}
 		if (!mergedExtraArgs.isEmpty()) {
 			builder.extraArgs(mergedExtraArgs);
 		}
 	}
 
-	private static void applyEnvironment(CLIOptions.Builder builder, ClaudeAgentProperties properties) {
+	static void applyEnvironment(CLIOptions.Builder builder, Map<String, String> env, Integer maxBufferSize,
+			String user) {
 		// Environment variables
-		if (properties.getEnv() != null && !properties.getEnv().isEmpty()) {
-			builder.env(properties.getEnv());
+		if (env != null && !env.isEmpty()) {
+			builder.env(env);
 		}
 
 		// Buffer size protection
-		if (properties.getMaxBufferSize() != null) {
-			builder.maxBufferSize(properties.getMaxBufferSize());
+		if (maxBufferSize != null) {
+			builder.maxBufferSize(maxBufferSize);
 		}
 
 		// Unix user
-		if (properties.getUser() != null && !properties.getUser().isBlank()) {
-			builder.user(properties.getUser());
+		if (user != null && !user.isBlank()) {
+			builder.user(user);
 		}
 	}
 
