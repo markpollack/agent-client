@@ -26,10 +26,25 @@ import org.springframework.context.annotation.Scope;
  * typically provided by a provider-specific autoconfiguration (e.g.,
  * ClaudeAgentAutoConfiguration).
  *
+ * <p>
+ * Runs after every provider autoconfiguration, named here so this module needs no
+ * provider dependency. Without that ordering, {@code @ConditionalOnBean} is evaluated
+ * before a provider whose class name sorts later has registered its agent, and no builder
+ * is created.
+ *
  * @author Spring AI Community
  * @since 0.1.0
  */
-@AutoConfiguration
+@AutoConfiguration(afterName = { "io.github.markpollack.agents.amazonq.autoconfigure.AmazonQAgentAutoConfiguration",
+		"io.github.markpollack.agents.amp.autoconfigure.AmpAgentAutoConfiguration",
+		"io.github.markpollack.agents.antigravity.autoconfigure.AntigravityAgentAutoConfiguration",
+		"io.github.markpollack.agents.claude.autoconfigure.ClaudeAgentAutoConfiguration",
+		"io.github.markpollack.agents.claude.autoconfigure.ClaudeHookAutoConfiguration",
+		"io.github.markpollack.agents.codex.autoconfigure.CodexAgentAutoConfiguration",
+		"io.github.markpollack.agents.gemini.autoconfigure.GeminiAgentAutoConfiguration",
+		"io.github.markpollack.agents.grok.autoconfigure.GrokAgentAutoConfiguration",
+		"io.github.markpollack.agents.junie.autoconfigure.JunieAgentAutoConfiguration",
+		"io.github.markpollack.agents.qwencode.autoconfigure.QwenCodeAgentAutoConfiguration" })
 @ConditionalOnClass(AgentClient.class)
 @ConditionalOnBean(AgentApi.class)
 public class AgentClientAutoConfiguration {
