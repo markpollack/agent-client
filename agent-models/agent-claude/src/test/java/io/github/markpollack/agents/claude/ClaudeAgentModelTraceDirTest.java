@@ -67,6 +67,7 @@ class ClaudeAgentModelTraceDirTest {
 		assertThat(acquisition.sha256()).isEqualTo(CaptureFiles.hash(acquisition.manifest()));
 		var manifest = CaptureFiles.JSON.readTree(acquisition.manifest().toFile());
 		assertThat(manifest.path("run").path("session_uid").asText()).isEqualTo("session-a");
+		assertThat(manifest.path("run").path("launch_settings").path("client_version").asText()).isEqualTo("unknown");
 		assertThat(manifest.path("process").path("exit_code").isNull()).isTrue();
 		assertThat(manifest.path("sources").size()).isEqualTo(7);
 		assertThat(Files.readString(temp.resolve("package/native/transcript.jsonl"))).contains("session-a");
