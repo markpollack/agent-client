@@ -319,8 +319,8 @@
 
         <!-- Agent SDK specific versions -->
         <zt-exec.version>1.13.0</zt-exec.version>
-        <jackson.version>2.22.2</jackson.version>
-        <jackson3.version>3.2.2</jackson3.version>
+        <jackson.version>2.22.3</jackson.version>
+        <jackson3.version>3.2.3</jackson3.version>
         <mcp-sdk.version>2.0.1</mcp-sdk.version>
 
         <!-- Test dependency versions -->
