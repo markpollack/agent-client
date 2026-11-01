@@ -35,9 +35,10 @@ normal result. For an isolated cache add `-Dmaven.repo.local=/absolute/path`.
 ## Architecture
 
 Layers: `AgentClient` facade, `AgentApi` SPI, `XAgentModel` adapter, `provider-sdks` client over a
-zt-exec `CLITransport`. Trajectory evidence is exposed only through the facade
-(`AgentClientResponse.getPhaseCapture()`), not `AgentApi.call()`. Conversational sessions are an
-optional capability: Agent Client owns provider conversation open, prompt, resume where supported,
+zt-exec `CLITransport`. Capture is provider-specific: Claude blocking calls expose a sealed source acquisition through
+`ClaudeAcquisition.from(AgentResponse)` for Journal assembly; legacy providers may still attach
+PhaseCapture metadata, with facade convenience access. Do not infer capture parity for streaming
+or retained sessions. Conversational sessions are an optional capability: Agent Client owns provider conversation open, prompt, resume where supported,
 active-turn cancellation, close, event streaming and translation of session-scoped
 `McpServerDefinition` values. Providers that lack a capability must reject it explicitly.
 

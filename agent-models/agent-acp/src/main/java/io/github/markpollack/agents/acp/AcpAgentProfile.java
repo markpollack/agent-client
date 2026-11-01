@@ -122,7 +122,7 @@ public interface AcpAgentProfile {
 	 * Turn a finished run into this agent's journal capture, published on
 	 * {@code providerFields["phaseCapture"]}.
 	 *
-	 * <h2>The return type is {@code Object}, and that is the finding</h2>
+	 * <h4>The return type is {@code Object}, and that is the finding</h4>
 	 *
 	 * <p>
 	 * {@code agent-journal} ships five capture types and five parsers with no interface

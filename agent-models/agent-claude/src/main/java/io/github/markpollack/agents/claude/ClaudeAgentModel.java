@@ -56,7 +56,7 @@ import java.util.function.Consumer;
  * This is the primary entry point for Claude Code CLI integration. It supports:
  * </p>
  * <ul>
- * <li>{@link AgentApi#call} - Blocking execution</li>
+ * <li>{@link io.github.markpollack.agents.model.AgentApi#call} - Blocking execution</li>
  * <li>{@link StreamingAgentModel#stream} - Reactive Flux-based streaming</li>
  * <li>{@link IterableAgentModel#iterate} - Iterator-based consumption</li>
  * </ul>
