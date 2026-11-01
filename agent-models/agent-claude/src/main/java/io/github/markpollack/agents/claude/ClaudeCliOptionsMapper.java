@@ -71,10 +71,9 @@ final class ClaudeCliOptionsMapper {
 		if (!(request.options() instanceof ClaudeAgentOptions) && request.options() != null) {
 			autoApprove = request.options().isAutoApprove();
 		}
-		if (autoApprove) {
-			builder.permissionMode(
-					io.github.markpollack.claude.agent.sdk.config.PermissionMode.DANGEROUSLY_SKIP_PERMISSIONS);
-		}
+		builder.permissionMode(
+				autoApprove ? io.github.markpollack.claude.agent.sdk.config.PermissionMode.DANGEROUSLY_SKIP_PERMISSIONS
+						: io.github.markpollack.claude.agent.sdk.config.PermissionMode.DEFAULT);
 	}
 
 	private static void applyEffort(CLIOptions.Builder builder, ClaudeAgentOptions options, AgentTaskRequest request) {
@@ -124,7 +123,8 @@ final class ClaudeCliOptionsMapper {
 	}
 
 	private static void applyTools(CLIOptions.Builder builder, ClaudeAgentOptions options) {
-		// Tool filtering
+		// Availability and approval rules are independent CLI controls.
+		builder.tools(options.getTools());
 		if (options.getAllowedTools() != null && !options.getAllowedTools().isEmpty()) {
 			builder.allowedTools(options.getAllowedTools());
 		}

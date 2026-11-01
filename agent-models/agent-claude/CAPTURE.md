@@ -44,3 +44,28 @@ presence. Missing reported cost is absent, not zero; no per-tool allocation is m
 sessions use the same terminal extraction but do not gain capture parity with this blocking path.
 `traceDir` now selects a parent for per-call acquired-source directories (version unknown); prefer
 explicit capture settings. Derived trace-content modes are retired and rejected by auto-configuration.
+
+## Explicit permissions and available tools
+
+Pass provider options through the Client facade as well as the model. Facade request options
+have precedence; `AgentClient.create(model)` supplies portable defaults, including auto-approval,
+and does not inherit a model's permission choice. For a built-in read-only tool set:
+
+```java
+var readTools = List.of("Read", "Glob", "Grep");
+var options = ClaudeAgentOptions.builder().model("claude-sonnet-4-6")
+    .yolo(false).tools(readTools).allowedTools(readTools)
+    .disallowedTools(List.of("mcp__*")).timeout(Duration.ofMinutes(3)).build();
+try (var model = ClaudeAgentModel.builder().defaultOptions(options)
+        .capture(capture).workingDirectory(workspace).build()) {
+    var response = AgentClient.builder(model).defaultOptions(options).build()
+        .goal(prompt).workingDirectory(workspace).run();
+}
+```
+
+Explicit `yolo(false)` maps to CLI permission mode `default`; true retains dangerous bypass.
+`tools` selects available built-in tools: null retains CLI defaults, empty disables them, and
+names select that set. `allowedTools` supplies approval rules; omitting a tool from those rules
+does not remove it. `disallowedTools` supplies deny rules. Built-in tool selection does not restrict
+MCP tools, so the example separately denies `mcp__*`. These controls do not constitute filesystem
+sandboxing. Inspect actual CLI init and acquisition evidence for the deployed runtime's behavior.

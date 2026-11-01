@@ -108,7 +108,14 @@ public class ClaudeAgentOptions implements AgentOptions {
 	private Integer maxTokens;
 
 	/**
-	 * List of tools that are allowed to be used.
+	 * Available built-in tools. Null retains CLI defaults; an empty list disables all
+	 * built-in tools. This is independent of tool approval rules and MCP tools.
+	 */
+	private List<String> tools;
+
+	/**
+	 * Tool approval rules: matching tools may run without prompting. This does not
+	 * restrict which tools are available; use tools for built-in tool selection.
 	 */
 	private List<String> allowedTools = List.of();
 
@@ -276,6 +283,14 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 	public void setMaxTokens(Integer maxTokens) {
 		this.maxTokens = maxTokens;
+	}
+
+	public List<String> getTools() {
+		return tools;
+	}
+
+	public void setTools(List<String> tools) {
+		this.tools = tools != null ? List.copyOf(tools) : null;
 	}
 
 	public List<String> getAllowedTools() {
@@ -453,6 +468,16 @@ public class ClaudeAgentOptions implements AgentOptions {
 
 		public Builder maxTokens(Integer maxTokens) {
 			options.setMaxTokens(maxTokens);
+			return this;
+		}
+
+		/**
+		 * Selects available built-in tools, separately from approval rules.
+		 * @param tools null for CLI defaults, empty for none, or explicit tool names
+		 * @return this builder
+		 */
+		public Builder tools(List<String> tools) {
+			options.setTools(tools);
 			return this;
 		}
 
