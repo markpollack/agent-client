@@ -113,6 +113,7 @@ final class ClaudeWireCapture implements AutoCloseable {
 				source.put("profile", "claude_stream");
 				source.put("route", "sdk_stdio");
 				source.put("framing", "lines");
+				source.put("records", CaptureFiles.records(directory.resolve(name)));
 			}
 			else {
 				source.put("archive_only", true);
@@ -123,6 +124,8 @@ final class ClaudeWireCapture implements AutoCloseable {
 				"observation_index", connection, invocation);
 		observation.put("archive_only", true);
 		observation.put("required", true);
+		observation.put("end", complete ? "EOF" : "INTERRUPTED");
+		observation.put("end_basis", "Client observation index closed after SDK close; capture failures latched");
 		sources.add(observation);
 		return sources;
 	}

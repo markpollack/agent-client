@@ -47,6 +47,7 @@ final class ClaudeNativeArchive {
 		source.put("profile", "claude_transcript");
 		source.put("route", "native_session_file");
 		source.put("framing", "lines");
+		source.put("records", CaptureFiles.records(options.directory().resolve("native/transcript.jsonl")));
 		source.put("required", false);
 		sources.add(source);
 		sources.addAll(acquireOwned(options, transcript, sessionId));
@@ -119,6 +120,7 @@ final class ClaudeNativeArchive {
 				source.toAbsolutePath().toString(), options.invocationId());
 		entry.put("owner_session_uid", owner);
 		entry.put("end", "EOF");
+		entry.put("end_basis", "Copied file extent stable across acquisition; not proof of future native quiescence");
 		return entry;
 	}
 

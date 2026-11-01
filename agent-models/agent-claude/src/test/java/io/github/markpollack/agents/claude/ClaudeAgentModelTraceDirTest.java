@@ -40,7 +40,11 @@ class ClaudeAgentModelTraceDirTest {
 		assertThat(wire.offsets()).containsEntry("STDOUT", 5L);
 		assertThatThrownBy(() -> wire.onBytes(Stream.STDERR, new byte[] { 1 })).isInstanceOf(java.io.IOException.class);
 		assertThat(wire.failures()).hasSize(1);
-		assertThat(wire.sources("connection", "invocation", false)).hasSize(4);
+		var sources = wire.sources("connection", "invocation", false);
+		assertThat(sources).hasSize(4);
+		assertThat(sources.stream().filter(s -> "stream".equals(s.get("role"))).findFirst().orElseThrow())
+			.containsEntry("records", 2L);
+		assertThat(sources.get(3)).containsEntry("end", "INTERRUPTED");
 		assertThat(Files.readAllLines(temp.resolve("observations.jsonl"))).hasSize(4);
 	}
 
@@ -70,6 +74,12 @@ class ClaudeAgentModelTraceDirTest {
 		assertThat(Files.readString(temp.resolve("package/stdin.bin"))).contains("find sentinel");
 		assertThat(Files.readString(temp.resolve("package/stderr.bin"))).isEqualTo("stderr-tail");
 		for (JsonNode source : manifest.path("sources")) {
+			assertThat(source.path("end").asText()).isEqualTo("EOF");
+			assertThat(source.path("end_basis").asText()).isNotBlank();
+			if ("lines".equals(source.path("framing").asText())) {
+				assertThat(source.path("records").asLong())
+					.isEqualTo("stream".equals(source.path("role").asText()) ? 3L : 1L);
+			}
 			assertThat(source.path("sha256").asText())
 				.isEqualTo(CaptureFiles.hash(temp.resolve("package").resolve(source.path("path").asText())));
 		}
@@ -125,6 +135,17 @@ class ClaudeAgentModelTraceDirTest {
 		Files.copy(nativeDir.resolve("project/session-a.jsonl"), nativeDir.resolve("other/session-a.jsonl"));
 		assertThat(ClaudeNativeArchive.acquire(options, "session-a").get(0).get("reason")).asString()
 			.contains("2 files");
+	}
+
+	@Test
+	void framedRecordCountsPreserveEmptyAndUnterminatedExtents() throws Exception {
+		Path source = temp.resolve("frames");
+		Files.write(source, new byte[0]);
+		assertThat(CaptureFiles.records(source)).isZero();
+		Files.write(source, new byte[] { '\n', 'a', '\r', '\n', (byte) 0xff });
+		assertThat(CaptureFiles.records(source)).isEqualTo(3L);
+		Files.writeString(source, "a\n");
+		assertThat(CaptureFiles.records(source)).isEqualTo(1L);
 	}
 
 	@Test

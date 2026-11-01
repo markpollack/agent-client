@@ -4,6 +4,7 @@
  */
 package io.github.markpollack.agents.claude;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -37,6 +38,23 @@ final class CaptureFiles {
 		catch (NoSuchAlgorithmException ex) {
 			throw new IllegalStateException(ex);
 		}
+	}
+
+	/**
+	 * Counts LF-framed records, including an unterminated final fragment, without
+	 * decoding.
+	 */
+	static long records(Path path) throws IOException {
+		long records = 0;
+		int last = -1;
+		try (InputStream input = new BufferedInputStream(Files.newInputStream(path))) {
+			int value;
+			while ((value = input.read()) != -1) {
+				records += value == '\n' ? 1 : 0;
+				last = value;
+			}
+		}
+		return records + (last == -1 || last == '\n' ? 0 : 1);
 	}
 
 	static Map<String, Object> source(Path directory, Path file, String artifact, String role, String origin,
