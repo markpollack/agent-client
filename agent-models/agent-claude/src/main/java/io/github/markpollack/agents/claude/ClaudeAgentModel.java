@@ -20,10 +20,6 @@ import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
 import io.github.markpollack.claude.agent.sdk.types.AssistantMessage;
 import io.github.markpollack.claude.agent.sdk.types.Message;
 import io.github.markpollack.claude.agent.sdk.types.ResultMessage;
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
-import io.github.markpollack.journal.trace.TraceContentMode;
-import io.github.markpollack.journal.trace.TraceRawMode;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
@@ -37,15 +33,9 @@ import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -155,9 +145,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	private final Path traceDir;
 
-	private final TraceContentMode traceContentMode;
-
-	private final boolean archiveTranscript;
+	private final ClaudeCaptureOptions captureOptions;
 
 	private ClaudeAgentModel(Builder builder) {
 		this.workingDirectory = builder.workingDirectory;
@@ -168,8 +156,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		this.asyncExecutor = builder.asyncExecutor != null ? builder.asyncExecutor : DEFAULT_EXECUTOR;
 		this.messageListener = builder.messageListener;
 		this.traceDir = builder.traceDir;
-		this.traceContentMode = builder.traceContentMode;
-		this.archiveTranscript = builder.archiveTranscript;
+		this.captureOptions = builder.captureOptions;
+
 	}
 
 	/**
@@ -259,103 +247,59 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	@Override
 	public AgentResponse call(AgentTaskRequest request) {
-		logger.info("Executing blocking call for goal: {}", request.goal());
-
-		Instant startTime = Instant.now();
-
-		// Resolve trace target before client setup — fail fast on config errors
-		TraceTarget traceTarget = resolveTraceTarget();
-
-		Path effectiveWorkingDir = request.workingDirectory() != null ? request.workingDirectory() : workingDirectory;
-		CLIOptions options = buildCLIOptions(request);
-
-		PhaseCapture capture;
+		Instant start = Instant.now();
+		Path cwd = request.workingDirectory() != null ? request.workingDirectory() : workingDirectory;
+		ClaudeCaptureSession acquisition = openCapture();
+		CLIOptions options = ClaudeCliOptionsMapper.build(request, getEffectiveOptions(request), timeout,
+				acquisition == null ? null : acquisition.wire()::onBytes);
+		var result = new ClaudeExecutionResult();
+		String failure = null;
 		ClaudeSyncClient tracked = null;
 		try (ClaudeSyncClient client = ClaudeClient.sync(options)
-			.workingDirectory(effectiveWorkingDir)
+			.workingDirectory(cwd)
 			.timeout(timeout)
 			.claudePath(claudePath)
 			.hookRegistry(hookRegistry)
 			.build()) {
 			tracked = client;
-			this.inFlight.add(client);
-
-			String prompt = formatPrompt(request);
-			client.connect(prompt);
-
-			Iterator<ParsedMessage> response = client.receiveResponse();
-
-			// Tee messages to listener if set, then let SessionLogParser consume
-			if (messageListener != null) {
-				response = new TeeingIterator(response, messageListener);
-			}
-
-			// The turn ceiling is handed over explicitly. Claude Code takes maxTurns as a
-			// caller-side option and never echoes it back, so this model is the only
-			// thing that knows it — and without it a trace records numTurns against a
-			// maxTurns of -1, which is the state SessionLogParser's own javadoc calls
-			// uninterpretable: a run reporting 26 turns either finished or was cut off,
-			// and a record that cannot tell those apart is modelling two different
-			// processes as one.
-			int maxTurns = (options.getMaxTurns() != null) ? options.getMaxTurns() : SessionLogParser.UNKNOWN_MAX_TURNS;
-			capture = SessionLogParser.parse(response, traceTarget.runId(), prompt, traceTarget.path(),
-					traceContentMode, TraceRawMode.NONE, maxTurns);
+			inFlight.add(client);
+			client.connect(formatPrompt(request));
+			consume(client.receiveResponse(), result, acquisition);
 		}
-		catch (Exception e) {
-			logger.error("Call failed", e);
-			// Best-effort transcript salvage for the failed run (no sessionId — slug
-			// fallback only); the failure cases are the ones most worth inspecting.
-			harvestTranscript(null, traceTarget, effectiveWorkingDir);
-			Duration duration = Duration.between(startTime, Instant.now());
-			return createErrorResponse(e.getMessage(), duration);
+		catch (Exception ex) {
+			failure = ex.toString();
 		}
 		finally {
 			if (tracked != null) {
-				this.inFlight.remove(tracked);
+				inFlight.remove(tracked);
 			}
 		}
+		ClaudeAcquisition reference = acquisition == null ? null
+				: acquisition.seal(result, failure, options, cwd, request.goal());
+		return result.response(options.getModel(), Duration.between(start, Instant.now()), reference, failure);
+	}
 
-		// Client closed above — the CLI subprocess has exited, so its session
-		// transcript is as flushed as it will ever be. Archive it now (best-effort).
-		Path archivedTranscript = harvestTranscript(capture.sessionId(), traceTarget, effectiveWorkingDir);
-
-		// When --json-schema is active, prefer rawResult (the constrained output)
-		// over textOutput (which may contain conversational prose)
-		boolean hasJsonSchema = options.getJsonSchema() != null && !options.getJsonSchema().isEmpty();
-		String textOutput;
-		if (hasJsonSchema && capture.rawResult() != null && !capture.rawResult().isEmpty()) {
-			textOutput = capture.rawResult();
+	private ClaudeCaptureSession openCapture() {
+		ClaudeCaptureOptions selected = captureOptions;
+		if (selected == null && traceDir != null) {
+			String id = UUID.randomUUID().toString();
+			selected = new ClaudeCaptureOptions(traceDir.resolve(id), id, "unknown");
 		}
-		else {
-			textOutput = capture.textOutput() != null && !capture.textOutput().isEmpty() ? capture.textOutput()
-					: (capture.rawResult() != null ? capture.rawResult() : "");
+		return selected == null ? null : new ClaudeCaptureSession(selected);
+	}
+
+	private void consume(Iterator<ParsedMessage> response, ClaudeExecutionResult result,
+			ClaudeCaptureSession acquisition) {
+		while (response.hasNext()) {
+			var message = response.next();
+			if (acquisition != null) {
+				acquisition.observeProcess();
+			}
+			result.accept(message);
+			if (messageListener != null) {
+				messageListener.accept(message);
+			}
 		}
-
-		Duration duration = Duration.between(startTime, Instant.now());
-		AgentGenerationMetadata generationMetadata = new AgentGenerationMetadata("SUCCESS", Map.of());
-		List<AgentGeneration> generations = List.of(new AgentGeneration(textOutput, generationMetadata));
-
-		Map<String, Object> providerFields = new HashMap<>();
-		providerFields.put("phaseCapture", capture);
-		providerFields.put("inputTokens", capture.inputTokens());
-		providerFields.put("outputTokens", capture.outputTokens());
-		providerFields.put("thinkingTokens", capture.thinkingTokens());
-		providerFields.put("totalCostUsd", capture.totalCostUsd());
-		if (traceTarget.path() != null) {
-			providerFields.put("tracePath", traceTarget.path().toAbsolutePath().toString());
-		}
-		if (archivedTranscript != null) {
-			providerFields.put("transcriptPath", archivedTranscript.toAbsolutePath().toString());
-		}
-
-		AgentResponseMetadata responseMetadata = AgentResponseMetadata.builder()
-			.model(getEffectiveModel())
-			.duration(duration)
-			.sessionId(capture.sessionId() != null ? capture.sessionId() : "")
-			.providerFields(providerFields)
-			.build();
-
-		return new AgentResponse(generations, responseMetadata);
 	}
 
 	// ========== StreamingAgentModel (Reactive) ==========
@@ -574,10 +518,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		return defaultOptions;
 	}
 
-	private String getEffectiveModel() {
-		return defaultOptions.getModel() != null ? defaultOptions.getModel() : "claude-sonnet-4-20250514";
-	}
-
 	private String formatPrompt(AgentTaskRequest request) {
 		return request.goal();
 	}
@@ -585,18 +525,6 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 	// Package-private for testing
 	McpServerConfig toClaudeMcpServerConfig(McpServerDefinition definition) {
 		return ClaudeCliOptionsMapper.toClaudeMcpServerConfig(definition);
-	}
-
-	private AgentResponse createErrorResponse(String errorMessage, Duration duration) {
-		AgentGenerationMetadata generationMetadata = new AgentGenerationMetadata("ERROR", Map.of());
-		List<AgentGeneration> generations = List.of(new AgentGeneration(errorMessage, generationMetadata));
-
-		AgentResponseMetadata responseMetadata = AgentResponseMetadata.builder()
-			.model(getEffectiveModel())
-			.duration(duration)
-			.build();
-
-		return new AgentResponse(generations, responseMetadata);
 	}
 
 	// ========== Builder ==========
@@ -622,7 +550,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 		private Path traceDir;
 
-		private TraceContentMode traceContentMode = TraceContentMode.TRUNCATED;
+		private ClaudeCaptureOptions captureOptions;
 
 		private boolean archiveTranscript = true;
 
@@ -713,16 +641,10 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 
 		/**
-		 * Sets the directory for JSONL trace files. Each {@code call()} writes one
-		 * Claude-specific JSONL trace file containing events observed during
-		 * SessionLogParser parsing (tool calls, tool results, text, thinking blocks, and
-		 * result events). These are not provider-neutral journal events. Null (default)
-		 * disables tracing.
-		 * <p>
-		 * When tracing is enabled, the CLI's own session transcript is also archived
-		 * verbatim into {@code <traceDir>/transcripts/} by default — see
-		 * {@link #archiveTranscript(boolean)}.
-		 * @param traceDir the trace output directory (created on first use if absent)
+		 * Compatibility destination for lossless acquired-source directories, one per
+		 * call. Prefer capture(ClaudeCaptureOptions) to supply actual version and
+		 * invocation identity. This no longer writes the retired derived trace format.
+		 * @param traceDir parent output directory
 		 * @return this builder
 		 */
 		public Builder traceDir(Path traceDir) {
@@ -731,29 +653,19 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 
 		/**
-		 * Sets the content capture policy for trace files. Default
-		 * {@link TraceContentMode#TRUNCATED}: full thinking/text/tool_result content,
-		 * truncated per item at 60KB. {@link TraceContentMode#FULL} never truncates;
-		 * {@link TraceContentMode#LENGTHS} pins the lengths-only disk footprint.
-		 * Content-carrying traces may include prompts, file contents, and command output
-		 * — treat them as sensitive local artifacts.
-		 * @param traceContentMode the content mode (null resets to default)
+		 * Sets one invocation's acquired-source destination. Only blocking call captures.
+		 * @param captureOptions new-directory and invocation settings
 		 * @return this builder
 		 */
-		public Builder traceContentMode(TraceContentMode traceContentMode) {
-			this.traceContentMode = traceContentMode != null ? traceContentMode : TraceContentMode.TRUNCATED;
+		public Builder capture(ClaudeCaptureOptions captureOptions) {
+			this.captureOptions = captureOptions;
 			return this;
 		}
 
 		/**
-		 * Enables or disables verbatim archival of the CLI session transcript into
-		 * {@code <traceDir>/transcripts/} after each call. Default true (effective only
-		 * when a {@link #traceDir(Path)} is set). The transcript is the backstop for
-		 * content beyond the 60KB trace truncation and carries provenance the stream
-		 * lacks; Claude Code garbage-collects these files, so archive-now beats
-		 * analyze-later. Best-effort: a missing transcript logs a warning, never fails
-		 * the call.
-		 * @param archiveTranscript whether to archive session transcripts
+		 * Compatibility switch. Explicit acquisition always preserves native sources.
+		 * @param archiveTranscript true to permit acquisition; false only with capture
+		 * disabled
 		 * @return this builder
 		 */
 		public Builder archiveTranscript(boolean archiveTranscript) {
@@ -766,138 +678,13 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		 * @return the configured model
 		 */
 		public ClaudeAgentModel build() {
+			if (!archiveTranscript && (captureOptions != null || traceDir != null)) {
+				throw new IllegalArgumentException("Acquisition requires native source lookup");
+			}
 			if (workingDirectory == null) {
 				workingDirectory = Path.of(System.getProperty("user.dir"));
 			}
 			return new ClaudeAgentModel(this);
-		}
-
-	}
-
-	/**
-	 * Pairs a run identifier with an optional trace file path.
-	 */
-	private record TraceTarget(String runId, Path path) {
-	}
-
-	private TraceTarget resolveTraceTarget() {
-		if (this.traceDir == null) {
-			return new TraceTarget("agent-run", null);
-		}
-		Path absoluteTraceDir = this.traceDir.toAbsolutePath().normalize();
-		try {
-			Files.createDirectories(absoluteTraceDir);
-		}
-		catch (IOException ex) {
-			throw new IllegalStateException("Failed to create trace directory: " + absoluteTraceDir, ex);
-		}
-		String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
-			.format(Instant.now().atZone(ZoneOffset.UTC));
-		String runId = "agent-run-" + timestamp + "-" + UUID.randomUUID();
-		return new TraceTarget(runId, absoluteTraceDir.resolve(runId + ".jsonl"));
-	}
-
-	/**
-	 * Archives the CLI's own session transcript ({@code ~/.claude/projects/<slug>/
-	 * <sessionId>.jsonl}) verbatim into {@code <traceDir>/transcripts/}. The transcript
-	 * carries data the stream may lack (provenance fields, parentUuid conversation tree)
-	 * and Claude Code garbage-collects these files — archive-now beats analyze-later.
-	 *
-	 * <p>
-	 * Best-effort by design: if a transcript is discoverable it is archived; if not, a
-	 * warning with slug/session diagnostics is logged and null is returned. Callers (and
-	 * CI) must never require archive success. The file is copied verbatim — field
-	 * normalization is deliberately deferred; the per-line {@code version} field is the
-	 * compatibility hook for any future normalization.
-	 * @param sessionId the session id from the result message, or null for failed runs
-	 * (falls back to newest transcript in the working directory's project slug)
-	 * @param traceTarget the trace target for this run (provides traceDir + runId)
-	 * @param effectiveWorkingDir the working directory the CLI ran in (slug source)
-	 * @return the archived transcript path, or null if not archived
-	 */
-	private Path harvestTranscript(String sessionId, TraceTarget traceTarget, Path effectiveWorkingDir) {
-		if (!archiveTranscript || traceTarget.path() == null) {
-			return null;
-		}
-		Path projectsDir = Path.of(System.getProperty("user.home"), ".claude", "projects");
-		if (!Files.isDirectory(projectsDir)) {
-			logger.warn("Transcript archive: {} does not exist — is this a Claude CLI environment?", projectsDir);
-			return null;
-		}
-		try {
-			Path transcript = findTranscript(sessionId, projectsDir, effectiveWorkingDir);
-			if (transcript == null) {
-				logger.warn(
-						"Transcript archive: no transcript found (sessionId={}, projectsDir={}, cwd={}) — "
-								+ "session may not have flushed, or slug resolution failed",
-						sessionId, projectsDir, effectiveWorkingDir);
-				return null;
-			}
-			Path destDir = traceTarget.path().getParent().resolve("transcripts");
-			Files.createDirectories(destDir);
-			Path dest = destDir.resolve(traceTarget.runId() + ".transcript.jsonl");
-			Files.copy(transcript, dest, StandardCopyOption.REPLACE_EXISTING);
-			logger.debug("Transcript archive: {} -> {}", transcript, dest);
-			return dest;
-		}
-		catch (IOException ex) {
-			logger.warn("Transcript archive failed (best-effort): {}", ex.getMessage());
-			return null;
-		}
-	}
-
-	private static Path findTranscript(String sessionId, Path projectsDir, Path effectiveWorkingDir)
-			throws IOException {
-		Path transcript = null;
-		if (sessionId != null && !sessionId.isBlank()) {
-			// Session ids are globally unique — search by filename
-			String fileName = sessionId + ".jsonl";
-			try (java.util.stream.Stream<Path> stream = Files.walk(projectsDir, 2)) {
-				transcript = stream.filter(p -> p.getFileName().toString().equals(fileName)).findFirst().orElse(null);
-			}
-		}
-		if (transcript == null) {
-			// Fallback (no/unknown sessionId, e.g. failed runs): newest transcript
-			// under the working directory's project slug. May mis-pick under
-			// concurrent runs in the same directory — the log line records which
-			// file was taken.
-			String slug = effectiveWorkingDir.toAbsolutePath().normalize().toString().replaceAll("[^A-Za-z0-9]", "-");
-			Path slugDir = projectsDir.resolve(slug);
-			if (Files.isDirectory(slugDir)) {
-				try (java.util.stream.Stream<Path> stream = Files.list(slugDir)) {
-					transcript = stream.filter(p -> p.getFileName().toString().endsWith(".jsonl"))
-						.max(Comparator.comparingLong(p -> p.toFile().lastModified()))
-						.orElse(null);
-				}
-			}
-		}
-		return transcript;
-	}
-
-	/**
-	 * Iterator wrapper that forwards each message to a listener before yielding it.
-	 */
-	private static class TeeingIterator implements Iterator<ParsedMessage> {
-
-		private final Iterator<ParsedMessage> delegate;
-
-		private final Consumer<ParsedMessage> listener;
-
-		TeeingIterator(Iterator<ParsedMessage> delegate, Consumer<ParsedMessage> listener) {
-			this.delegate = delegate;
-			this.listener = listener;
-		}
-
-		@Override
-		public boolean hasNext() {
-			return delegate.hasNext();
-		}
-
-		@Override
-		public ParsedMessage next() {
-			ParsedMessage msg = delegate.next();
-			listener.accept(msg);
-			return msg;
 		}
 
 	}

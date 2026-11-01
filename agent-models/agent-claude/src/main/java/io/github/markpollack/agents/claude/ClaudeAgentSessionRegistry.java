@@ -12,8 +12,6 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.model.AgentSession;
@@ -137,7 +135,7 @@ public class ClaudeAgentSessionRegistry implements AgentSessionRegistry {
 		try {
 			client.connect();
 			Iterator<ParsedMessage> response = client.receiveResponse();
-			PhaseCapture capture = SessionLogParser.parse(response, "session-init", "");
+			ClaudeExecutionResult capture = ClaudeExecutionResult.read(response, null);
 			String sessionId = capture.sessionId();
 
 			if (sessionId == null || sessionId.isEmpty() || "default".equals(sessionId)) {

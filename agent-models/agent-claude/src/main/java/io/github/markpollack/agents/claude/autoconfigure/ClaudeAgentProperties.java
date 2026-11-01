@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
-import io.github.markpollack.journal.trace.TraceContentMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -192,7 +191,7 @@ public class ClaudeAgentProperties {
 
 	/**
 	 * Directory for Claude-specific JSONL trace files. Each agent invocation writes one
-	 * trace file containing events observed during SessionLogParser parsing. Null
+	 * trace file containing events observed during SDK transport acquisition. Null
 	 * (default) disables tracing.
 	 */
 	private String traceDir;
@@ -204,7 +203,7 @@ public class ClaudeAgentProperties {
 	 * include prompts, file contents, and command output — treat them as sensitive local
 	 * artifacts.
 	 */
-	private TraceContentMode traceContentMode;
+	private String traceContentMode;
 
 	/**
 	 * Whether to archive the CLI session transcript verbatim into
@@ -410,11 +409,11 @@ public class ClaudeAgentProperties {
 		this.traceDir = traceDir;
 	}
 
-	public TraceContentMode getTraceContentMode() {
+	public String getTraceContentMode() {
 		return traceContentMode;
 	}
 
-	public void setTraceContentMode(TraceContentMode traceContentMode) {
+	public void setTraceContentMode(String traceContentMode) {
 		this.traceContentMode = traceContentMode;
 	}
 

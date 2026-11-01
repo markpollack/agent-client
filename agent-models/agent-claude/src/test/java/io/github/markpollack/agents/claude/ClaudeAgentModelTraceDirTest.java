@@ -2,101 +2,174 @@
  * Copyright (c) 2025-2026 Mark Pollack
  * See LICENSE in the repository root for project-specific Business Source License terms.
  */
-
 package io.github.markpollack.agents.claude;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import io.github.markpollack.claude.agent.sdk.parsing.ParsedMessage;
-import io.github.markpollack.claude.agent.sdk.types.AssistantMessage;
-import io.github.markpollack.claude.agent.sdk.types.ResultMessage;
-import io.github.markpollack.claude.agent.sdk.types.TextBlock;
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
-
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.github.markpollack.agents.model.AgentTaskRequest;
+import io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver.Stream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import static org.assertj.core.api.Assertions.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Tests for traceDir feature — parser-level trace file writing and uniqueness guarantees.
- * These complement the builder/failure tests in ClaudeAgentModelTest.TraceDirTests.
- *
- * <p>
- * The model-level integration (call() → tracePath in providerFields) requires a live
- * Claude CLI and is covered by integration tests.
- * </p>
- */
 class ClaudeAgentModelTraceDirTest {
 
-	@Test
-	@DisplayName("SessionLogParser writes JSONL trace file when traceFile is non-null")
-	void parserWritesTraceFile(@TempDir Path tempDir) throws IOException {
-		Path traceFile = tempDir.resolve("test-trace.jsonl");
-
-		List<ParsedMessage> messages = List.of(wrap(new AssistantMessage(List.of(new TextBlock("Hello world")))),
-				wrap(resultMessage()));
-
-		PhaseCapture capture = SessionLogParser.parse(messages.iterator(), "test-run", "test prompt", traceFile);
-
-		assertThat(capture.phaseName()).isEqualTo("test-run");
-		assertThat(traceFile).exists();
-
-		List<String> lines = Files.readAllLines(traceFile);
-		assertThat(lines).isNotEmpty();
-		// Schema v2: header first (run identity), then data lines with content
-		assertThat(lines.get(0)).contains("\"type\":\"header\"")
-			.contains("\"schemaVersion\":2")
-			.contains("\"runId\":\"test-run\"");
-		assertThat(lines.get(1)).contains("\"type\":\"text\"").contains("\"content\":\"Hello world\"");
-		assertThat(lines).last().asString().contains("\"type\":\"result\"").contains("\"sessionId\":\"sess-test\"");
-	}
+	@TempDir
+	Path temp;
 
 	@Test
-	@DisplayName("SessionLogParser with null traceFile preserves 3-arg behavior")
-	void parserWithNullTraceFileWorks() {
-		List<ParsedMessage> messages = List.of(wrap(new AssistantMessage(List.of(new TextBlock("Hello")))),
-				wrap(resultMessage()));
-
-		PhaseCapture capture = SessionLogParser.parse(messages.iterator(), "test-run", "prompt", null);
-
-		assertThat(capture.textOutput()).isEqualTo("Hello");
+	void wireRetainsInvalidUtf8CrLfAndFinalFragmentsAndLatchesLateWrites() throws Exception {
+		var wire = new ClaudeWireCapture(temp);
+		byte[] first = { 'a', '\r', '\n', (byte) 0xff };
+		wire.onBytes(Stream.STDOUT, first);
+		first[0] = 'x';
+		wire.onBytes(Stream.STDOUT, new byte[] { 'z' });
+		wire.onBytes(Stream.STDIN, new byte[] { 'p', '\n' });
+		wire.onBytes(Stream.STDERR, new byte[] { 'e' });
+		wire.close();
+		assertThat(Files.readAllBytes(temp.resolve("stdout.bin"))).containsExactly((byte) 'a', (byte) '\r', (byte) '\n',
+				(byte) 0xff, (byte) 'z');
+		assertThat(Files.readString(temp.resolve("stdin.bin"))).isEqualTo("p\n");
+		assertThat(Files.readString(temp.resolve("stderr.bin"))).isEqualTo("e");
+		assertThat(wire.offsets()).containsEntry("STDOUT", 5L);
+		assertThatThrownBy(() -> wire.onBytes(Stream.STDERR, new byte[] { 1 })).isInstanceOf(java.io.IOException.class);
+		assertThat(wire.failures()).hasSize(1);
+		assertThat(wire.sources("connection", "invocation", false)).hasSize(4);
+		assertThat(Files.readAllLines(temp.resolve("observations.jsonl"))).hasSize(4);
 	}
 
 	@Test
-	@DisplayName("Two trace file paths from same traceDir are distinct")
-	void traceFilePathsAreUnique(@TempDir Path tempDir) {
-		// Build two models with the same traceDir and verify they would
-		// produce distinct trace files by checking the builder accepts the config.
-		// The actual path generation uses timestamp + UUID which guarantees uniqueness.
-		ClaudeAgentModel model1 = ClaudeAgentModel.builder().traceDir(tempDir).build();
-		ClaudeAgentModel model2 = ClaudeAgentModel.builder().traceDir(tempDir).build();
-
-		// Both models should be independently configured
-		assertThat(model1).isNotSameAs(model2);
-
-		model1.close();
-		model2.close();
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void realSdkFakeChildSealsExactSourcesAndNativeMembership() throws Exception {
+		Path nativeDir = nativeTranscript("session-a", "session-a");
+		Path child = nativeDir.resolve("project/session-a/subagents/agent-child.jsonl");
+		Files.createDirectories(child.getParent());
+		Files.writeString(child, "{\"sessionId\":\"session-a\",\"agentId\":\"child\",\"type\":\"assistant\"}\n");
+		Path sidecar = nativeDir.resolve("project/session-a/tool-results/tool-a.txt");
+		Files.createDirectories(sidecar.getParent());
+		Files.writeString(sidecar, "full result");
+		var response = execute("session-a", false, nativeDir, temp.resolve("package"));
+		assertThat(response.getResult().getOutput()).isEqualTo("sentinel-answer");
+		assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("SUCCESS");
+		assertThat(response.getMetadata().<Object>get("phaseCapture")).isNull();
+		var acquisition = ClaudeAcquisition.from(response);
+		assertThat(acquisition.complete()).isTrue();
+		assertThat(acquisition.sha256()).isEqualTo(CaptureFiles.hash(acquisition.manifest()));
+		var manifest = CaptureFiles.JSON.readTree(acquisition.manifest().toFile());
+		assertThat(manifest.path("run").path("session_uid").asText()).isEqualTo("session-a");
+		assertThat(manifest.path("process").path("exit_code").isNull()).isTrue();
+		assertThat(manifest.path("sources").size()).isEqualTo(7);
+		assertThat(Files.readString(temp.resolve("package/native/transcript.jsonl"))).contains("session-a");
+		assertThat(Files.readString(temp.resolve("package/stdout.bin"))).contains("unknown_event");
+		assertThat(Files.readString(temp.resolve("package/stdin.bin"))).contains("find sentinel");
+		assertThat(Files.readString(temp.resolve("package/stderr.bin"))).isEqualTo("stderr-tail");
+		for (JsonNode source : manifest.path("sources")) {
+			assertThat(source.path("sha256").asText())
+				.isEqualTo(CaptureFiles.hash(temp.resolve("package").resolve(source.path("path").asText())));
+		}
+		assertThatThrownBy(() -> execute("session-a", false, nativeDir, temp.resolve("package")))
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("directory");
 	}
 
-	private static ParsedMessage wrap(io.github.markpollack.claude.agent.sdk.types.Message message) {
-		return ParsedMessage.RegularMessage.of(message);
+	@Test
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void wrongNativeSessionIsRejectedWhileRawBytesSurvive() throws Exception {
+		var response = execute("session-a", false, nativeTranscript("session-a", "wrong-session"),
+				temp.resolve("package"));
+		var acquisition = ClaudeAcquisition.from(response);
+		assertThat(acquisition.complete()).isFalse();
+		assertThat(Files.readString(acquisition.manifest())).contains("identity mismatch");
+		assertThat(Files.size(temp.resolve("package/stdout.bin"))).isPositive();
 	}
 
-	private static ResultMessage resultMessage() {
-		return ResultMessage.builder()
-			.durationMs(1000)
-			.durationApiMs(800)
-			.numTurns(1)
-			.sessionId("sess-test")
-			.totalCostUsd(0.01)
-			.usage(Map.of("input_tokens", 100, "output_tokens", 50))
-			.build();
+	@Test
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void missingExactSessionDoesNotChooseNewestAndErrorResultIsNotSuccess() throws Exception {
+		var response = execute("absent", true, nativeTranscript("unrelated", "unrelated"), temp.resolve("package"));
+		assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("ERROR");
+		var acquisition = ClaudeAcquisition.from(response);
+		assertThat(acquisition.complete()).isTrue();
+		assertThat(Files.readString(acquisition.manifest())).contains("Exact session lookup yielded 0 files");
+		assertThat(temp.resolve("package/native/transcript.jsonl")).doesNotExist();
+	}
+
+	@Test
+	void failedLaunchRetainsIncompletePackage() throws Exception {
+		var options = new ClaudeCaptureOptions(temp.resolve("package"), "failed", "2.1.316", temp.resolve("absent"),
+				Map.of());
+		try (var model = ClaudeAgentModel.builder()
+			.capture(options)
+			.claudePath(temp.resolve("missing-cli").toString())
+			.build()) {
+			var response = model.call(new AgentTaskRequest("test", temp, null));
+			assertThat(ClaudeAcquisition.from(response).complete()).isFalse();
+			assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("ERROR");
+		}
+	}
+
+	@Test
+	void nativeLookupRefusesUnsafeUnknownAndAmbiguousIdentities() throws Exception {
+		var options = new ClaudeCaptureOptions(temp.resolve("package"), "id", "2.1.316", temp.resolve("native"),
+				Map.of());
+		assertThat(ClaudeNativeArchive.acquire(options, "../bad").get(0).get("state")).isEqualTo("missing");
+		assertThat(ClaudeNativeArchive.acquire(options, "missing").get(0).get("state")).isEqualTo("missing");
+		Path nativeDir = nativeTranscript("session-a", "session-a");
+		Files.createDirectories(nativeDir.resolve("other"));
+		Files.copy(nativeDir.resolve("project/session-a.jsonl"), nativeDir.resolve("other/session-a.jsonl"));
+		assertThat(ClaudeNativeArchive.acquire(options, "session-a").get(0).get("reason")).asString()
+			.contains("2 files");
+	}
+
+	@Test
+	void optionsValidateAndCopyProvenance() {
+		assertThatThrownBy(() -> new ClaudeCaptureOptions(temp, "", "2.1.316"))
+			.isInstanceOf(IllegalArgumentException.class);
+		var map = new java.util.HashMap<String, String>();
+		map.put("commit", "exact");
+		var options = new ClaudeCaptureOptions(temp, "id", "2.1.316", temp, map);
+		map.put("commit", "changed");
+		assertThat(options.provenance()).containsEntry("commit", "exact");
+	}
+
+	private Path nativeTranscript(String filename, String sessionId) throws Exception {
+		Path nativeDir = temp.resolve("native");
+		Files.createDirectories(nativeDir.resolve("project"));
+		Files.writeString(nativeDir.resolve("project/" + filename + ".jsonl"), "{\"type\":\"user\",\"sessionId\":\""
+				+ sessionId + "\",\"message\":{\"content\":\"find sentinel\"}}\n");
+		return nativeDir;
+	}
+
+	private io.github.markpollack.agents.model.AgentResponse execute(String session, boolean error, Path nativeDir,
+			Path output) throws Exception {
+		Path executable = temp.resolve("fake-claude");
+		Files.writeString(executable,
+				"""
+						#!/bin/sh
+						echo '{"type":"system","subtype":"init","session_id":"%s"}'
+						IFS= read -r line
+						echo '{"type":"unknown_event","value":"preserved"}'
+						printf 'stderr-tail' >&2
+						echo '{"type":"result","subtype":"success","is_error":%s,"duration_ms":1,"duration_api_ms":1,"num_turns":1,"result":"sentinel-answer","session_id":"%s","usage":{"input_tokens":1,"output_tokens":1}}'
+						"""
+					.formatted(session, error, session));
+		assertThat(executable.toFile().setExecutable(true)).isTrue();
+		var capture = new ClaudeCaptureOptions(output, "invocation-a", "2.1.316", nativeDir,
+				Map.of("fixture", "synthetic"));
+		try (var model = ClaudeAgentModel.builder()
+			.capture(capture)
+			.claudePath(executable.toString())
+			.timeout(Duration.ofSeconds(5))
+			.defaultOptions(ClaudeAgentOptions.builder().model("test-model").yolo(true).build())
+			.build()) {
+			return model.call(new AgentTaskRequest("find sentinel", temp, null));
+		}
 	}
 
 }

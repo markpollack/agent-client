@@ -13,8 +13,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.agents.model.AgentGeneration;
@@ -115,27 +113,12 @@ public class ClaudeAgentSession implements AgentSession {
 		try {
 			client.query(message);
 			Iterator<ParsedMessage> response = client.receiveResponse();
-			PhaseCapture capture = SessionLogParser.parse(response, "session-prompt", message);
+			ClaudeExecutionResult capture = ClaudeExecutionResult.read(response, null);
 
-			String textOutput = capture.textOutput() != null ? capture.textOutput() : "";
-			Duration duration = Duration.between(startTime, Instant.now());
-
-			AgentGenerationMetadata generationMetadata = new AgentGenerationMetadata("SUCCESS", Map.of());
-			List<AgentGeneration> generations = List.of(new AgentGeneration(textOutput, generationMetadata));
-
-			Map<String, Object> providerFields = new HashMap<>();
-			providerFields.put("phaseCapture", capture);
-			providerFields.put("inputTokens", capture.inputTokens());
-			providerFields.put("outputTokens", capture.outputTokens());
-
-			AgentResponseMetadata responseMetadata = AgentResponseMetadata.builder()
-				.duration(duration)
-				.sessionId(sessionId)
-				.providerFields(providerFields)
-				.build();
+			AgentResponse result = capture.response(null, Duration.between(startTime, Instant.now()), null, null);
 
 			this.lastActivity = Instant.now();
-			return new AgentResponse(generations, responseMetadata);
+			return result;
 		}
 		catch (MessageStreamIterator.StreamException ex) {
 			this.status = AgentSessionStatus.DEAD;
@@ -172,7 +155,7 @@ public class ClaudeAgentSession implements AgentSession {
 		try {
 			client.connect();
 			Iterator<ParsedMessage> response = client.receiveResponse();
-			SessionLogParser.parse(response, "session-resume", "");
+			ClaudeExecutionResult.read(response, null);
 		}
 		catch (Exception ex) {
 			this.status = AgentSessionStatus.DEAD;
