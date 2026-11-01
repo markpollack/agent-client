@@ -154,7 +154,11 @@ final class ClaudeCaptureSession {
 	private Map<String, Object> process(ClaudeExecutionResult result, String failure) {
 		Map<String, Object> process = new LinkedHashMap<>(observedProcess);
 		process.put("connection_uid", connection);
-		process.put("status", failure == null ? "sdk_closed_after_result" : "sdk_failed_or_interrupted");
+		process.put("status", failure != null ? "sdk_failed_or_interrupted"
+				: result.terminalReceived() ? "sdk_closed_after_result" : "sdk_closed_without_result");
+		process.put("execution_error", failure);
+		process.put("cancellation", "not_independently_exposed_by_sdk");
+		process.put("timeout_outcome", "not_independently_exposed_by_sdk; inspect execution_error");
 		process.put("exit_code", null);
 		process.put("exit_code_basis", "SDK does not expose process exit receipt");
 		process.put("terminal_received", result.terminalReceived());

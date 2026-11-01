@@ -101,7 +101,8 @@ final class ClaudeExecutionResult {
 				fields.put("totalCostUsd", result.totalCostUsd());
 			}
 			if (result.usage() != null) {
-				fields.put("reportedUsage", Map.copyOf(result.usage()));
+				fields.put("reportedUsage",
+						java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(result.usage())));
 			}
 		}
 		String finish = failure == null && successful() ? "SUCCESS" : "ERROR";

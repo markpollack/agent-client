@@ -107,6 +107,7 @@ final class ClaudeWireCapture implements AutoCloseable {
 								: stream.name().toLowerCase(java.util.Locale.ROOT),
 						connection + "/" + name, invocation);
 			source.put("required", true);
+			source.put("end_basis", "Observer drained through SDK close; not an independent process exit receipt");
 			source.put("end", complete ? "EOF" : "INTERRUPTED");
 			if (stream == TransportByteObserver.Stream.STDOUT) {
 				source.put("profile", "claude_stream");
