@@ -15,6 +15,12 @@ final class DefaultAgentSession implements AgentSession {
 
 	final ReentrantLock lock = new ReentrantLock();
 
+	private final java.util.concurrent.locks.Condition changed = this.lock.newCondition();
+
+	private CleanupBudget closeBudget;
+
+	private int optionalLanes;
+
 	final AgentExecutionProvider provider;
 
 	final DefaultAgentClient client;
@@ -78,6 +84,7 @@ final class DefaultAgentSession implements AgentSession {
 		this.lock.lock();
 		try {
 			this.acquiring = false;
+			this.changed.signalAll();
 		}
 		finally {
 			this.lock.unlock();
@@ -111,6 +118,8 @@ final class DefaultAgentSession implements AgentSession {
 				throw new IllegalStateException("Session is not ready: " + this.snapshot.state());
 			execution = new DefaultAgentExecution(this, work, this.client.runtime);
 			this.active = execution.store;
+			this.optionalLanes++; // Hold ownership until observation lanes are
+									// registered.
 			this.snapshot = new SessionSnapshot(this.id, SessionState.BUSY, Optional.empty(),
 					Optional.of(execution.executionId()), Optional.empty());
 		}
@@ -166,24 +175,127 @@ final class DefaultAgentSession implements AgentSession {
 
 	@Override
 	public void close() {
+		ExecutionContext.checkClose(this.client, this);
+		requestClose(new CleanupBudget(this.client.runtime.cleanupNanos));
+		awaitClose();
+	}
+
+	void requestClose(CleanupBudget budget) {
 		ExecutionStore current;
-		boolean first;
 		this.lock.lock();
 		try {
-			first = !this.closing;
+			if (this.closeBudget == null || budget.remaining() < this.closeBudget.remaining())
+				this.closeBudget = budget;
 			this.closing = true;
 			current = this.active;
+			if (current != null && current.cleanupStarted) {
+				long left = this.client.runtime.cleanupNanos
+						- (this.client.runtime.clock.getAsLong() - current.cleanupStart);
+				if (left < this.closeBudget.remaining())
+					this.closeBudget = new CleanupBudget(left);
+			}
 			if (this.snapshot.state() == SessionState.READY)
-				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSING, Optional.empty(), Optional.empty(),
-						Optional.empty());
+				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSING, providerReference(),
+						Optional.empty(), Optional.empty());
 		}
 		finally {
 			this.lock.unlock();
 		}
-		if (first)
-			this.client.runtime.timer.schedule(this::closeExpired, this.client.runtime.cleanupNanos);
 		if (current != null)
 			current.execution.cancel(true);
+		afterTermination();
+	}
+
+	void awaitClose() {
+		boolean interrupted = Thread.interrupted();
+		this.lock.lock();
+		try {
+			while (!resourcesSettled() && this.closeBudget.remaining() > 0) {
+				try {
+					this.changed.awaitNanos(this.closeBudget.remaining());
+				}
+				catch (InterruptedException ex) {
+					interrupted = true;
+				}
+			}
+			if (!resourcesSettled()) {
+				closeExpired();
+				throw new CleanupUnconfirmedException("Session cleanup unconfirmed", cleanup());
+			}
+			this.client.forget(this);
+		}
+		finally {
+			this.lock.unlock();
+			if (interrupted)
+				Thread.currentThread().interrupt();
+		}
+	}
+
+	private boolean resourcesSettled() {
+		return !this.acquiring && this.active == null && this.optionalLanes == 0
+				&& (this.connection == null || this.connectionClosed) && !this.closeFailed;
+	}
+
+	CleanupHandle cleanup() {
+		return new CleanupHandle() {
+			@Override
+			public String id() {
+				return DefaultAgentSession.this.id;
+			}
+
+			@Override
+			public CleanupSnapshot inspect() {
+				lock.lock();
+				try {
+					var resources = new ArrayList<String>();
+					if (acquiring)
+						resources.add("session-acquisition");
+					if (active != null)
+						resources.add("execution-worker-or-stop");
+					if (connection != null && !connectionClosed)
+						resources.add("provider-connection");
+					if (optionalLanes != 0)
+						resources.add("observer-or-recorder");
+					return new CleanupSnapshot(id(),
+							resources.isEmpty() ? CleanupState.CONFIRMED : CleanupState.UNKNOWN, resources,
+							Optional.empty());
+				}
+				finally {
+					lock.unlock();
+				}
+			}
+		};
+	}
+
+	boolean isClosing() {
+		this.lock.lock();
+		try {
+			return this.closing;
+		}
+		finally {
+			this.lock.unlock();
+		}
+	}
+
+	void beginOptional() {
+		this.lock.lock();
+		try {
+			this.optionalLanes++;
+		}
+		finally {
+			this.lock.unlock();
+		}
+	}
+
+	void endOptional() {
+		this.lock.lock();
+		try {
+			this.optionalLanes--;
+			this.changed.signalAll();
+		}
+		finally {
+			this.lock.unlock();
+		}
 		afterTermination();
 	}
 
@@ -202,10 +314,8 @@ final class DefaultAgentSession implements AgentSession {
 	void afterTermination() {
 		this.lock.lock();
 		try {
-			// A retired worker cannot acquire a later connection. Keep ownership until
-			// both acquisition and any exact stop have settled, even after UNKNOWN.
-			if (!this.retained && this.active == null && !this.acquiring
-					&& (this.connection == null || this.connectionClosed))
+			this.changed.signalAll();
+			if ((!this.retained || this.closing) && resourcesSettled())
 				this.client.forget(this);
 			if (!this.closing || this.active != null || this.closeStarted || this.acquiring)
 				return;
@@ -214,8 +324,12 @@ final class DefaultAgentSession implements AgentSession {
 		finally {
 			this.lock.unlock();
 		}
-		this.client.runtime.lanes.stop().execute(this::finishClose);
-
+		try {
+			this.client.runtime.lanes.stop().execute(() -> ExecutionContext.run(this, this::finishClose));
+		}
+		catch (java.util.concurrent.RejectedExecutionException ex) {
+			closeExpired();
+		}
 	}
 
 	private void finishClose() {
@@ -235,7 +349,7 @@ final class DefaultAgentSession implements AgentSession {
 		finally {
 			this.lock.unlock();
 		}
-		this.client.forget(this);
+		afterTermination();
 	}
 
 }

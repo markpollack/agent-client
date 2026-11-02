@@ -45,6 +45,8 @@ final class ResponseCopies {
 			throw new IllegalArgumentException("Snapshot nesting exceeds 32");
 		if (input == null || scalar(input))
 			return input;
+		if (input instanceof io.github.markpollack.agents.model.AgentMetadataValue typed)
+			return java.util.Objects.requireNonNull(typed.snapshot(), "typed metadata snapshot");
 		if (input instanceof List<?> list)
 			return list.stream().map(v -> value(v, depth + 1)).toList();
 		if (input instanceof Map<?, ?> map) {

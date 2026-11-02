@@ -34,6 +34,8 @@ final class ExecutionRuntime {
 
 	final Lanes lanes;
 
+	Executor acquisition = virtualLane("agent-setup-");
+
 	final long setupNanos;
 
 	final long cleanupNanos;
@@ -43,7 +45,7 @@ final class ExecutionRuntime {
 			var scheduled = CLOCK.schedule(task, nanos, TimeUnit.NANOSECONDS);
 			return () -> scheduled.cancel(false);
 		}, new Lanes(virtualLane("agent-work-"), virtualLane("agent-stop-"), virtualLane("agent-publish-"),
-				boundedLane("agent-observer-"), boundedLane("agent-recorder-")), new Limits(setup, cleanup));
+				boundedLane("agent-observer-", 32), boundedLane("agent-recorder-", 256)), new Limits(setup, cleanup));
 	}
 
 	record Limits(Duration setup, Duration cleanup) {
@@ -62,9 +64,10 @@ final class ExecutionRuntime {
 		return task -> Thread.ofVirtual().name(name).start(task);
 	}
 
-	private static Executor boundedLane(String name) {
-		var executor = new ThreadPoolExecutor(0, 2, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(32),
+	private static Executor boundedLane(String name, int capacity) {
+		var executor = new ThreadPoolExecutor(2, 2, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(capacity),
 				Thread.ofPlatform().daemon().name(name, 0).factory(), new ThreadPoolExecutor.AbortPolicy());
+		executor.allowCoreThreadTimeOut(true);
 		return executor;
 	}
 

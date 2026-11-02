@@ -60,18 +60,7 @@ public class DefaultAgentClient implements AgentClient {
 			var spec = new DefaultSessionSpec(this.defaultOptions);
 			java.util.Objects.requireNonNull(configure, "configure").accept(spec);
 			var session = ownSession(ExecutionOptions.copy(spec.options), true);
-			session.beginAcquisition();
-			try {
-				session.install(session.provider.open(session.options));
-			}
-			catch (RuntimeException ex) {
-				this.ownedSessions.remove(session);
-				throw ex;
-			}
-			finally {
-				session.endAcquisition();
-			}
-			return session;
+			return SessionAcquisition.open(session);
 		};
 	}
 
@@ -95,14 +84,51 @@ public class DefaultAgentClient implements AgentClient {
 		return spec;
 	}
 
+	private CleanupBudget closeBudget;
+
 	@Override
 	public void close() {
+		ExecutionContext.checkClose(this, null);
 		java.util.List<DefaultAgentSession> sessions;
+		CleanupBudget budget;
 		synchronized (this.lifecycleLock) {
 			this.closed = true;
+			if (this.closeBudget == null)
+				this.closeBudget = new CleanupBudget(this.runtime.cleanupNanos);
+			budget = this.closeBudget;
 			sessions = java.util.List.copyOf(this.ownedSessions);
 		}
-		sessions.forEach(DefaultAgentSession::close);
+		sessions.forEach(session -> session.requestClose(budget));
+		boolean interrupted = Thread.interrupted();
+		try {
+			for (var session : sessions) {
+				try {
+					session.awaitClose();
+				}
+				catch (CleanupUnconfirmedException ignored) {
+					/* Continue every owned teardown. */ }
+				interrupted |= Thread.interrupted();
+			}
+		}
+		finally {
+			if (interrupted)
+				Thread.currentThread().interrupt();
+		}
+		if (!this.ownedSessions.isEmpty())
+			throw new CleanupUnconfirmedException("Client cleanup unconfirmed", new CleanupHandle() {
+				@Override
+				public String id() {
+					return "client";
+				}
+
+				@Override
+				public CleanupSnapshot inspect() {
+					var remaining = ownedSessions.stream().map(DefaultAgentSession::id).toList();
+					return new CleanupSnapshot(id(),
+							remaining.isEmpty() ? CleanupState.CONFIRMED : CleanupState.UNKNOWN, remaining,
+							java.util.Optional.empty());
+				}
+			});
 	}
 
 	private final AgentOptions defaultOptions;

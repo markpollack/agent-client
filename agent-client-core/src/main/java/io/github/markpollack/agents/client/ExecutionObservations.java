@@ -19,6 +19,8 @@ final class ExecutionObservations {
 
 	final ExecutionRecording recording;
 
+	private final ClassLoader callbackLoader = Thread.currentThread().getContextClassLoader();
+
 	ExecutionObservations(DefaultAgentExecution execution, ExecutionWork work, ExecutionRuntime runtime) {
 		this.execution = execution;
 		this.work = work;
@@ -29,10 +31,19 @@ final class ExecutionObservations {
 	void accept(ExecutionDecision decision) {
 		if (this.work.observer() != null) {
 			this.execution.store.callbacks(new CallbackSnapshot(Optional.empty(), 1, 0, 0, 0, Optional.empty()));
+			this.execution.store.session.beginOptional();
 			try {
-				this.runtime.lanes.observer().execute(() -> notifyObserver(decision));
+				this.runtime.lanes.observer().execute(() -> ExecutionContext.run(this.execution.store.session, () -> {
+					try {
+						notifyObserver(decision);
+					}
+					finally {
+						this.execution.store.session.endOptional();
+					}
+				}));
 			}
 			catch (RejectedExecutionException ignored) {
+				this.execution.store.session.endOptional();
 				this.execution.store.callbacks(new CallbackSnapshot(Optional.empty(), 0, 1, 0, 0, Optional.empty()));
 			}
 		}
@@ -40,6 +51,13 @@ final class ExecutionObservations {
 	}
 
 	private void notifyObserver(ExecutionDecision decision) {
+		if (this.execution.store.session.isClosing()) {
+			this.execution.store.callbacks(new CallbackSnapshot(Optional.empty(), 0, 1, 0, 0, Optional.empty()));
+			return;
+		}
+		var thread = Thread.currentThread();
+		var previousLoader = thread.getContextClassLoader();
+		thread.setContextClassLoader(this.callbackLoader);
 		this.execution.store
 			.callbacks(new CallbackSnapshot(Optional.of(this.runtime.wall.get()), 0, 0, 0, 0, Optional.empty()));
 		Optional<String> failure = Optional.empty();
@@ -52,6 +70,7 @@ final class ExecutionObservations {
 			failure = Optional.of(ex.getClass().getName());
 		}
 		finally {
+			thread.setContextClassLoader(previousLoader);
 			this.execution.store
 				.callbacks(new CallbackSnapshot(Optional.empty(), 0, 0, 0, failure.isPresent() ? 1 : 0, failure));
 		}

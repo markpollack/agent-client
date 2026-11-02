@@ -62,8 +62,14 @@ class AsyncOwnershipTest {
 		}
 		finally {
 			release.countDown();
-			client.close();
 			caller.join();
+			try {
+				client.close();
+			}
+			catch (CleanupUnconfirmedException ex) {
+				AsyncAcquisitionCloseTest.awaitConfirmed(ex.cleanup().orElseThrow());
+				client.close();
+			}
 		}
 	}
 
@@ -107,22 +113,21 @@ class AsyncOwnershipTest {
 			entered.countDown();
 			AsyncConcurrencyTest.await(release);
 		};
-		var client = AgentClient.create(provider);
-		var session = new AtomicReference<AgentSession>();
-		Thread creator = Thread.ofPlatform().start(() -> session.set(client.sessions().create(spec -> {
-		})));
+		var client = AgentClient.builder(provider).cleanupTimeout(Duration.ofMillis(50)).build();
+		var failure = new AtomicReference<Throwable>();
+		Thread creator = Thread.ofPlatform()
+			.start(() -> failure.set(catchThrowable(() -> client.sessions().create(spec -> {
+			}))));
 		try {
 			entered.await();
-			client.close();
+			var close = (CleanupUnconfirmedException) catchThrowable(client::close);
+			assertThat(close.cleanup().orElseThrow().inspect().unconfirmedResources()).hasSize(1);
 			release.countDown();
 			creator.join();
-			// Queue a barrier on the same session close lane is not needed: wait on its
-			// observable state.
-			long bound = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-			while (session.get().inspect().state() != SessionState.CLOSED && System.nanoTime() < bound)
-				Thread.onSpinWait();
+			assertThat(((AgentOperationException) failure.get()).failure()).isEqualTo(OperationFailure.CLOSED);
+			AsyncAcquisitionCloseTest.awaitConfirmed(close.cleanup().orElseThrow());
 			assertThat(provider.closes).hasValue(1);
-			assertThatThrownBy(() -> session.get().goal("late").runAsync()).isInstanceOf(IllegalStateException.class);
+			client.close();
 		}
 		finally {
 			release.countDown();

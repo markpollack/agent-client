@@ -128,6 +128,7 @@ class AsyncLifecycleTest {
 		DefaultAgentClient client(Provider provider) {
 			var client = (DefaultAgentClient) AgentClient.create(provider);
 			client.runtime = this.runtime;
+			client.runtime.acquisition = Runnable::run;
 			return client;
 		}
 

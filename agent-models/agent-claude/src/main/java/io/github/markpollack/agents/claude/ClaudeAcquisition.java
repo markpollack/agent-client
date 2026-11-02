@@ -17,7 +17,15 @@ import io.github.markpollack.agents.model.AgentResponse;
  * @param invocationId caller invocation identity
  * @param sessionId observed native session identity, or null when unavailable
  */
-public record ClaudeAcquisition(Path manifest, String sha256, boolean complete, String invocationId, String sessionId) {
+public record ClaudeAcquisition(Path manifest, String sha256, boolean complete, String invocationId,
+		String sessionId) implements io.github.markpollack.agents.model.AgentMetadataValue {
+
+	@Override
+	public ClaudeAcquisition snapshot() {
+		return new ClaudeAcquisition(manifest == null ? null : Path.of(manifest.toString()), sha256, complete,
+				invocationId, sessionId);
+	}
+
 	/**
 	 * Reads the provider reference without adding a Journal dependency to Client core.
 	 * @param response execution response

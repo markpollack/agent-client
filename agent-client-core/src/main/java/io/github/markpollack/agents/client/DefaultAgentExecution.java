@@ -119,7 +119,8 @@ final class DefaultAgentExecution implements AgentExecution {
 
 	@Override
 	public Optional<AgentClientResponse> responseSnapshot() {
-		return Optional.ofNullable(this.store.state.response()).map(ResponseCopies::copy);
+		var response = this.store.state.response();
+		return Optional.ofNullable(response == null ? this.store.providerResponse : response).map(ResponseCopies::copy);
 	}
 
 }

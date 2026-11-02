@@ -36,7 +36,7 @@ final class ExecutionDriver {
 		try {
 			if (this.execution.store.timeoutNanos > 0)
 				arm(this.execution.store.timeoutNanos);
-			this.runtime.lanes.worker().execute(this::run);
+			this.runtime.lanes.worker().execute(() -> ExecutionContext.run(this.execution.store.session, this::run));
 		}
 		catch (RejectedExecutionException ex) {
 			this.execution.store.fail(ExecutionFailure.of(FailureCode.SCHEDULING, ex));
@@ -265,7 +265,7 @@ final class ExecutionDriver {
 	private void dispatch(Runnable stop, ExecutionTermination termination, ExecutionDecision decision) {
 		if (stop != null) {
 			try {
-				this.runtime.lanes.stop().execute(stop);
+				this.runtime.lanes.stop().execute(() -> ExecutionContext.run(this.execution.store.session, stop));
 			}
 			catch (RejectedExecutionException ignored) {
 				/* Original cleanup clock will freeze UNKNOWN. */ }
@@ -276,9 +276,15 @@ final class ExecutionDriver {
 			this.runtime.lanes.publication().execute(() -> this.execution.store.terminationValue.complete(termination));
 
 		}
+		if (decision != null) {
+			try {
+				this.observations.accept(decision);
+			}
+			finally {
+				this.execution.store.session.endOptional();
+			}
+		}
 		this.execution.store.session.afterTermination();
-		if (decision != null)
-			this.observations.accept(decision);
 	}
 
 	private static final class TransportFailure extends RuntimeException {

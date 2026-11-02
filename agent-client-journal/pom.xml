@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+ <modelVersion>4.0.0</modelVersion><parent><groupId>io.github.markpollack</groupId><artifactId>agent-client-parent</artifactId><version>0.32.1-SNAPSHOT</version></parent>
+ <artifactId>agent-client-journal</artifactId><name>Agent Client Journal</name>
+ <properties>
+  <!-- New module: measured 96.6% lines / 84.1% branches; two-point margin. -->
+  <jacoco.minimum.line>0.94</jacoco.minimum.line><jacoco.minimum.branch>0.82</jacoco.minimum.branch>
+ </properties>
+ <dependencies>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-core</artifactId><version>${project.version}</version></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>journal-ocsf-writer</artifactId><version>2.0.0-SNAPSHOT</version></dependency>
+  <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>journal-capture-tck</artifactId><version>2.0.0-SNAPSHOT</version><scope>test</scope></dependency>
+  <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
+ </dependencies>
+</project>

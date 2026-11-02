@@ -33,6 +33,8 @@ final class ExecutionStore {
 
 	volatile ExecutionState state;
 
+	volatile AgentClientResponse providerResponse;
+
 	// Remaining fields are guarded by session.lock.
 	boolean started;
 
@@ -105,6 +107,12 @@ final class ExecutionStore {
 		}
 		finally {
 			this.session.lock.unlock();
+		}
+		try {
+			this.providerResponse = ResponseCopies.copy(new AgentClientResponse(response, Map.of()));
+		}
+		catch (RuntimeException ex) {
+			fail(ExecutionFailure.of(FailureCode.RESULT_COPY, ex));
 		}
 	}
 

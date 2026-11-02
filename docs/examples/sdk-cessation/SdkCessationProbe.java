@@ -1,0 +1,26 @@
+import java.nio.file.*;
+import java.time.Duration;
+import io.github.markpollack.claude.agent.sdk.ClaudeClient;
+import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
+
+/** Fake child only: no inference or prompt; run against the selected SDK JAR. */
+public final class SdkCessationProbe {
+ public static void main(String[] args) throws Exception {
+  Path root=Path.of(args[0]);
+  var client=ClaudeClient.sync(CLIOptions.builder().build()).workingDirectory(root)
+    .timeout(Duration.ofSeconds(5)).claudePath(root.resolve("child.py").toString()).build();
+  ProcessHandle descendant=null;
+  try {
+   client.connect();
+   long deadline=System.nanoTime()+Duration.ofSeconds(3).toNanos();
+   while (!Files.exists(root.resolve("descendant.pid")) && System.nanoTime()<deadline) Thread.sleep(10);
+   descendant=ProcessHandle.of(Long.parseLong(Files.readString(root.resolve("descendant.pid")))).orElseThrow();
+   client.close();
+   System.out.println("SDK_CLOSE_RETURNED descendantAlive="+descendant.isAlive());
+   if (!descendant.isAlive()) throw new AssertionError("Expected retained descendant reproduction did not occur");
+  } finally {
+   if (descendant!=null && descendant.isAlive()) { descendant.destroyForcibly(); descendant.onExit().get(3, java.util.concurrent.TimeUnit.SECONDS); }
+   client.close();
+  }
+ }
+}

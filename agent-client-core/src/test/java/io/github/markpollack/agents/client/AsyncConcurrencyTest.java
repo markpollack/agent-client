@@ -166,7 +166,7 @@ class AsyncConcurrencyTest {
 				assertThatThrownBy(() -> session.goal("overlap").runAsync()).isInstanceOf(IllegalStateException.class);
 				m.tick(5);
 				assertThat(execution.cancel(!flag)).isFalse();
-				session.close();
+				assertThatThrownBy(session::close).isInstanceOf(CleanupUnconfirmedException.class);
 				assertThatThrownBy(() -> execution.awaitTermination(Duration.ZERO))
 					.isInstanceOf(TimeoutException.class);
 				m.tick(10);
