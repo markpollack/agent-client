@@ -99,6 +99,28 @@ public class DefaultAgentClient implements AgentClient {
 			sessions = java.util.List.copyOf(this.ownedSessions);
 		}
 		sessions.forEach(session -> session.requestClose(budget));
+		this.runtime.stopOwnedLanes();
+		awaitSessions(sessions, budget);
+		if (!this.ownedSessions.isEmpty() || !this.runtime.remainingLanes().isEmpty())
+			throw new CleanupUnconfirmedException("Client cleanup unconfirmed", new CleanupHandle() {
+				@Override
+				public String id() {
+					return "client";
+				}
+
+				@Override
+				public CleanupSnapshot inspect() {
+					var remaining = new java.util.ArrayList<>(
+							ownedSessions.stream().map(DefaultAgentSession::id).toList());
+					remaining.addAll(runtime.remainingLanes());
+					return new CleanupSnapshot(id(),
+							remaining.isEmpty() ? CleanupState.CONFIRMED : CleanupState.UNKNOWN, remaining,
+							java.util.Optional.empty());
+				}
+			});
+	}
+
+	private void awaitSessions(java.util.List<DefaultAgentSession> sessions, CleanupBudget budget) {
 		boolean interrupted = Thread.interrupted();
 		try {
 			for (var session : sessions) {
@@ -109,26 +131,13 @@ public class DefaultAgentClient implements AgentClient {
 					/* Continue every owned teardown. */ }
 				interrupted |= Thread.interrupted();
 			}
+			this.runtime.awaitOwnedLanes(budget);
+			interrupted |= Thread.interrupted();
 		}
 		finally {
 			if (interrupted)
 				Thread.currentThread().interrupt();
 		}
-		if (!this.ownedSessions.isEmpty())
-			throw new CleanupUnconfirmedException("Client cleanup unconfirmed", new CleanupHandle() {
-				@Override
-				public String id() {
-					return "client";
-				}
-
-				@Override
-				public CleanupSnapshot inspect() {
-					var remaining = ownedSessions.stream().map(DefaultAgentSession::id).toList();
-					return new CleanupSnapshot(id(),
-							remaining.isEmpty() ? CleanupState.CONFIRMED : CleanupState.UNKNOWN, remaining,
-							java.util.Optional.empty());
-				}
-			});
 	}
 
 	private final AgentOptions defaultOptions;

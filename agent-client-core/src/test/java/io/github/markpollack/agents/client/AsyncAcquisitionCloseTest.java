@@ -175,6 +175,23 @@ class AsyncAcquisitionCloseTest {
 		client.close();
 	}
 
+	@Test
+	void closeTerminatesOwnedOptionalExecutorsWithoutClosingBorrowedRuntime() throws Exception {
+		var client = (DefaultAgentClient) AgentClient.builder(new AsyncLifecycleTest.Provider())
+			.executionRecorder(decision -> "ack")
+			.build();
+		var execution = client.goal("work").runAsync();
+		execution.result();
+		client.close();
+		assertThat(client.runtime.remainingLanes()).isEmpty();
+		assertThat(((ExecutorService) client.runtime.lanes.recorder()).isTerminated()).isTrue();
+		assertThat(((ExecutorService) client.runtime.lanes.observer()).isTerminated()).isTrue();
+		var manual = new AsyncLifecycleTest.Manual();
+		var borrowed = manual.client(new AsyncLifecycleTest.Provider());
+		borrowed.close();
+		assertThat(manual.runtime.remainingLanes()).isEmpty();
+	}
+
 	static void awaitConfirmed(CleanupHandle cleanup) {
 		long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
 		while (cleanup.inspect().state() != CleanupState.CONFIRMED && System.nanoTime() < end)

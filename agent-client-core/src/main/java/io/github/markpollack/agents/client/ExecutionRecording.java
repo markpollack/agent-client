@@ -33,6 +33,8 @@ final class ExecutionRecording {
 
 	private java.util.function.Supplier<String> prepared;
 
+	private volatile boolean deliveryPossible;
+
 	private volatile long started;
 
 	private Runnable cancelTimer = () -> {
@@ -106,6 +108,8 @@ final class ExecutionRecording {
 			if (this.prepared == null)
 				this.prepared = this.recorder instanceof ExecutionRecorder typed ? typed.prepare(decision)
 						: () -> this.recorder.apply(decision);
+			if (!beginDelivery(decision))
+				return;
 			String binding = Objects.requireNonNull(this.prepared.get(), "receiver bindingId");
 			if (binding.isBlank())
 				throw new IllegalArgumentException("Empty receiver bindingId");
@@ -115,11 +119,28 @@ final class ExecutionRecording {
 			retryOrFinish(decision, ex);
 		}
 		catch (RuntimeException ex) {
-			finish(decision, failed(FailureCode.RECORDING_FAILED, ex, true));
+			finish(decision, failed(FailureCode.RECORDING_FAILED, ex, this.deliveryPossible));
+		}
+	}
+
+	private boolean beginDelivery(ExecutionDecision decision) {
+		synchronized (this.lock) {
+			if (staleNow()) {
+				stale(decision);
+				return false;
+			}
+			if (this.execution.store.session.isClosing()) {
+				finish(decision, failed(FailureCode.RECORDING_FAILED,
+						new IllegalStateException("Client/session is closing"), this.deliveryPossible));
+				return false;
+			}
+			this.deliveryPossible = true;
+			return true;
 		}
 	}
 
 	private void retryOrFinish(ExecutionDecision decision, RecordingDeliveryException ex) {
+		this.deliveryPossible = ex.acceptanceUnknown();
 		var failure = new TerminalDelivery.Failed(ExecutionFailure.of(ex.code(), ex).info(), ex.retryable(),
 				ex.acceptanceUnknown());
 		if (!ex.retryable() || this.attemptNumber >= 3 || staleNow() || this.execution.store.session.isClosing()) {
@@ -150,7 +171,7 @@ final class ExecutionRecording {
 
 	private void stale(ExecutionDecision decision) {
 		var failure = failed(FailureCode.RECORDING_TIMEOUT, new TimeoutException("Recording observation expired"),
-				true);
+				this.deliveryPossible);
 		synchronized (this.lock) {
 			if (this.ended)
 				return;
@@ -165,7 +186,7 @@ final class ExecutionRecording {
 			// late ACK.
 			if (staleNow() && !(this.snapshot.delivery() instanceof TerminalDelivery.Failed))
 				replace(decision, failed(FailureCode.RECORDING_TIMEOUT,
-						new TimeoutException("Recording observation expired"), true));
+						new TimeoutException("Recording observation expired"), this.deliveryPossible));
 			replace(decision, delivery);
 		}
 		this.cancelTimer.run();

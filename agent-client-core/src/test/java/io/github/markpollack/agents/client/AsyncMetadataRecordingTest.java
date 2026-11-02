@@ -103,6 +103,41 @@ class AsyncMetadataRecordingTest {
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void latePreparationCannotStartDeliveryAfterTheOriginalWindow() throws Exception {
+		var manual = new AsyncLifecycleTest.Manual();
+		var client = manual.client(new AsyncLifecycleTest.Provider());
+		var entered = new CountDownLatch(1);
+		var release = new CountDownLatch(1);
+		var writes = new AtomicInteger();
+		client.recorder = (ExecutionRecorder) decision -> {
+			entered.countDown();
+			AsyncConcurrencyTest.await(release);
+			return () -> {
+				writes.incrementAndGet();
+				return "too-late";
+			};
+		};
+		var execution = client.goal("normal").runAsync();
+		manual.run();
+		Thread recorder = Thread.ofPlatform().start(manual.record.remove());
+		try {
+			assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+			manual.tick(Duration.ofSeconds(30).toNanos());
+			assertThat(((TerminalDelivery.Failed) execution.recording().delivery()).acceptanceUnknown()).isFalse();
+			release.countDown();
+			recorder.join();
+			assertThat(writes).hasValue(0);
+			assertThat(execution.recording().delivery()).isInstanceOf(TerminalDelivery.Failed.class);
+			assertThat(execution.result().isSuccessful()).isTrue();
+		}
+		finally {
+			release.countDown();
+			recorder.join();
+			client.close();
+		}
+	}
+
 	private static void awaitDelivery(AgentExecution execution) {
 		long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(4);
 		while (!(execution.recording().delivery() instanceof TerminalDelivery.Completed)

@@ -102,17 +102,24 @@ final class DecisionEncoding {
 				result.append('\\').append(c);
 			else if (c < 32)
 				result.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
-			else if (Character.isHighSurrogate(c)) {
-				if (i + 1 >= value.length() || !Character.isLowSurrogate(value.charAt(i + 1)))
-					throw new IllegalArgumentException("Unpaired surrogate");
-				result.append(c).append(value.charAt(++i));
-			}
-			else if (Character.isLowSurrogate(c))
-				throw new IllegalArgumentException("Unpaired surrogate");
 			else
-				result.append(c);
+				i = appendScalar(result, value, i);
 		}
 		return result.append('"').toString();
+	}
+
+	private static int appendScalar(StringBuilder result, String value, int index) {
+		char c = value.charAt(index);
+		if (Character.isHighSurrogate(c)) {
+			if (index + 1 >= value.length() || !Character.isLowSurrogate(value.charAt(index + 1)))
+				throw new IllegalArgumentException("Unpaired surrogate");
+			result.append(c).append(value.charAt(index + 1));
+			return index + 1;
+		}
+		if (Character.isLowSurrogate(c))
+			throw new IllegalArgumentException("Unpaired surrogate");
+		result.append(c);
+		return index;
 	}
 
 }
