@@ -27,6 +27,32 @@ public class DefaultAgentClientBuilder implements AgentClient.Builder {
 
 	private final AgentApi agentApi;
 
+	private Duration setupTimeout = Duration.ofSeconds(30);
+
+	private Duration cleanupTimeout = Duration.ofSeconds(10);
+
+	private java.util.function.Consumer<ExecutionDecision> recorder;
+
+	@Override
+	public AgentClient.Builder setupTimeout(Duration timeout) {
+		ExecutionTimes.nanos(timeout, true);
+		this.setupTimeout = timeout;
+		return this;
+	}
+
+	@Override
+	public AgentClient.Builder cleanupTimeout(Duration timeout) {
+		ExecutionTimes.nanos(timeout, true);
+		this.cleanupTimeout = timeout;
+		return this;
+	}
+
+	@Override
+	public AgentClient.Builder executionRecorder(java.util.function.Consumer<ExecutionDecision> recorder) {
+		this.recorder = recorder;
+		return this;
+	}
+
 	private AgentOptions defaultOptions;
 
 	private List<AgentCallAdvisor> defaultAdvisors;
@@ -99,8 +125,11 @@ public class DefaultAgentClientBuilder implements AgentClient.Builder {
 
 	@Override
 	public AgentClient build() {
-		return new DefaultAgentClient(this.agentApi, this.defaultOptions, this.defaultAdvisors, this.mcpServerCatalog,
-				this.defaultMcpServerNames);
+		var client = new DefaultAgentClient(this.agentApi, this.defaultOptions, this.defaultAdvisors,
+				this.mcpServerCatalog, this.defaultMcpServerNames);
+		client.runtime = new ExecutionRuntime(this.setupTimeout, this.cleanupTimeout);
+		client.recorder = this.recorder;
+		return client;
 	}
 
 }

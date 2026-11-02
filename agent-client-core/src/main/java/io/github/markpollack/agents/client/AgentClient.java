@@ -33,7 +33,17 @@ import io.github.markpollack.agents.model.mcp.McpServerCatalog;
  * @author Mark Pollack
  * @since 0.1.0
  */
-public interface AgentClient {
+public interface AgentClient extends AutoCloseable {
+
+	/** Retained conversations for providers implementing AgentExecutionProvider. */
+	AgentSessionRegistry sessions();
+
+	/**
+	 * Stop owned executions and close owned conversations. Does not close the borrowed
+	 * provider.
+	 */
+	@Override
+	void close();
 
 	/**
 	 * Create a new agent client from an agent API.
@@ -167,6 +177,20 @@ public interface AgentClient {
 		 */
 		AgentClientResponse run();
 
+		/** Accept an asynchronous execution. Requires an opt-in lifecycle provider. */
+		AgentExecution runAsync();
+
+		/**
+		 * Positive execution budget starting at acceptance; distinct from result waiting.
+		 */
+		AgentClientRequestSpec executionTimeout(Duration timeout);
+
+		/** Best effort terminal observation on an isolated bounded lane. */
+		AgentClientRequestSpec onEvent(Consumer<AgentClientEvent> observer);
+
+		/** Optional application association; never inferred from provider identities. */
+		AgentClientRequestSpec correlation(ApplicationCorrelation correlation);
+
 	}
 
 	/**
@@ -235,6 +259,15 @@ public interface AgentClient {
 		 * @return a new agent client
 		 */
 		AgentClient build();
+
+		/** Positive execution-owned setup allowance. */
+		Builder setupTimeout(Duration timeout);
+
+		/** Positive cleanup allowance; repeated cancellation cannot restart it. */
+		Builder cleanupTimeout(Duration timeout);
+
+		/** Optional secondary decision sink. Its failure cannot fail execution. */
+		Builder executionRecorder(Consumer<ExecutionDecision> recorder);
 
 	}
 

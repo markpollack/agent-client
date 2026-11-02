@@ -35,6 +35,66 @@ public class DefaultAgentClient implements AgentClient {
 
 	private final AgentApi agentApi;
 
+	ExecutionRuntime runtime = new ExecutionRuntime(java.time.Duration.ofSeconds(30), java.time.Duration.ofSeconds(10));
+
+	java.util.function.Consumer<ExecutionDecision> recorder;
+
+	private final java.util.Set<DefaultAgentSession> ownedSessions = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+	private final Object lifecycleLock = new Object();
+
+	private boolean closed;
+
+	private AgentExecutionProvider lifecycleProvider() {
+		if (this.agentApi instanceof AgentExecutionProvider provider)
+			return provider;
+		throw new UnsupportedOperationException("Provider has no qualified async/retained Client lifecycle adapter");
+	}
+
+	@Override
+	public AgentSessionRegistry sessions() {
+		lifecycleProvider();
+		return configure -> {
+			var spec = new DefaultSessionSpec(this.defaultOptions);
+			java.util.Objects.requireNonNull(configure, "configure").accept(spec);
+			var session = ownSession(DefaultAgentOptions.builder().from(spec.options).build());
+			try {
+				session.connection = session.provider.open(session.options);
+			}
+			catch (RuntimeException ex) {
+				this.ownedSessions.remove(session);
+				throw ex;
+			}
+			return session;
+		};
+	}
+
+	private DefaultAgentSession ownSession(AgentOptions options) {
+		synchronized (this.lifecycleLock) {
+			if (this.closed)
+				throw new IllegalStateException("Client is closed");
+			var session = new DefaultAgentSession(this, lifecycleProvider(), options);
+			this.ownedSessions.add(session);
+			return session;
+		}
+	}
+
+	AgentClientRequestSpec sessionGoal(DefaultAgentSession session, String prompt) {
+		var spec = new DefaultAgentClientRequestSpec(new Goal(prompt, null, session.options));
+		spec.session = session;
+		return spec;
+	}
+
+	@Override
+	public void close() {
+		java.util.List<DefaultAgentSession> sessions;
+		synchronized (this.lifecycleLock) {
+			this.closed = true;
+			sessions = java.util.List.copyOf(this.ownedSessions);
+		}
+		sessions.forEach(DefaultAgentSession::close);
+	}
+
 	private final AgentOptions defaultOptions;
 
 	private final List<AgentCallAdvisor> defaultAdvisors;
@@ -120,7 +180,10 @@ public class DefaultAgentClient implements AgentClient {
 		return new DefaultAgentClientBuilder(this.agentApi).defaultOptions(this.defaultOptions)
 			.defaultAdvisors(this.defaultAdvisors)
 			.mcpServerCatalog(this.mcpServerCatalog)
-			.defaultMcpServers(this.defaultMcpServerNames);
+			.defaultMcpServers(this.defaultMcpServerNames)
+			.setupTimeout(java.time.Duration.ofNanos(this.runtime.setupNanos))
+			.cleanupTimeout(java.time.Duration.ofNanos(this.runtime.cleanupNanos))
+			.executionRecorder(this.recorder);
 	}
 
 	/**
@@ -129,6 +192,33 @@ public class DefaultAgentClient implements AgentClient {
 	private class DefaultAgentClientRequestSpec implements AgentClientRequestSpec {
 
 		private Goal goal;
+
+		private DefaultAgentSession session;
+
+		private java.time.Duration executionTimeout;
+
+		private java.util.function.Consumer<AgentClientEvent> observer;
+
+		private ApplicationCorrelation correlation = ApplicationCorrelation.empty();
+
+		@Override
+		public AgentClientRequestSpec executionTimeout(java.time.Duration timeout) {
+			ExecutionTimes.nanos(timeout, true);
+			this.executionTimeout = timeout;
+			return this;
+		}
+
+		@Override
+		public AgentClientRequestSpec onEvent(java.util.function.Consumer<AgentClientEvent> observer) {
+			this.observer = java.util.Objects.requireNonNull(observer, "observer");
+			return this;
+		}
+
+		@Override
+		public AgentClientRequestSpec correlation(ApplicationCorrelation correlation) {
+			this.correlation = java.util.Objects.requireNonNull(correlation, "correlation");
+			return this;
+		}
 
 		private Path workingDirectory;
 
@@ -191,6 +281,30 @@ public class DefaultAgentClient implements AgentClient {
 
 		@Override
 		public AgentClientResponse run() {
+			if (DefaultAgentClient.this.agentApi instanceof AgentExecutionProvider)
+				return SynchronousExecution.result(submit());
+			return invoke(prepare(), DefaultAgentClient.this.agentApi);
+		}
+
+		@Override
+		public AgentExecution runAsync() {
+			return submit();
+		}
+
+		private DefaultAgentExecution submit() {
+			lifecycleProvider();
+			AgentClientRequest request = prepare();
+			request = new AgentClientRequest(request.goal(), request.workingDirectory(),
+					DefaultAgentOptions.builder().from(request.options()).build(), request.context());
+			final AgentClientRequest acceptedRequest = request;
+			var advisors = List.copyOf(this.requestAdvisors);
+			var owner = this.session == null ? ownSession(request.options()) : this.session;
+			var work = new ExecutionWork(request.options(), this.executionTimeout, this.correlation,
+					api -> invoke(acceptedRequest, api, advisors), this.observer, DefaultAgentClient.this.recorder);
+			return owner.submit(work);
+		}
+
+		private AgentClientRequest prepare() {
 			// Ensure we have a goal before proceeding
 			if (this.goal == null) {
 				throw new IllegalStateException(
@@ -219,10 +333,19 @@ public class DefaultAgentClient implements AgentClient {
 			AgentClientRequest request = new AgentClientRequest(this.goal, effectiveWorkingDirectory, effectiveOptions,
 					new HashMap<>());
 
-			// Build advisor chain with terminal advisor
+			return request;
+		}
+
+		private AgentClientResponse invoke(AgentClientRequest request, AgentApi api) {
+			return invoke(request, api, this.requestAdvisors);
+		}
+
+		private AgentClientResponse invoke(AgentClientRequest request, AgentApi api,
+				List<AgentCallAdvisor> requestedAdvisors) {
+			// Build the existing required advisor chain around the lifecycle-owned turn.
 			List<AgentCallAdvisor> advisors = new ArrayList<>(DefaultAgentClient.this.defaultAdvisors);
-			advisors.addAll(this.requestAdvisors);
-			advisors.add(new AgentModelCallAdvisor(DefaultAgentClient.this.agentApi));
+			advisors.addAll(requestedAdvisors);
+			advisors.add(new AgentModelCallAdvisor(api));
 
 			var chain = DefaultAgentCallAdvisorChain.builder().pushAll(advisors).build();
 
