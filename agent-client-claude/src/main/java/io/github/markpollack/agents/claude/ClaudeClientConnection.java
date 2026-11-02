@@ -63,6 +63,8 @@ final class ClaudeClientConnection implements AgentExecutionProvider.Connection 
 		var generation = this.current;
 		if (!generation.client.isConnected()) {
 			generation.close();
+			if (!this.retained)
+				throw new IllegalStateException("One-shot connection cannot create a replacement generation");
 			if (generation.dispatched && this.nativeId == null)
 				throw new IllegalStateException("Cannot reconnect dispatched conversation without native identity");
 			connect();

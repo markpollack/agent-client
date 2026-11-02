@@ -20,6 +20,8 @@ Imports: `io.github.markpollack.agents.client.AgentClient`,
 `result(Duration)` bounds only the caller's wait. Set `executionTimeout` on a request to bound the
 actual task. The native spending cap is fixed per connection generation. Supply `preToolUse` hooks
 when the application needs to decide edit/tool permissions before execution.
+One-shot executions use one connection generation; a disconnected generation fails without a
+replacement launch. Retained sessions explicitly support reconnect as described below.
 
 For a conversation, create `client.sessions().create(spec -> spec.workingDirectory(directory))`
 and call `session.goal(...).runAsync()` sequentially. Close the session when done. `cancel(false)`
@@ -45,9 +47,15 @@ configured. [ReadNativeClient.java](examples/ReadNativeClient.java) independentl
 archive using only Journal's reader JAR and runtime dependencies:
 
 ```text
-ReadNativeClient <events.jsonl> <decisionId> <protected-sources> <assembly-expectation.json>
+ReadNativeClient <events.jsonl> <decisionId> <protected-sources> <assembly-expectation.json> [frozen-decision.json]
 ```
 
 The protected sources live beside the receiver's prepared `events.jsonl`; the assembly expectation
 is under `records/native-<executionId>`. See [capabilities and limits](async-capabilities.md) for
 cleanup scope, source limits and deferred provider work.
+
+For deterministic readback after a reader repair, [ReplayNativeArchive.java](examples/ReplayNativeArchive.java)
+reassembles the exact frozen envelope and source package with the installed Journal writer:
+`ReplayNativeArchive <envelope.json> <protected-sources> <fresh-destination> <producer-namespace>`.
+Run the independent reader on the resulting archive, optionally supplying the original decision bytes
+for an exact comparison. This performs no provider task and does not repair malformed original bytes.

@@ -29,9 +29,10 @@ public final class NativeClaude {
     }
     public static void main(String[] args) throws Exception {
         String mode = args[0]; Path workspace = Path.of(args[1]).toAbsolutePath(); output = Path.of(args[2]).toAbsolutePath();
+        if (!Set.of("one-shot", "archive-control", "retained").contains(mode)) throw new IllegalArgumentException("Unknown mode");
         Files.createDirectories(output);
         var provider = ClaudeClientProvider.builder().workingDirectory(workspace).maxBudgetUsd(1.0)
-            .tools(List.of("Read", "Bash"))
+            .tools(mode.equals("retained") ? List.of("Read", "Bash") : List.of("Read"))
             .preToolUse(".*", input -> {
                 boolean allowed = false;
                 if (input instanceof HookInput.PreToolUseInput tool) {
@@ -39,7 +40,7 @@ public final class NativeClaude {
                         String file = tool.getArgument("file_path", String.class).orElse("");
                         allowed = workspace.resolve(file).normalize().equals(workspace.resolve("sentinel.txt"));
                     }
-                    if (tool.toolName().equals("Bash"))
+                    if (mode.equals("retained") && tool.toolName().equals("Bash"))
                         allowed = tool.getArgument("command", String.class).orElse("").equals("printf started > cancel-started; sleep 30");
                     System.out.println("PRE_TOOL " + tool.toolName() + " allowed=" + allowed);
                 }
@@ -62,7 +63,9 @@ public final class NativeClaude {
                 var response = execution.result();
                 System.out.println("RESULT " + response.getResult());
                 if (!response.isSuccessful() || !response.getResult().contains(control ? "ARCHIVE_CONTROL_926" : "CLIENT_NATIVE_SENTINEL")) throw new AssertionError(response);
-                if (!execution.awaitTermination(Duration.ofSeconds(10)).cleanupConfirmed()) throw new AssertionError("cleanup unknown");
+                var termination = execution.awaitTermination(Duration.ofSeconds(10));
+                System.out.println("TERMINATION " + termination);
+                if (!termination.cleanupConfirmed()) throw new AssertionError("cleanup unknown");
                 record(mode, execution);
                 if (execution.recording().evidence().acquisition() != CaptureAcquisition.COMPLETED) throw new AssertionError("source acquisition incomplete");
             } else if (mode.equals("retained")) {

@@ -49,6 +49,23 @@ class ClaudeClientLifecycleTest {
 	}
 
 	@Test
+	void closedOneShotCannotLaunchAReplacementGeneration() throws Exception {
+		var connection = provider().open(DefaultAgentOptions.builder().build(), false);
+		try {
+			awaitFile("launches.jsonl");
+			connection.prepare("unsent").stop(false);
+			assertThatThrownBy(() -> connection.prepare("replacement")).isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("One-shot");
+			assertThat(Files.readAllLines(directory.resolve("launches.jsonl"))).hasSize(1);
+			assertThat(directory.resolve("prompts.jsonl")).doesNotExist();
+		}
+		finally {
+			connection.close();
+		}
+		assertDead();
+	}
+
+	@Test
 	void retainedFollowupReferenceProgressAndRefreshKeepExactHistory() throws Exception {
 		var binding = ConnectionBinding.withoutMcp(Map.of("TOKEN_FILE", "unchanged"));
 		var events = new CopyOnWriteArrayList<AgentClientEvent>();
