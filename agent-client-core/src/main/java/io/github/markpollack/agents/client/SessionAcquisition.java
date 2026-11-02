@@ -47,12 +47,14 @@ final class SessionAcquisition {
 	private static void acquire(DefaultAgentSession session, CompletableFuture<Void> result, long started) {
 		Throwable failure = null;
 		try {
-			session.install(session.provider.open(session.options));
+			session.install(session.provider.open(session.options, true));
 			if (ExecutionTimes.elapsed(session.client.runtime.clock.getAsLong(), started,
 					session.client.runtime.setupNanos))
 				throw new TimeoutException("Session setup deadline exceeded");
 		}
 		catch (Throwable ex) {
+			if (ex instanceof ConnectionAcquisitionException partial)
+				session.install(partial.connection());
 			failure = ex;
 		}
 		finally {

@@ -26,7 +26,12 @@ final class ClaudeCliOptionsMapper {
 
 	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
 			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer) {
-		CLIOptions.Builder builder = CLIOptions.builder().transportByteObserver(observer);
+		return build(request, options, timeout, observer, null);
+	}
+
+	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
+			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer, String resume) {
+		CLIOptions.Builder builder = CLIOptions.builder().transportByteObserver(observer).resume(resume);
 		applyEnvironment(builder, options, request);
 		applyModel(builder, options, timeout);
 		applyPermissions(builder, options, request);

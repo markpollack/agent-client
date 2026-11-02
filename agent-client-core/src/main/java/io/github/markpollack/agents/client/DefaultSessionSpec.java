@@ -12,6 +12,14 @@ final class DefaultSessionSpec implements SessionSpec {
 
 	AgentOptions options;
 
+	ConnectionBinding binding;
+
+	@Override
+	public SessionSpec binding(ConnectionBinding initial) {
+		this.binding = java.util.Objects.requireNonNull(initial);
+		return this;
+	}
+
 	DefaultSessionSpec(AgentOptions options) {
 		this.options = options;
 	}

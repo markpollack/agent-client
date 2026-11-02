@@ -25,7 +25,9 @@ final class DefaultAgentSession implements AgentSession {
 
 	final DefaultAgentClient client;
 
-	final AgentOptions options;
+	volatile AgentOptions options;
+
+	ConnectionBinding binding;
 
 	volatile AgentExecutionProvider.Connection connection;
 
@@ -77,7 +79,7 @@ final class DefaultAgentSession implements AgentSession {
 
 	void install(AgentExecutionProvider.Connection connection) {
 		this.connection = java.util.Objects.requireNonNull(connection, "connection");
-		this.connectionId = UUID.randomUUID().toString();
+		this.connectionId = connection.connectionId().orElseGet(() -> UUID.randomUUID().toString());
 	}
 
 	void endAcquisition() {
@@ -116,11 +118,16 @@ final class DefaultAgentSession implements AgentSession {
 		try {
 			if (this.closing || this.snapshot.state() != SessionState.READY)
 				throw new IllegalStateException("Session is not ready: " + this.snapshot.state());
+			if (work.replacement() != null) {
+				if (this.binding == null)
+					throw new IllegalArgumentException("No original connection binding");
+				this.binding.validateReplacement(work.replacement());
+			}
 			execution = new DefaultAgentExecution(this, work, this.client.runtime);
 			this.active = execution.store;
 			this.optionalLanes++; // Hold ownership until observation lanes are
 									// registered.
-			this.snapshot = new SessionSnapshot(this.id, SessionState.BUSY, Optional.empty(),
+			this.snapshot = new SessionSnapshot(this.id, SessionState.BUSY, providerReference(),
 					Optional.of(execution.executionId()), Optional.empty());
 		}
 		finally {
@@ -140,7 +147,7 @@ final class DefaultAgentSession implements AgentSession {
 			return;
 		}
 		SessionState state = unknown ? SessionState.UNKNOWN : this.closing ? SessionState.CLOSING : SessionState.READY;
-		this.snapshot = new SessionSnapshot(this.id, state, Optional.empty(),
+		this.snapshot = new SessionSnapshot(this.id, state, providerReference(),
 				unknown ? Optional.of(store.execution.executionId()) : Optional.empty(), Optional.empty());
 		if (!unknown)
 			this.active = null;
@@ -153,14 +160,12 @@ final class DefaultAgentSession implements AgentSession {
 
 	@Override
 	public Optional<ProviderReference> providerReference() {
-		return Optional.empty();
+		return this.connection == null ? Optional.empty() : this.connection.providerReference();
 	}
 
 	@Override
 	public SessionCapabilities capabilities() {
-		return new SessionCapabilities(new Capability(true, Optional.empty()),
-				new Capability(false, Optional.of("Load is not implemented")),
-				new Capability(false, Optional.of("Native progress is not implemented")));
+		return this.provider.capabilities();
 	}
 
 	@Override

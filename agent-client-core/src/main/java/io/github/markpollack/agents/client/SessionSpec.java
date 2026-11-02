@@ -15,4 +15,6 @@ public interface SessionSpec {
 
 	SessionSpec options(AgentOptions options);
 
+	SessionSpec binding(ConnectionBinding initial);
+
 }

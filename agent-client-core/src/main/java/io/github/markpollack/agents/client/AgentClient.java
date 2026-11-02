@@ -191,6 +191,9 @@ public interface AgentClient extends AutoCloseable {
 		/** Optional application association; never inferred from provider identities. */
 		AgentClientRequestSpec correlation(ApplicationCorrelation correlation);
 
+		/** Install immutable replacement connection authority for this next execution. */
+		AgentClientRequestSpec refreshBinding(ConnectionBinding replacement);
+
 	}
 
 	/**

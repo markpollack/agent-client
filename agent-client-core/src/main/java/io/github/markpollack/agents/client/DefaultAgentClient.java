@@ -59,7 +59,10 @@ public class DefaultAgentClient implements AgentClient {
 		return configure -> {
 			var spec = new DefaultSessionSpec(this.defaultOptions);
 			java.util.Objects.requireNonNull(configure, "configure").accept(spec);
-			var session = ownSession(ExecutionOptions.copy(spec.options), true);
+			var options = spec.binding == null ? ExecutionOptions.copy(spec.options)
+					: spec.binding.apply(spec.options, true);
+			var session = ownSession(options, true);
+			session.binding = spec.binding;
 			return SessionAcquisition.open(session);
 		};
 	}
@@ -249,6 +252,14 @@ public class DefaultAgentClient implements AgentClient {
 
 		private ApplicationCorrelation correlation = ApplicationCorrelation.empty();
 
+		private ConnectionBinding replacement;
+
+		@Override
+		public AgentClientRequestSpec refreshBinding(ConnectionBinding replacement) {
+			this.replacement = java.util.Objects.requireNonNull(replacement);
+			return this;
+		}
+
 		@Override
 		public AgentClientRequestSpec executionTimeout(java.time.Duration timeout) {
 			ExecutionTimes.nanos(timeout, true);
@@ -342,6 +353,9 @@ public class DefaultAgentClient implements AgentClient {
 		private DefaultAgentExecution submit() {
 			lifecycleProvider();
 			AgentClientRequest request = prepare();
+			if (this.replacement != null)
+				request = new AgentClientRequest(request.goal(), request.workingDirectory(),
+						this.replacement.apply(request.options(), false), request.context());
 			request = new AgentClientRequest(request.goal(), request.workingDirectory(),
 					ExecutionOptions.copy(request.options()), request.context());
 			final AgentClientRequest acceptedRequest = request;
@@ -350,7 +364,7 @@ public class DefaultAgentClient implements AgentClient {
 			var work = new ExecutionWork(request.options(),
 					this.executionTimeout == null ? DefaultAgentClient.this.defaultExecutionTimeout
 							: this.executionTimeout,
-					this.correlation, api -> invoke(acceptedRequest, api, advisors), this.observer,
+					this.correlation, this.replacement, api -> invoke(acceptedRequest, api, advisors), this.observer,
 					DefaultAgentClient.this.recorder);
 			return owner.submit(work);
 		}

@@ -23,12 +23,39 @@ public interface AgentExecutionProvider extends AgentApi {
 	 */
 	Connection open(AgentOptions options);
 
+	default Connection open(AgentOptions options, boolean retained) {
+		return open(options);
+	}
+
 	@Override
 	default AgentResponse call(AgentTaskRequest request) {
 		throw new UnsupportedOperationException("Use AgentClient to own the execution lifecycle");
 	}
 
+	default SessionCapabilities capabilities() {
+		return new SessionCapabilities(new Capability(true, java.util.Optional.empty()),
+				new Capability(false, java.util.Optional.of("Exact-history loading is not qualified")),
+				new Capability(false, java.util.Optional.of("Native progress is not implemented")));
+	}
+
 	interface Connection extends AutoCloseable {
+
+		default java.util.Optional<ProviderReference> providerReference() {
+			return java.util.Optional.empty();
+		}
+
+		default java.util.Optional<String> connectionId() {
+			return java.util.Optional.empty();
+		}
+
+		default Turn prepare(String executionId, java.util.function.Consumer<java.util.Map<String, Object>> progress) {
+			return prepare(executionId);
+		}
+
+		/** Replace only after confirmed old-resource cessation; never replay a prompt. */
+		default void refresh(AgentOptions options) {
+			throw new UnsupportedOperationException("Binding refresh is not supported");
+		}
 
 		/** Create an exact turn target without dispatching provider work. */
 		Turn prepare(String executionId);

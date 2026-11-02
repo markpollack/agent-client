@@ -60,7 +60,7 @@ final class ExecutionDriver {
 				return false;
 			store.started = true;
 			store.worker = Thread.currentThread();
-			store.setup = store.session.connection == null;
+			store.setup = true;
 			store.setupStart = this.runtime.clock.getAsLong();
 			return true;
 		}
@@ -96,11 +96,25 @@ final class ExecutionDriver {
 
 	private void prepare() {
 		var store = this.execution.store;
+		arm(this.runtime.setupNanos);
 		if (store.session.connection == null) {
-			arm(this.runtime.setupNanos);
-			store.session.install(store.session.provider.open(this.work.options()));
+			try {
+				store.session.install(store.session.provider.open(this.work.options(), store.session.retained()));
+			}
+			catch (ConnectionAcquisitionException partial) {
+				store.session.install(partial.connection());
+				throw partial;
+			}
 		}
-		AgentExecutionProvider.Turn turn = store.session.connection.prepare(this.execution.executionId());
+		if (this.work.replacement() != null && !this.execution.isDone()) {
+			var options = this.work.replacement().apply(store.session.options, false);
+			store.session.connection.refresh(options);
+			store.session.options = options;
+			store.session.binding = this.work.replacement();
+		}
+		AgentExecutionProvider.Turn turn = store.session.connection.prepare(this.execution.executionId(),
+				this.observations::progress);
+		store.session.connectionId = store.session.connection.connectionId().orElse(store.session.connectionId);
 		store.session.lock.lock();
 		try {
 			store.expire();
