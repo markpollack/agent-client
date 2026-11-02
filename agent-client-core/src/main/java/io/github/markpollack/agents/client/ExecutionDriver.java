@@ -83,6 +83,12 @@ final class ExecutionDriver {
 			fail(FailureCode.SETUP_FAILED, ex);
 		}
 		finally {
+			try {
+				finishEphemeral();
+			}
+			catch (RuntimeException ex) {
+				fail(FailureCode.CLIENT_PROCESSING, ex);
+			}
 			this.execution.store.workerFinished();
 			advance();
 		}
@@ -92,7 +98,7 @@ final class ExecutionDriver {
 		var store = this.execution.store;
 		if (store.session.connection == null) {
 			arm(this.runtime.setupNanos);
-			store.session.connection = store.session.provider.open(this.work.options());
+			store.session.install(store.session.provider.open(this.work.options()));
 		}
 		AgentExecutionProvider.Turn turn = store.session.connection.prepare(this.execution.executionId());
 		store.session.lock.lock();
@@ -106,6 +112,21 @@ final class ExecutionDriver {
 			store.session.lock.unlock();
 		}
 		advance();
+	}
+
+	private void finishEphemeral() {
+		var store = this.execution.store;
+		if (store.session.retained())
+			return;
+		store.session.lock.lock();
+		try {
+			store.beginCleanup();
+		}
+		finally {
+			store.session.lock.unlock();
+		}
+		advance();
+		store.session.finishEphemeral();
 	}
 
 	private void process() {
@@ -128,6 +149,13 @@ final class ExecutionDriver {
 			fail(FailureCode.RESULT_COPY, ex);
 			return;
 		}
+		try {
+			finishEphemeral();
+		}
+		catch (RuntimeException ex) {
+			fail(FailureCode.CLIENT_PROCESSING, ex);
+			return;
+		}
 		this.execution.store.complete(result);
 	}
 
@@ -145,7 +173,9 @@ final class ExecutionDriver {
 			store.session.lock.unlock();
 		}
 		try {
-			return store.turn.call(request);
+			var response = store.turn.call(request);
+			store.observeProvider(response);
+			return response;
 		}
 		catch (Throwable ex) {
 			throw new TransportFailure(ex);
@@ -168,12 +198,9 @@ final class ExecutionDriver {
 			store.expire();
 			if (store.state.decision() != null && !store.started)
 				store.workerDone = true;
-			if (store.stopping && store.turn != null && !store.stopClaimed) {
-				store.stopClaimed = true;
-				stop = stopAction(store.turn, store.interrupt);
-			}
+			stop = claimStop(store);
 			store.settle();
-			armCleanup = store.stopping && store.state.termination() == null
+			armCleanup = store.cleanupStarted && store.state.termination() == null
 					&& this.cleanupArmed.compareAndSet(false, true);
 			if (store.state.termination() != null && !store.published) {
 				store.published = true;
@@ -191,6 +218,13 @@ final class ExecutionDriver {
 		dispatch(stop, termination, decision);
 		if (armCleanup)
 			arm(this.runtime.cleanupNanos - (this.runtime.clock.getAsLong() - store.cleanupStart));
+	}
+
+	private Runnable claimStop(ExecutionStore store) {
+		if (!store.stopping || store.turn == null || store.stopClaimed)
+			return null;
+		store.stopClaimed = true;
+		return stopAction(store.turn, store.interrupt);
 	}
 
 	private void interruptWorker() {
@@ -240,8 +274,9 @@ final class ExecutionDriver {
 			this.timers.forEach(Runnable::run);
 			this.timers.clear();
 			this.runtime.lanes.publication().execute(() -> this.execution.store.terminationValue.complete(termination));
-			this.execution.store.session.afterTermination();
+
 		}
+		this.execution.store.session.afterTermination();
 		if (decision != null)
 			this.observations.accept(decision);
 	}

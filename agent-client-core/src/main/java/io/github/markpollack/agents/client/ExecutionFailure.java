@@ -16,13 +16,24 @@ record ExecutionFailure(FailureInfo info, Throwable cause) {
 		Throwable next = failure;
 		while (next != null && seen.add(next) && causes.size() < 16) {
 			causes.add(next.getClass().getName() + ": " + message(next));
-			next = next.getCause();
+			try {
+				next = next.getCause();
+			}
+			catch (RuntimeException ex) {
+				causes.add("Cause unavailable: " + ex.getClass().getName());
+				break;
+			}
 		}
 		return new ExecutionFailure(new FailureInfo(code, failure.getClass().getName(), message(failure), causes),
 				failure);
 	}
 
 	private static String message(Throwable failure) {
-		return java.util.Objects.toString(failure.getMessage(), "");
+		try {
+			return java.util.Objects.toString(failure.getMessage(), "");
+		}
+		catch (RuntimeException ex) {
+			return "Message unavailable: " + ex.getClass().getName();
+		}
 	}
 }

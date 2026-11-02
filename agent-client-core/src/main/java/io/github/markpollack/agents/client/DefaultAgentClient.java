@@ -37,7 +37,9 @@ public class DefaultAgentClient implements AgentClient {
 
 	ExecutionRuntime runtime = new ExecutionRuntime(java.time.Duration.ofSeconds(30), java.time.Duration.ofSeconds(10));
 
-	java.util.function.Consumer<ExecutionDecision> recorder;
+	java.util.function.Function<ExecutionDecision, String> recorder;
+
+	java.time.Duration defaultExecutionTimeout;
 
 	private final java.util.Set<DefaultAgentSession> ownedSessions = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -57,26 +59,34 @@ public class DefaultAgentClient implements AgentClient {
 		return configure -> {
 			var spec = new DefaultSessionSpec(this.defaultOptions);
 			java.util.Objects.requireNonNull(configure, "configure").accept(spec);
-			var session = ownSession(DefaultAgentOptions.builder().from(spec.options).build());
+			var session = ownSession(ExecutionOptions.copy(spec.options), true);
+			session.beginAcquisition();
 			try {
-				session.connection = session.provider.open(session.options);
+				session.install(session.provider.open(session.options));
 			}
 			catch (RuntimeException ex) {
 				this.ownedSessions.remove(session);
 				throw ex;
 			}
+			finally {
+				session.endAcquisition();
+			}
 			return session;
 		};
 	}
 
-	private DefaultAgentSession ownSession(AgentOptions options) {
+	private DefaultAgentSession ownSession(AgentOptions options, boolean retained) {
 		synchronized (this.lifecycleLock) {
 			if (this.closed)
 				throw new IllegalStateException("Client is closed");
-			var session = new DefaultAgentSession(this, lifecycleProvider(), options);
+			var session = new DefaultAgentSession(this, lifecycleProvider(), options, retained);
 			this.ownedSessions.add(session);
 			return session;
 		}
+	}
+
+	void forget(DefaultAgentSession session) {
+		this.ownedSessions.remove(session);
 	}
 
 	AgentClientRequestSpec sessionGoal(DefaultAgentSession session, String prompt) {
@@ -177,13 +187,16 @@ public class DefaultAgentClient implements AgentClient {
 
 	@Override
 	public AgentClient.Builder mutate() {
-		return new DefaultAgentClientBuilder(this.agentApi).defaultOptions(this.defaultOptions)
+		var builder = (DefaultAgentClientBuilder) new DefaultAgentClientBuilder(this.agentApi)
+			.defaultOptions(this.defaultOptions)
 			.defaultAdvisors(this.defaultAdvisors)
 			.mcpServerCatalog(this.mcpServerCatalog)
 			.defaultMcpServers(this.defaultMcpServerNames)
 			.setupTimeout(java.time.Duration.ofNanos(this.runtime.setupNanos))
 			.cleanupTimeout(java.time.Duration.ofNanos(this.runtime.cleanupNanos))
 			.executionRecorder(this.recorder);
+		builder.executionTimeout = this.defaultExecutionTimeout;
+		return builder;
 	}
 
 	/**
@@ -295,16 +308,23 @@ public class DefaultAgentClient implements AgentClient {
 			lifecycleProvider();
 			AgentClientRequest request = prepare();
 			request = new AgentClientRequest(request.goal(), request.workingDirectory(),
-					DefaultAgentOptions.builder().from(request.options()).build(), request.context());
+					ExecutionOptions.copy(request.options()), request.context());
 			final AgentClientRequest acceptedRequest = request;
 			var advisors = List.copyOf(this.requestAdvisors);
-			var owner = this.session == null ? ownSession(request.options()) : this.session;
-			var work = new ExecutionWork(request.options(), this.executionTimeout, this.correlation,
-					api -> invoke(acceptedRequest, api, advisors), this.observer, DefaultAgentClient.this.recorder);
+			var owner = this.session == null ? ownSession(request.options(), false) : this.session;
+			var work = new ExecutionWork(request.options(),
+					this.executionTimeout == null ? DefaultAgentClient.this.defaultExecutionTimeout
+							: this.executionTimeout,
+					this.correlation, api -> invoke(acceptedRequest, api, advisors), this.observer,
+					DefaultAgentClient.this.recorder);
 			return owner.submit(work);
 		}
 
 		private AgentClientRequest prepare() {
+			synchronized (DefaultAgentClient.this.lifecycleLock) {
+				if (DefaultAgentClient.this.closed)
+					throw new IllegalStateException("Client is closed");
+			}
 			// Ensure we have a goal before proceeding
 			if (this.goal == null) {
 				throw new IllegalStateException(

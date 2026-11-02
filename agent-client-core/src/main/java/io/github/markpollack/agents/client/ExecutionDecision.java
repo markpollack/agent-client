@@ -17,6 +17,8 @@ public final class ExecutionDecision {
 
 	private final String sessionId;
 
+	private final Optional<String> connectionId;
+
 	private final Instant acceptedAt;
 
 	private final ExecutionOutcome outcome;
@@ -30,6 +32,7 @@ public final class ExecutionDecision {
 		this.decisionId = java.util.UUID.randomUUID().toString();
 		this.executionId = execution.executionId();
 		this.sessionId = execution.sessionId();
+		this.connectionId = Optional.ofNullable(execution.store.session.connectionId);
 		this.acceptedAt = at;
 		this.outcome = outcome;
 		this.provider = provider;
@@ -49,7 +52,7 @@ public final class ExecutionDecision {
 	}
 
 	public Optional<String> connectionId() {
-		return Optional.empty();
+		return this.connectionId;
 	}
 
 	public Instant acceptedAt() {

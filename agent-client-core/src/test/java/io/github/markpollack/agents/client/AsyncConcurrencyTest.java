@@ -251,6 +251,7 @@ class AsyncConcurrencyTest {
 		var escaped = execution.termination().toCompletableFuture();
 		escaped.cancel(true);
 		m.run();
+		m.publish.remove().run();
 		Thread publisher = Thread.ofPlatform().start(m.publish.remove());
 		try {
 			entered.await();

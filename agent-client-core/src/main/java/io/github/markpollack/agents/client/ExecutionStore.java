@@ -29,7 +29,7 @@ final class ExecutionStore {
 
 	final CompletableFuture<ExecutionTermination> terminationValue = new CompletableFuture<>();
 
-	final CompletionStage<ExecutionTermination> terminationStage = this.terminationValue.minimalCompletionStage();
+	final CompletionStage<ExecutionTermination> terminationStage;
 
 	volatile ExecutionState state;
 
@@ -45,6 +45,8 @@ final class ExecutionStore {
 	long setupStart;
 
 	boolean stopping;
+
+	boolean cleanupStarted;
 
 	long cleanupStart;
 
@@ -66,19 +68,55 @@ final class ExecutionStore {
 
 	private final ExecutionFailure setupFailure;
 
+	private final ExecutionFailure cleanupFailure;
+
 	ExecutionStore(DefaultAgentExecution execution, DefaultAgentSession session, ExecutionWork work,
 			ExecutionRuntime runtime) {
 		this.execution = execution;
 		this.session = session;
 		this.runtime = runtime;
 		this.changed = session.lock.newCondition();
+		this.terminationStage = new IsolatedStage<>(this.terminationValue, runtime.lanes.publication());
 		this.acceptedNanos = runtime.clock.getAsLong();
 		this.timeoutNanos = work.timeout() == null ? 0 : ExecutionTimes.nanos(work.timeout(), true);
 		this.timeoutFailure = ExecutionFailure.of(FailureCode.TIMEOUT,
 				new TimeoutException("Execution deadline exceeded"));
+		this.cleanupFailure = ExecutionFailure.of(FailureCode.CLIENT_PROCESSING,
+				new TimeoutException("Connection cleanup not confirmed"));
 		this.setupFailure = ExecutionFailure.of(FailureCode.SETUP_TIMEOUT,
 				new TimeoutException("Setup deadline exceeded"));
 		this.state = new ExecutionState(null, null, null, null, snapshot(null, null));
+	}
+
+	private ProviderObservation providerObservation = new ProviderObservation(ProviderObservation.Kind.NOT_DISPATCHED,
+			Optional.empty(), OptionalInt.empty());
+
+	CallbackSnapshot callbacks = new CallbackSnapshot(Optional.empty(), 0, 0, 0, 0, Optional.empty());
+
+	void observeProvider(io.github.markpollack.agents.model.AgentResponse response) {
+		var result = response.getResult();
+		String finish = result == null ? "" : result.getMetadata().getFinishReason();
+		var observed = new ProviderObservation(
+				response.isSuccessful() ? ProviderObservation.Kind.REPORTED_SUCCESS : ProviderObservation.Kind.STOPPED,
+				Optional.of(finish), OptionalInt.empty());
+		this.session.lock.lock();
+		try {
+			this.providerObservation = observed;
+		}
+		finally {
+			this.session.lock.unlock();
+		}
+	}
+
+	void callbacks(CallbackSnapshot callbacks) {
+		this.session.lock.lock();
+		try {
+			this.callbacks = callbacks;
+			refresh();
+		}
+		finally {
+			this.session.lock.unlock();
+		}
 	}
 
 	ExecutionState await(boolean termination, long budget) throws InterruptedException {
@@ -166,8 +204,10 @@ final class ExecutionStore {
 		boolean executionExpired = this.timeoutNanos > 0
 				&& ExecutionTimes.elapsed(now, this.acceptedNanos, this.timeoutNanos);
 		boolean setupExpired = this.setup && ExecutionTimes.elapsed(now, this.setupStart, this.runtime.setupNanos);
-		if (!executionExpired && !setupExpired)
+		if (!executionExpired && !setupExpired) {
+			expireCleanup(now);
 			return;
+		}
 		// Compare relative deadlines. Equality belongs to the execution clock.
 		long setupOffset = this.setupStart - this.acceptedNanos;
 		boolean setupEarlier = setupExpired
@@ -177,14 +217,27 @@ final class ExecutionStore {
 		elect(new ExecutionOutcome.Failed(failure.info()), failure, null);
 	}
 
+	void beginCleanup() {
+		if (!this.cleanupStarted) {
+			this.cleanupStarted = true;
+			this.cleanupStart = this.runtime.clock.getAsLong();
+		}
+	}
+
+	private void expireCleanup(long now) {
+		if (this.cleanupStarted && ExecutionTimes.elapsed(now, this.cleanupStart, this.runtime.cleanupNanos))
+			elect(new ExecutionOutcome.Failed(this.cleanupFailure.info()), this.cleanupFailure, null);
+	}
+
 	private void elect(ExecutionOutcome outcome, ExecutionFailure failure, AgentClientResponse response) {
 		if (response == null) {
 			this.stopping = true;
-			this.cleanupStart = this.runtime.clock.getAsLong();
+			beginCleanup();
 		}
-		var provider = new ProviderObservation(
-				this.dispatched ? ProviderObservation.Kind.NOT_OBSERVED : ProviderObservation.Kind.NOT_DISPATCHED,
-				Optional.empty(), OptionalInt.empty());
+		var provider = this.providerObservation;
+		if (this.dispatched && provider.kind() == ProviderObservation.Kind.NOT_DISPATCHED)
+			provider = new ProviderObservation(ProviderObservation.Kind.NOT_OBSERVED, Optional.empty(),
+					OptionalInt.empty());
 		var decision = new ExecutionDecision(this.execution, outcome, provider, this.runtime.wall.get());
 		// Successful completion releases the reservation before the volatile outcome
 		// write.
@@ -194,14 +247,20 @@ final class ExecutionStore {
 		this.changed.signalAll();
 	}
 
+	private boolean cessationConfirmed() {
+		return this.workerDone && !this.session.closeFailed && (!this.stopping || this.turn == null || this.stopDone);
+	}
+
 	void settle() {
 		if (this.state.decision() == null)
 			return;
 		if (this.state.termination() != null) {
+			if (cessationConfirmed())
+				this.session.release(this, false);
 			refresh();
 			return;
 		}
-		boolean confirmed = this.workerDone && (!this.stopping || this.turn == null || this.stopDone);
+		boolean confirmed = cessationConfirmed();
 		boolean expired = this.stopping
 				&& ExecutionTimes.elapsed(this.runtime.clock.getAsLong(), this.cleanupStart, this.runtime.cleanupNanos);
 		if (!confirmed && !expired) {
@@ -243,7 +302,7 @@ final class ExecutionStore {
 				this.dispatched, false,
 				new CleanupSnapshot(this.execution.executionId(), cleanup,
 						termination == null ? List.of() : termination.unconfirmedResources(), reason()),
-				reason(), new CallbackSnapshot(Optional.empty(), 0, 0, 0, 0, Optional.empty()), Map.of(), List.of());
+				reason(), this.callbacks, Map.of(), List.of());
 	}
 
 	private static Future.State resultState(ExecutionOutcome outcome) {

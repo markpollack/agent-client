@@ -17,7 +17,10 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
  */
 public interface AgentExecutionProvider extends AgentApi {
 
-	/** Open without sending a task. Returning transfers a ready connection to Client. */
+	/**
+	 * Open without sending a task. Returning transfers a ready connection to Client.
+	 * Throw only after cleaning partial acquisition resources; never orphan them.
+	 */
 	Connection open(AgentOptions options);
 
 	@Override

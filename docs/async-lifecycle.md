@@ -39,7 +39,7 @@ provider; the provider does not implement a separate result engine.
 
 `result()` is interruptible. `result(Duration)` adds a caller-only timeout; neither interruption
 nor caller timeout stops execution. An already available success, failure or cancellation is
-observed without clearing the interrupt flag. Validate durations first; zero polls and negatives
+observed without clearing the interrupt flag. Validate durations first; zero polls; negative durations
 are rejected. Each failed observation throws a fresh `AgentExecutionException`, retaining the
 original cause and a detached `FailureInfo`. Each cancellation observation throws a fresh
 `CancellationException`. Response metadata is returned as a detached copy on each observation.
@@ -55,13 +55,17 @@ precede cessation. `awaitTermination` observes that separate bounded fact. Missi
 the original cleanup deadline freezes UNKNOWN and quarantines the session; later cessation cannot
 make it reusable. A caller's wait budget never restarts cleanup. `termination()` provides a protected
 stage whose dependents run off the control/provider path; mutating a converted future cannot change
-the authoritative observation.
+the authoritative observation. Implicit dependent callbacks are isolated even when registered after
+completion; explicitly supplied executors retain the caller's scheduling policy.
 
 Session admission and execution transitions share a private `ReentrantLock`. Each coherent immutable
 execution revision is published through a volatile field, and condition waits recheck that value.
 The publication edge for failure/cancellation does not cover work still running. Secondary observers
 and recorders have distinct bounded lanes with no caller-runs fallback. The recorder seam delivers
-Client decisions only; it does not establish a Journal receipt, native capture or archive completeness.
+Client decisions and requires a nonempty receipt ID returned by the sink. An outstanding attempt
+becomes stale after 30 seconds; a late receipt retains that timeout history and leaves the execution
+unchanged. This first increment makes one attempt, without automatic retries. The sink receipt alone
+does not qualify a Journal receiver, native capture or archive completeness.
 
 Native provider rollout, provider-reference loading, binding refresh, native event/capture integration,
 and Journal delivery are subsequent increments. The initial `SessionSpec` supports fixed options and

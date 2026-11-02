@@ -109,7 +109,7 @@ final class DefaultAgentExecution implements AgentExecution {
 
 	@Override
 	public RecordingSnapshot recording() {
-		return this.driver.observations.recording;
+		return this.driver.observations.recording.snapshot;
 	}
 
 	@Override

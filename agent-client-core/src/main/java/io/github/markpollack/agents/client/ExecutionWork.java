@@ -13,5 +13,5 @@ import io.github.markpollack.agents.model.AgentOptions;
 
 record ExecutionWork(AgentOptions options, Duration timeout, ApplicationCorrelation correlation,
 		Function<AgentApi, AgentClientResponse> invoke, Consumer<AgentClientEvent> observer,
-		Consumer<ExecutionDecision> recorder) {
+		java.util.function.Function<ExecutionDecision, String> recorder) {
 }

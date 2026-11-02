@@ -266,8 +266,11 @@ public interface AgentClient extends AutoCloseable {
 		/** Positive cleanup allowance; repeated cancellation cannot restart it. */
 		Builder cleanupTimeout(Duration timeout);
 
-		/** Optional secondary decision sink. Its failure cannot fail execution. */
-		Builder executionRecorder(Consumer<ExecutionDecision> recorder);
+		/**
+		 * Optional secondary decision sink returning its own nonempty receipt ID. Its
+		 * failure cannot fail execution.
+		 */
+		Builder executionRecorder(java.util.function.Function<ExecutionDecision, String> recorder);
 
 	}
 

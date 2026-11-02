@@ -23,6 +23,68 @@ final class DefaultAgentSession implements AgentSession {
 
 	volatile AgentExecutionProvider.Connection connection;
 
+	volatile String connectionId;
+
+	private boolean acquiring;
+
+	private final boolean retained;
+
+	boolean retained() {
+		return this.retained;
+	}
+
+	private final java.util.concurrent.atomic.AtomicBoolean connectionClose = new java.util.concurrent.atomic.AtomicBoolean();
+
+	volatile boolean closeFailed;
+
+	private volatile boolean connectionClosed;
+
+	void finishEphemeral() {
+		if (!this.retained)
+			closeConnection();
+	}
+
+	private void closeConnection() {
+		if (this.connection != null && this.connectionClose.compareAndSet(false, true)) {
+			try {
+				this.connection.close();
+				this.connectionClosed = true;
+			}
+			catch (RuntimeException ex) {
+				this.closeFailed = true;
+				throw ex;
+			}
+		}
+	}
+
+	void beginAcquisition() {
+		this.lock.lock();
+		try {
+			if (this.closing)
+				throw new IllegalStateException("Session is closing");
+			this.acquiring = true;
+		}
+		finally {
+			this.lock.unlock();
+		}
+	}
+
+	void install(AgentExecutionProvider.Connection connection) {
+		this.connection = java.util.Objects.requireNonNull(connection, "connection");
+		this.connectionId = UUID.randomUUID().toString();
+	}
+
+	void endAcquisition() {
+		this.lock.lock();
+		try {
+			this.acquiring = false;
+		}
+		finally {
+			this.lock.unlock();
+		}
+		afterTermination();
+	}
+
 	private volatile SessionSnapshot snapshot;
 
 	private ExecutionStore active;
@@ -31,7 +93,9 @@ final class DefaultAgentSession implements AgentSession {
 
 	private boolean closeStarted;
 
-	DefaultAgentSession(DefaultAgentClient client, AgentExecutionProvider provider, AgentOptions options) {
+	DefaultAgentSession(DefaultAgentClient client, AgentExecutionProvider provider, AgentOptions options,
+			boolean retained) {
+		this.retained = retained;
 		this.client = client;
 		this.provider = provider;
 		this.options = options;
@@ -59,8 +123,13 @@ final class DefaultAgentSession implements AgentSession {
 
 	// Called under the admission lock. UNKNOWN is permanently quarantined.
 	void release(ExecutionStore store, boolean unknown) {
-		if (this.active != store || this.snapshot.state() == SessionState.UNKNOWN)
+		if (this.active != store)
 			return;
+		if (this.snapshot.state() == SessionState.UNKNOWN) {
+			if (!unknown)
+				this.active = null;
+			return;
+		}
 		SessionState state = unknown ? SessionState.UNKNOWN : this.closing ? SessionState.CLOSING : SessionState.READY;
 		this.snapshot = new SessionSnapshot(this.id, state, Optional.empty(),
 				unknown ? Optional.of(store.execution.executionId()) : Optional.empty(), Optional.empty());
@@ -98,35 +167,72 @@ final class DefaultAgentSession implements AgentSession {
 	@Override
 	public void close() {
 		ExecutionStore current;
+		boolean first;
 		this.lock.lock();
 		try {
+			first = !this.closing;
 			this.closing = true;
 			current = this.active;
+			if (this.snapshot.state() == SessionState.READY)
+				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSING, Optional.empty(), Optional.empty(),
+						Optional.empty());
 		}
 		finally {
 			this.lock.unlock();
 		}
+		if (first)
+			this.client.runtime.timer.schedule(this::closeExpired, this.client.runtime.cleanupNanos);
 		if (current != null)
 			current.execution.cancel(true);
 		afterTermination();
 	}
 
-	void afterTermination() {
+	private void closeExpired() {
 		this.lock.lock();
 		try {
-			if (!this.closing || this.active != null || this.closeStarted)
+			if (this.snapshot.state() != SessionState.CLOSED)
+				this.snapshot = new SessionSnapshot(this.id, SessionState.UNKNOWN, Optional.empty(),
+						this.snapshot.activeExecutionId(), Optional.empty());
+		}
+		finally {
+			this.lock.unlock();
+		}
+	}
+
+	void afterTermination() {
+		if (!this.retained && this.connectionClosed)
+			this.client.forget(this);
+		this.lock.lock();
+		try {
+			if (!this.closing || this.active != null || this.closeStarted || this.acquiring)
 				return;
 			this.closeStarted = true;
 		}
 		finally {
 			this.lock.unlock();
 		}
-		this.client.runtime.lanes.stop().execute(() -> {
-			if (this.connection != null)
-				this.connection.close();
-			this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSED, Optional.empty(), Optional.empty(),
-					Optional.empty());
-		});
+		this.client.runtime.lanes.stop().execute(this::finishClose);
+
+	}
+
+	private void finishClose() {
+		try {
+			closeConnection();
+		}
+		catch (RuntimeException ex) {
+			closeExpired();
+			return;
+		}
+		this.lock.lock();
+		try {
+			if (this.snapshot.state() != SessionState.UNKNOWN)
+				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSED, Optional.empty(), Optional.empty(),
+						Optional.empty());
+		}
+		finally {
+			this.lock.unlock();
+		}
+		this.client.forget(this);
 	}
 
 }
