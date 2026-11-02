@@ -106,8 +106,7 @@ final class ExecutionRecording {
 			return;
 		try {
 			if (this.prepared == null)
-				this.prepared = this.recorder instanceof ExecutionRecorder typed ? typed.prepare(decision)
-						: () -> this.recorder.apply(decision);
+				this.prepared = prepare(decision);
 			if (!beginDelivery(decision))
 				return;
 			String binding = Objects.requireNonNull(this.prepared.get(), "receiver bindingId");
@@ -121,6 +120,14 @@ final class ExecutionRecording {
 		catch (RuntimeException ex) {
 			finish(decision, failed(FailureCode.RECORDING_FAILED, ex, this.deliveryPossible));
 		}
+	}
+
+	private java.util.function.Supplier<String> prepare(ExecutionDecision decision) {
+		if (this.recorder instanceof ExecutionRecorder typed) {
+			var turn = this.execution.store.turn;
+			return typed.prepare(decision, turn == null ? Map.of() : turn.recordingEvidence());
+		}
+		return () -> this.recorder.apply(decision);
 	}
 
 	private boolean beginDelivery(ExecutionDecision decision) {
@@ -215,11 +222,16 @@ final class ExecutionRecording {
 		var provider = decision == null
 				? new ProviderObservation(ProviderObservation.Kind.NOT_OBSERVED, Optional.empty(), OptionalInt.empty())
 				: decision.provider();
-		return new CaptureReceipt(this.execution.executionId(), this.execution.sessionId(), Optional.empty(), count,
+		var acquisition = this.execution.store.turn == null ? CaptureAcquisition.UNAVAILABLE
+				: this.execution.store.turn.captureAcquisition();
+		return new CaptureReceipt(this.execution.executionId(), this.execution.sessionId(),
+				this.execution.store.session.providerReference().map(ProviderReference::nativeId), count,
 				new ReportedCost(Optional.empty(), MetricScope.UNKNOWN, "not-reported"),
-				new TokenCounts(count, count, count, count, count), provider, CaptureAcquisition.UNAVAILABLE,
-				"decision-only", "unavailable", Optional.empty(),
-				List.of("Native capture is not implemented by this lifecycle seam"));
+				new TokenCounts(count, count, count, count, count), provider, acquisition,
+				acquisition == CaptureAcquisition.UNAVAILABLE ? "decision-only" : "provider-acquired-sources",
+				"native archive qualification is separate", Optional.empty(),
+				acquisition == CaptureAcquisition.UNAVAILABLE
+						? List.of("No native source acquisition for this execution") : List.of());
 	}
 
 }

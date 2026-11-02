@@ -49,7 +49,12 @@ final class ClaudeWireCapture implements AutoCloseable {
 		}
 	}
 
-	synchronized void onBytes(TransportByteObserver.Stream stream, byte[] bytes) throws IOException {
+	void onBytes(TransportByteObserver.Stream stream, byte[] bytes) throws IOException {
+		onBytes(stream, bytes, Instant.now());
+	}
+
+	synchronized void onBytes(TransportByteObserver.Stream stream, byte[] bytes, Instant observedAt)
+			throws IOException {
 		try {
 			if (closed) {
 				throw new IOException("Capture already closed");
@@ -58,7 +63,7 @@ final class ClaudeWireCapture implements AutoCloseable {
 			outputs.get(stream).write(bytes);
 			offsets.put(stream, offset + bytes.length);
 			var observation = Map.of("stream", stream.name(), "offset", offset, "bytes", bytes.length, "observed_at",
-					Instant.now().toString(), "observation", stream == TransportByteObserver.Stream.STDIN
+					observedAt.toString(), "observation", stream == TransportByteObserver.Stream.STDIN
 							? "successful_write_not_consumption" : "read_before_decoding");
 			index.write((CaptureFiles.JSON.writeValueAsString(observation) + "\n").getBytes(StandardCharsets.UTF_8));
 		}

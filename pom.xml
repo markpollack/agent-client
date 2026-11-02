@@ -41,6 +41,7 @@
         <module>agent-models/agent-tck</module>
         <module>agent-client-core</module>
         <module>agent-client-journal</module>
+        <module>agent-client-claude</module>
         <module>agent-client-spring-boot-autoconfigure</module>
 
         <!-- SDK modules -->

@@ -19,7 +19,10 @@ public final class SdkCessationProbe {
    client.close();
    boolean rootAlive=ProcessHandle.of(Long.parseLong(Files.readString(root.resolve("root.pid")))).map(ProcessHandle::isAlive).orElse(false);
    System.out.println("SDK_CLOSE_RETURNED rootAlive="+rootAlive+" descendantAlive="+descendant.isAlive());
-   if (!descendant.isAlive()) throw new AssertionError("Expected retained descendant reproduction did not occur");
+   if (rootAlive || descendant.isAlive()) throw new AssertionError("Owned process survived close");
+   var resources=client.transportResources().orElseThrow();
+   if (!resources.observedResourcesTerminated()) throw new AssertionError("Observed resources remain unsettled: "+resources);
+   System.out.println("OBSERVED_RESOURCE_CESSATION_CONFIRMED=true");
   } finally {
    if (descendant!=null && descendant.isAlive()) { descendant.destroyForcibly(); descendant.onExit().get(3, java.util.concurrent.TimeUnit.SECONDS); }
    client.close();

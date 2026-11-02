@@ -12,6 +12,11 @@ public interface ExecutionRecorder extends Function<ExecutionDecision, String> {
 
 	Supplier<String> prepare(ExecutionDecision decision);
 
+	/** Provider source preparation is optional and independent of the accepted result. */
+	default Supplier<String> prepare(ExecutionDecision decision, java.util.Map<String, Object> evidence) {
+		return prepare(decision);
+	}
+
 	@Override
 	default String apply(ExecutionDecision decision) {
 		return prepare(decision).get();

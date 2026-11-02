@@ -106,6 +106,7 @@ final class ExecutionDriver {
 				throw partial;
 			}
 		}
+		String oldConnection = store.session.connectionId;
 		if (this.work.replacement() != null && !this.execution.isDone()) {
 			var options = this.work.replacement().apply(store.session.options, false);
 			store.session.connection.refresh(options);
@@ -119,6 +120,7 @@ final class ExecutionDriver {
 		try {
 			store.expire();
 			store.setup = false;
+			store.reconnected = oldConnection != null && !oldConnection.equals(store.session.connectionId);
 			store.turn = java.util.Objects.requireNonNull(turn, "turn");
 			store.refresh();
 		}

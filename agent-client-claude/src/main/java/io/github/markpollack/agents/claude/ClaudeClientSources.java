@@ -1,0 +1,104 @@
+/*
+ * Copyright (c) 2024-2026 Mark Pollack
+ * See LICENSE in the repository root for project-specific Business Source License terms.
+ */
+package io.github.markpollack.agents.claude;
+
+import java.time.Instant;
+import java.util.*;
+import io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver;
+
+/**
+ * Bounded memory acquisition. All filesystem/Journal work occurs on the recording lane.
+ */
+final class ClaudeClientSources {
+
+	private final Instant started = Instant.now();
+
+	private final List<Chunk> chunks = new ArrayList<>();
+
+	private int bytes;
+
+	private long dropped;
+
+	private boolean sealed;
+
+	static final class Chunk {
+
+		final TransportByteObserver.Stream stream;
+
+		final byte[] data;
+
+		final Instant time;
+
+		Chunk(TransportByteObserver.Stream stream, byte[] data, Instant time) {
+			this.stream = stream;
+			this.data = data;
+			this.time = time;
+		}
+
+	}
+
+	private Map<String, Object> process = Map.of();
+
+	void observeProcess(io.github.markpollack.claude.agent.sdk.ClaudeSyncClient client) {
+		if (!this.process.isEmpty())
+			return;
+		client.transportResources()
+			.ifPresent(snapshot -> snapshot.processes()
+				.stream()
+				.filter(p -> p.root())
+				.findFirst()
+				.flatMap(p -> ProcessHandle.of(p.pid()))
+				.ifPresent(p -> {
+					var argv = new ArrayList<String>();
+					p.info().command().ifPresent(argv::add);
+					p.info().arguments().ifPresent(args -> argv.addAll(List.of(args)));
+					this.process = Map.of("pid", p.pid(), "argv", List.copyOf(argv), "basis", "SDK_owned_root_handle",
+							"observed_at", Instant.now().toString());
+				}));
+	}
+
+	void observe(TransportByteObserver.Stream stream, byte[] data) {
+		Instant observedAt = Instant.now();
+		synchronized (this) {
+			if (this.sealed || data.length > 4 * 1024 * 1024 - this.bytes) {
+				this.dropped += data.length;
+				return;
+			}
+			this.chunks.add(new Chunk(stream, data.clone(), observedAt));
+			this.bytes += data.length;
+		}
+	}
+
+	ClaudeAcquisition seal(ClaudeClientGeneration generation, ClaudeExecutionResult result, String executionId,
+			String prompt) {
+		List<Chunk> copied;
+		long missing;
+		synchronized (this) {
+			if (this.sealed)
+				throw new IllegalStateException("Source acquisition already prepared");
+			this.sealed = true;
+			copied = List.copyOf(this.chunks);
+			this.chunks.clear();
+			missing = this.dropped;
+		}
+		var options = new ClaudeCaptureOptions(generation.config.captureDirectory().resolve(executionId), executionId,
+				generation.config.cliVersion());
+		var capture = new ClaudeCaptureSession(options, generation.id, this.started);
+		capture.observeProcess(this.process);
+		String failure = missing == 0 ? null : "Bounded source buffer dropped " + missing + " bytes";
+		var resources = generation.client.transportResources().orElseThrow();
+		if (!resources.stdout().eof() || !resources.stderr().eof())
+			failure = "Natural source EOF not observed";
+		try {
+			for (var chunk : copied)
+				capture.wire().onBytes(chunk.stream, chunk.data, chunk.time);
+		}
+		catch (java.io.IOException ex) {
+			failure = ex.toString();
+		}
+		return capture.seal(result, failure, generation.cli, generation.directory, prompt, true);
+	}
+
+}

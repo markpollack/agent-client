@@ -2,33 +2,46 @@
 
 | Path | Supported behavior | Remaining qualification |
 |---|---|---|
-| Explicit `AgentExecutionProvider` through `AgentClient` | One-shot and retained async/sync lifecycle, bounded acquisition, cancellation, independent waits, cleanup reports and detached metadata | Each adapter must prove its transport contract |
-| Native Claude | Existing synchronous model API | New Client adapter, exact native turn/generation ownership, containment/cessation, retained cancellation/reuse, load/reconnect/refresh and native capture |
-| Other native providers | Existing synchronous APIs | Async/retained Client routes refuse until independently qualified |
-| Journal evidence-only recorder | Frozen decisions, exact receiver ACK, conflict/uncertain delivery and independent reader | Native profile, source/turn/connection association and complete archives |
+| `AgentExecutionProvider` through `AgentClient` | One-shot and retained lifecycle, bounded acquisition, exact cancellation, independent result/termination waits and detached metadata | Each adapter proves its own transport contract |
+| `ClaudeClientProvider` | SDK-backed one-shot, retained follow-up, observed-resource teardown, exact-history reconnect, immutable binding refresh and bounded progress | Cross-handle/restart loading, broader process containment |
+| Other native providers | Existing synchronous APIs | New async/retained Client routes require separate qualification |
+| Journal default recorder | Frozen decisions, exact receiver ACK, conflict/uncertain delivery and independent reader | Native sources are unavailable |
+| Journal explicit Claude recorder | Qualified one-shot Claude Code2.1.316 original sources, exact execution/connection association | Retained/reconnected archives and other native profiles |
 
-The current SDK `close()` return alone is insufficient evidence of descendant cessation. The
-[fake-child probe](examples/sdk-cessation/SdkCessationProbe.java) demonstrates a TERM-ignoring
-owned descendant surviving that return, with no inference or prompt. The probe kills its test
-child in `finally`. Do not infer safe native teardown or exact-history reattachment from a closed
-SDK status flag. Native async remains unsupported until the producer supplies adequate termination
-facts and the adapter proves them.
+Start with the [installed native caller](examples/NativeClaude.java): `agent-client-claude` plus
+optional `agent-client-journal`, a working directory and an explicit execution deadline. The
+provider builder accepts `maxBudgetUsd`, tool selection and required native `preToolUse` permission
+callbacks. Hooks belong to the application and run before tools; they are not optional progress
+observers. [Recording example](examples/RecordedAsync.java) shows provider-independent correlation.
 
-`JournalExecutionRecorder` uses `journal-terminal-receiver/1`, `client-terminal-evidence/1`, and
-`client-terminal-evidence-only/1`. Pending/unavailable native evidence is explicit. An accepted
-terminal receipt is not a complete native archive. The receiver's current `IOException` does not
-distinguish integrity failure from lost reply, so automatic retries are disabled for that class.
-Applications can retain the prepared job and explicitly retry identical bytes when appropriate.
+Cleanup confirms the SDK's positively observed process/resource inventory. It does not prove
+process-group containment or absence of escaped children. Unknown resources remain owned and
+prevent safe reuse. The [subprocess probe](examples/sdk-cessation/SdkCessationProbe.java) asserts both
+root and observed descendant cessation against the repaired SDK. Process death is not a substitute
+for source completeness: native capture additionally requires natural stdout/stderr EOF.
+
+`JournalExecutionRecorder` uses `journal-terminal-receiver/1` and `client-terminal-evidence/1`.
+The default profile is `client-terminal-evidence-only/1`; the explicit Claude factory can select
+`client-terminal-claude-2.1.316/1`. Acquisition copies at most4MiB of original transport bytes in
+memory, then seals sources on the recording lane after result acceptance. Overflow, missing EOF,
+missing native files and qualification errors are reported separately from the execution result.
+Executions without a terminal native result record decisions with incomplete acquisition; partial
+transport buffers are not a qualified archive. This profile admits one closed text-message
+execution, not retained/reconnected history. Complete
+native archive acceptance requires the independent Journal reader with protected original sources
+and the qualifier's assembly expectation; a terminal ACK alone is insufficient.
+
+`TerminalIntegrityException` is permanent and not retried. Other Journal I/O failures retain
+acceptance uncertainty and are also not automatically retried. A failed response does not prove
+publication never happened. Applications can retain a prepared delivery job and explicitly resend
+identical bytes when appropriate, without replaying provider work.
 
 Migration notes:
 
 - `result(Duration)` and `awaitTermination(Duration)` include lock acquisition in the caller budget.
-- `close()` can now throw `CleanupUnconfirmedException`; inspect its cleanup handle and retain
-  uncertainty instead of treating return from a stop request as proof of cessation.
+- `close()` may throw `CleanupUnconfirmedException`; inspect its cleanup handle and retain uncertainty.
 - Standalone setup failures use `AgentOperationException`; setup timeout and interruption are distinct.
-- Typed native metadata remains typed after copying; opaque unsupported objects still fail honestly.
-- Legacy public model sessions/streaming APIs remain present. Their removal and native migration
-  must accompany a qualified replacement; this increment is not a public API freeze.
+- Typed native metadata remains typed after copying; unsupported opaque metadata fails explicitly.
+- Legacy public model sessions/streaming APIs remain present. This is not a public API freeze.
 
-Release acceptance still requires a qualified native adapter, native/source recording profile,
-installed consumer migration, full applicable native/default checks, and a separate release decision.
+Broader provider qualification and release acceptance remain separate from this Claude integration.

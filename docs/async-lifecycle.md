@@ -1,7 +1,8 @@
 # Async result lifecycle
 
 The initial lifecycle API is available to providers implementing `AgentExecutionProvider`.
-Existing CLI adapters do not yet implement that opt-in contract. A legacy `AgentApi` still supports
+The `agent-client-claude` module supplies `ClaudeClientProvider` for Claude Code; see
+[the native caller](examples/NativeClaude.java). A legacy `AgentApi` still supports
 its existing synchronous path; `runAsync()` and retained Client sessions reject it explicitly.
 
 ```java
@@ -68,14 +69,20 @@ unchanged. An `ExecutionRecorder` prepares a frozen delivery job once. Explicitl
 failures permit at most three serial attempts, with 100ms and 1s backoffs inside the original
 30-second window. Close prevents further retries. A plain function remains a single-attempt sink.
 The optional `agent-client-journal` module supplies `JournalExecutionRecorder` using the actual
-Journal receiver. Its profile records accepted decisions with unavailable native evidence; it does
-not establish native capture or archive completeness. Unclassified Journal I/O failures retain
+Journal receiver. Its default profile records decisions with unavailable native evidence. The explicit
+`JournalExecutionRecorder.claude(directory, namespace)` factory qualifies complete one-shot
+Claude source acquisition through Journal's native profile. Retained turns remain evidence-only.
+A native receiver ACK still needs independent complete-archive reader acceptance. Unclassified Journal I/O failures retain
 acceptance uncertainty and do not retry automatically. An explicit retry of the same prepared job
 can recover the original ACK without replaying provider work.
 
-Native provider rollout, provider-reference loading, binding refresh, native event/capture integration,
-are subsequent increments. The initial `SessionSpec` supports fixed options and
-working directory. No public API freeze or native qualification is implied.
+Claude retained sessions expose their native `providerReference()` after observing its identity.
+After confirmed teardown they reconnect to that exact history without replaying a prompt. Loading
+a reference into another handle is explicitly unsupported. `SessionSpec.binding` freezes an optional
+MCP slot and environment; a request may `refreshBinding` with replacement definitions under the same
+slot and environment. Replacement reconnects under the reserved execution. Progress events are
+immutable, serialized and bounded (64 queued events); slow observers drop progress without blocking
+execution. No public API freeze is implied.
 
 Standalone session creation has a setup budget (default 30 seconds). Failed, timed-out or interrupted
 acquisition throws `AgentOperationException` with its initiating cause and read-only `CleanupHandle`.

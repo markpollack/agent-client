@@ -42,6 +42,8 @@ final class ExecutionStore {
 
 	boolean dispatched;
 
+	boolean reconnected;
+
 	boolean setup;
 
 	long setupStart;
@@ -283,7 +285,7 @@ final class ExecutionStore {
 		Instant now = this.runtime.wall.get();
 		var termination = new ExecutionTermination(this.execution.executionId(), this.session.id(), now,
 				confirmed ? Optional.of(now) : Optional.empty(), confirmed,
-				confirmed ? List.of() : List.of("execution-worker-or-stop"), this.dispatched, false,
+				confirmed ? List.of() : List.of("execution-worker-or-stop"), this.dispatched, this.reconnected,
 				this.session.inspect().state(), reason(this.state.decision()));
 		this.state = new ExecutionState(this.state.decision(), this.state.failure(), this.state.response(), termination,
 				snapshot(this.state.decision(), termination));
@@ -310,7 +312,7 @@ final class ExecutionStore {
 		CleanupState cleanup = termination == null ? CleanupState.PENDING
 				: termination.cleanupConfirmed() ? CleanupState.CONFIRMED : CleanupState.UNKNOWN;
 		return new ExecutionSnapshot(this.execution.executionId(), this.session.id(), result, settlement,
-				this.dispatched, false,
+				this.dispatched, this.reconnected,
 				new CleanupSnapshot(this.execution.executionId(), cleanup,
 						termination == null ? List.of() : termination.unconfirmedResources(), reason(decision)),
 				reason(decision), this.callbacks, Map.of(), List.of());

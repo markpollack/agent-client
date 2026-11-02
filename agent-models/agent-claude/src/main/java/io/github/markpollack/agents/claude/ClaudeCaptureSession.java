@@ -22,13 +22,23 @@ final class ClaudeCaptureSession {
 
 	private final ClaudeWireCapture wire;
 
-	private final Instant started = Instant.now();
+	private final Instant started;
 
-	private final String connection = UUID.randomUUID().toString();
+	private final String connection;
 
-	private Map<String, Object> observedProcess = Map.of();
+	private volatile Map<String, Object> observedProcess = Map.of();
 
 	ClaudeCaptureSession(ClaudeCaptureOptions options) {
+		this(options, UUID.randomUUID().toString());
+	}
+
+	ClaudeCaptureSession(ClaudeCaptureOptions options, String connection) {
+		this(options, connection, Instant.now());
+	}
+
+	ClaudeCaptureSession(ClaudeCaptureOptions options, String connection, Instant started) {
+		this.started = started;
+		this.connection = connection;
 		this.options = options;
 		try {
 			Files.createDirectories(options.directory().getParent());
@@ -46,6 +56,10 @@ final class ClaudeCaptureSession {
 
 	ClaudeWireCapture wire() {
 		return wire;
+	}
+
+	synchronized void observeProcess(Map<String, Object> process) {
+		this.observedProcess = Map.copyOf(process);
 	}
 
 	synchronized void observeProcess() {
@@ -72,6 +86,11 @@ final class ClaudeCaptureSession {
 	}
 
 	ClaudeAcquisition seal(ClaudeExecutionResult result, String failure, CLIOptions cli, Path cwd, String prompt) {
+		return seal(result, failure, cli, cwd, prompt, false);
+	}
+
+	ClaudeAcquisition seal(ClaudeExecutionResult result, String failure, CLIOptions cli, Path cwd, String prompt,
+			boolean requireTranscript) {
 		wire.close();
 		List<String> errors = new ArrayList<>(wire.failures());
 		if (failure != null) {
@@ -89,6 +108,9 @@ final class ClaudeCaptureSession {
 				errors.add(ex.toString());
 				nativeSources = List.of(CaptureFiles.missing("transcript.jsonl", "transcript", true, ex.toString()));
 			}
+			if (requireTranscript && nativeSources.stream()
+				.noneMatch(source -> "transcript".equals(source.get("role")) && "acquired".equals(source.get("state"))))
+				errors.add("Native transcript unavailable");
 			boolean complete = errors.isEmpty();
 			List<Map<String, Object>> sources = wire.sources(connection, options.invocationId(), complete);
 			sources.addAll(nativeSources);
@@ -136,7 +158,7 @@ final class ClaudeCaptureSession {
 		launch.put("permission_mode", cli.getPermissionMode().getValue());
 		launch.put("caller_input", Map.of("prompt", prompt, "provenance", "caller-supplied"));
 		launch.put("artifact_provenance", options.provenance());
-		launch.put("sdk_version", "1.8.0-fresh-v3-SNAPSHOT");
+		launch.put("sdk_version", "1.8.0-SNAPSHOT");
 		launch.put("client_version", ClaudeArtifactVersion.version());
 		Map<String, Object> run = new LinkedHashMap<>();
 		run.put("run_uid", options.invocationId());

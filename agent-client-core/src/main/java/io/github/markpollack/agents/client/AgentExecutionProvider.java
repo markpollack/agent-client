@@ -68,6 +68,18 @@ public interface AgentExecutionProvider extends AgentApi {
 
 	interface Turn {
 
+		default CaptureAcquisition captureAcquisition() {
+			return CaptureAcquisition.UNAVAILABLE;
+		}
+
+		/**
+		 * Optional bounded source preparation, invoked only on Client's recording lane
+		 * after acceptance.
+		 */
+		default java.util.Map<String, Object> recordingEvidence() {
+			return java.util.Map.of();
+		}
+
 		/**
 		 * Dispatch once. Return/throw only when required provider processing for this
 		 * turn has ceased. An earlier stop must prevent subsequent dispatch. Never replay
