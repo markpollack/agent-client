@@ -123,11 +123,15 @@ final class ExecutionStore {
 		ExecutionState observed = this.state;
 		if (ready(observed, termination) || budget == 0)
 			return observed;
-		this.session.lock.lockInterruptibly();
+		long startedAt = System.nanoTime();
+		if (!this.session.lock.tryLock(budget, TimeUnit.NANOSECONDS))
+			return this.state;
 		try {
-			long remaining = budget;
-			while (!ready(this.state, termination) && remaining > 0)
-				remaining = this.changed.awaitNanos(remaining);
+			long remaining = budget - (System.nanoTime() - startedAt);
+			while (!ready(this.state, termination) && remaining > 0) {
+				this.changed.awaitNanos(remaining);
+				remaining = budget - (System.nanoTime() - startedAt);
+			}
 			return this.state;
 		}
 		finally {

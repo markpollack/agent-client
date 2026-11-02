@@ -200,10 +200,13 @@ final class DefaultAgentSession implements AgentSession {
 	}
 
 	void afterTermination() {
-		if (!this.retained && this.connectionClosed)
-			this.client.forget(this);
 		this.lock.lock();
 		try {
+			// A retired worker cannot acquire a later connection. Keep ownership until
+			// both acquisition and any exact stop have settled, even after UNKNOWN.
+			if (!this.retained && this.active == null && !this.acquiring
+					&& (this.connection == null || this.connectionClosed))
+				this.client.forget(this);
 			if (!this.closing || this.active != null || this.closeStarted || this.acquiring)
 				return;
 			this.closeStarted = true;
