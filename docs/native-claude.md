@@ -50,6 +50,10 @@ these bytes. Independently verified one-shot readback uses Journal reader JAR SH
 `6912a059a1f1758183854e9cbd5a3fa98ab05bf5d804d282a63875dd610de2e1` and writer
 `b166baa65b3c0b82d9f3394631ae915d7a8ff172b126c8edcd4b0db43c1c1cf9`
 at version `2.0.0-SNAPSHOT`. Archive verification and native permission enforcement remain separate.
+The repaired SDK has native evidence of blocked Bash and out-of-workspace Read decisions on this
+pinned route. Multiple denials in one final result currently expose a Journal normalization defect
+with the listed reader/writer selection; independent full archive acceptance for that case remains
+pending. Keep original sources and treat a failing reader result as a failure even after task success.
 
 [ClientHookContract.java](examples/ClientHookContract.java) exercises the production public Client
 path against the existing local subprocess fixture. Compile it strictly against installed runtime JARs

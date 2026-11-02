@@ -49,6 +49,13 @@ application and absence of a denied side effect. These tests do not qualify ever
 policy failure mode. Complete archive acceptance preserves what happened, including policy errors;
 it does not certify that a deny was enforced.
 
+On the pinned Claude Code2.1.316 route with the repaired hook serializer, a native case observed
+three denied Bash calls and one denied out-of-workspace Read as explicit error results, with no
+successful results for those tool IDs. This is case-specific policy evidence. The same task's
+complete acquisition and receiver ACK still failed independent archive normalization for multiple
+permission denials with the listed Journal artifacts. That Journal repair remains pending; task
+success and observed policy enforcement do not override an archive verification failure.
+
 A terminal provider non-success remains `STOPPED`; a closed stream without a terminal result fails
 with `PROVIDER_TRANSPORT`. A hook rejection reported only on stderr followed by a successful native
 result has no structured hook-rejection observation at the current SDK seam: Client reports the
