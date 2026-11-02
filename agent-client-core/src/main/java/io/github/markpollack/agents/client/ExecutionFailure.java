@@ -13,19 +13,24 @@ record ExecutionFailure(FailureInfo info, Throwable cause) {
 	static ExecutionFailure of(FailureCode code, Throwable failure) {
 		var causes = new ArrayList<String>();
 		var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
-		Throwable next = failure;
+		seen.add(failure);
+		Throwable next = cause(failure, causes);
 		while (next != null && seen.add(next) && causes.size() < 16) {
 			causes.add(next.getClass().getName() + ": " + message(next));
-			try {
-				next = next.getCause();
-			}
-			catch (RuntimeException ex) {
-				causes.add("Cause unavailable: " + ex.getClass().getName());
-				break;
-			}
+			next = cause(next, causes);
 		}
 		return new ExecutionFailure(new FailureInfo(code, failure.getClass().getName(), message(failure), causes),
 				failure);
+	}
+
+	private static Throwable cause(Throwable failure, java.util.List<String> diagnostics) {
+		try {
+			return failure.getCause();
+		}
+		catch (RuntimeException ex) {
+			diagnostics.add("Cause unavailable: " + ex.getClass().getName());
+			return null;
+		}
 	}
 
 	private static String message(Throwable failure) {

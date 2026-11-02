@@ -9,7 +9,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Frozen diagnostics; never regenerated from the separately retained mutable Throwable.
+ * Frozen diagnostics; causes summarize underlying causes, excluding the primary
+ * exception. Never regenerated from the separately retained mutable Throwable.
  */
 public record FailureInfo(FailureCode code, String exceptionClass, String message, List<String> causes) {
 	public FailureInfo {

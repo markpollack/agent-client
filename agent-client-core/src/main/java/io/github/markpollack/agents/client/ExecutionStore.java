@@ -272,7 +272,7 @@ final class ExecutionStore {
 		var termination = new ExecutionTermination(this.execution.executionId(), this.session.id(), now,
 				confirmed ? Optional.of(now) : Optional.empty(), confirmed,
 				confirmed ? List.of() : List.of("execution-worker-or-stop"), this.dispatched, false,
-				this.session.inspect().state(), reason());
+				this.session.inspect().state(), reason(this.state.decision()));
 		this.state = new ExecutionState(this.state.decision(), this.state.failure(), this.state.response(), termination,
 				snapshot(this.state.decision(), termination));
 		this.changed.signalAll();
@@ -283,10 +283,9 @@ final class ExecutionStore {
 				this.state.termination(), snapshot(this.state.decision(), this.state.termination()));
 	}
 
-	private Optional<Reason> reason() {
-		if (this.state != null && this.state.decision() != null
-				&& this.state.decision().outcome() instanceof ExecutionOutcome.Cancelled c)
-			return Optional.of(c.reason());
+	private static Optional<Reason> reason(ExecutionDecision decision) {
+		if (decision != null && decision.outcome() instanceof ExecutionOutcome.Cancelled cancelled)
+			return Optional.of(cancelled.reason());
 		return Optional.empty();
 	}
 
@@ -301,8 +300,8 @@ final class ExecutionStore {
 		return new ExecutionSnapshot(this.execution.executionId(), this.session.id(), result, settlement,
 				this.dispatched, false,
 				new CleanupSnapshot(this.execution.executionId(), cleanup,
-						termination == null ? List.of() : termination.unconfirmedResources(), reason()),
-				reason(), this.callbacks, Map.of(), List.of());
+						termination == null ? List.of() : termination.unconfirmedResources(), reason(decision)),
+				reason(decision), this.callbacks, Map.of(), List.of());
 	}
 
 	private static Future.State resultState(ExecutionOutcome outcome) {

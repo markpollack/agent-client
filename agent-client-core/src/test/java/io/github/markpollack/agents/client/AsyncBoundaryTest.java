@@ -181,7 +181,7 @@ class AsyncBoundaryTest {
 		cause.detail = "after";
 		var failure = (AgentExecutionException) catchThrowable(execution::result);
 		assertThat(failure.failure().message()).isEqualTo("before");
-		assertThat(failure.failure().causes()).hasSize(1);
+		assertThat(failure.failure().causes()).isEmpty();
 		assertThat(failure.getCause().getMessage()).isEqualTo("after");
 	}
 
@@ -199,6 +199,17 @@ class AsyncBoundaryTest {
 		m.stop();
 		assertThat(((ExecutionOutcome.Failed) execution.decision().orElseThrow().outcome()).failure().code())
 			.isEqualTo(FailureCode.TIMEOUT);
+	}
+
+	@Test
+	void firstAcceptedCancellationRevisionContainsItsReason() {
+		var m = new AsyncLifecycleTest.Manual();
+		var execution = (DefaultAgentExecution) m.client(new AsyncLifecycleTest.Provider()).goal("x").runAsync();
+		var reason = new Reason("OWNER", "stop", "test", Instant.EPOCH);
+		assertThat(execution.store.cancel(false, reason)).isTrue();
+		assertThat(execution.inspect().stopReason()).contains(reason);
+		assertThat(execution.inspect().cleanup().reason()).contains(reason);
+		execution.driver.advance();
 	}
 
 }
