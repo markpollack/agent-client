@@ -22,7 +22,7 @@ public final class NativeClaude {
             + "\nsession=" + execution.sessionId() + "\nconnection=" + execution.decision().orElseThrow().connectionId().orElse("")
             + "\ndecision=" + execution.decision().orElseThrow().decisionId()
             + "\noutcome=" + execution.decision().orElseThrow().outcome()
-            + "\ncorrelation=" + execution.correlation()
+            + "\ncorrelation=" + execution.decision().orElseThrow().correlation()
             + "\nrecording=" + recording + "\n");
         System.out.println(label + " " + execution.executionId() + " " + recording.delivery());
         if (!(recording.delivery() instanceof TerminalDelivery.Completed)) throw new AssertionError(recording.toString());

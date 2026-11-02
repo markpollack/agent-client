@@ -14,7 +14,8 @@ public final class ReadRecorded {
   if (pkg.diagnostics.stream().anyMatch(d->d.severity()==Diagnostic.Severity.DEFECT || d.severity()==Diagnostic.Severity.REFUSED)) throw new AssertionError(pkg.diagnostics);
   var binding=TerminalBindingReader.read(pkg.declarations);
   if (!binding.decision().contains("\"decisionId\":\""+args[1]+"\"")) throw new AssertionError("Decision identity mismatch");
-  if (!binding.decision().contains("\"kind\":\"SUCCESS\"")) throw new AssertionError("Unexpected outcome");
+  String expectedKind = args.length > 2 ? args[2] : "SUCCESS";
+  if (!binding.decision().contains("\"kind\":\""+expectedKind+"\"")) throw new AssertionError("Unexpected outcome");
   if (!binding.association().contains("\"acquisition\":\"UNAVAILABLE\"")) throw new AssertionError("Native evidence overstated");
   System.out.println("INDEPENDENT_INSTALLED_READER_PASS decision="+args[1]+" native=UNAVAILABLE");
  }
