@@ -20,6 +20,10 @@ Imports: `io.github.markpollack.agents.client.AgentClient`,
 `result(Duration)` bounds only the caller's wait. Set `executionTimeout` on a request to bound the
 actual task. The native spending cap is fixed per connection generation. Supply `preToolUse` hooks
 when the application needs to decide edit/tool permissions before execution.
+Use a repaired SDK whose hook serializer omits absent controls and preserves nested permission fields.
+For example, return `HookOutput.builder().hookSpecificOutput(
+HookOutput.HookSpecificOutput.preToolUseDeny("Outside application policy")).build()`;
+do not replace the decision with a continue-only response.
 One-shot executions use one connection generation; a disconnected generation fails without a
 replacement launch. Retained sessions explicitly support reconnect as described below.
 
@@ -36,6 +40,31 @@ Recording is optional. Add `agent-client-journal`, set
 Observe `execution.recording()` separately from `execution.result()`: recording can fail after a
 successful task. The current native profile admits one closed text-message execution on Claude
 Code2.1.316. Retained turns record decisions without claiming native archive completeness.
+
+Callback invocation alone is not proof of native enforcement. Older SDK hook serialization emitted
+null controls and flattened permission fields that the native CLI could reject while continuing tool
+work. The repaired SDK JAR SHA256 is
+`e995eeb0fb6c75797f1b06e76304b6e3a495ef5b4da37d11e92aa3f362b8e35a`
+at `io.github.markpollack:claude-code-sdk:1.8.0-SNAPSHOT`; a SNAPSHOT coordinate alone does not select
+these bytes. Independently verified one-shot readback uses Journal reader JAR SHA256
+`6912a059a1f1758183854e9cbd5a3fa98ab05bf5d804d282a63875dd610de2e1` and writer
+`b166baa65b3c0b82d9f3394631ae915d7a8ff172b126c8edcd4b0db43c1c1cf9`
+at version `2.0.0-SNAPSHOT`. Archive verification and native permission enforcement remain separate.
+
+[ClientHookContract.java](examples/ClientHookContract.java) exercises the production public Client
+path against the existing local subprocess fixture. Compile it strictly against installed runtime JARs
+and run each case in a separate JVM with a fresh directory:
+
+```text
+ClientHookContract <allow|deny|throw|null|reject|eof|reject-success|cancel> <fresh-directory> <retained-child.py>
+```
+
+The fixture is at `agent-client-claude/src/test/resources/retained-child.py`. It validates the required
+wire subset, records original received bytes and applies only task-local writes. The example asserts
+one prompt/generation, observed cleanup and independent recording outcomes. It deliberately reports
+incomplete acquisition because the fixture is not a native Claude archive. `reject-success` documents
+the missing structured hook-rejection signal: a stderr diagnostic followed by native success is not
+converted into a false claim that tool work was prevented. See [capabilities](async-capabilities.md).
 
 [NativeClaude.java](examples/NativeClaude.java) is an installed-JAR acceptance caller with a native
 budget cap, exact pre-tool policy, correlation, one-shot capture, retained follow-up, cancellation
