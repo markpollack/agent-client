@@ -50,17 +50,20 @@ public final class NativeClaude {
             .acquisitionDirectory(output.resolve("sources"), "2.1.316").build();
         var recorder = JournalExecutionRecorder.claude(output.resolve("journal"), "native-client-acceptance");
         try (var client = AgentClient.builder(provider).defaultTimeout(LIMIT).executionRecorder(recorder).build()) {
-            if (mode.equals("one-shot")) {
-                System.out.println("SUBMISSION 1 one-shot");
-                var execution = client.goal("Read sentinel.txt using the Read tool. Reply with its exact content. Do not edit files or use Bash.")
-                    .correlation(new ApplicationCorrelation(Optional.of("native-acceptance"), Optional.of("one-shot"),
+            if (mode.equals("one-shot") || mode.equals("archive-control")) {
+                boolean control = mode.equals("archive-control");
+                System.out.println("SUBMISSION 1 " + mode);
+                String goal = control ? "Reply with exactly ARCHIVE_CONTROL_926. Do not use any tools."
+                    : "Read sentinel.txt using the Read tool. Reply with its exact content. Do not edit files or use Bash.";
+                var execution = client.goal(goal)
+                    .correlation(new ApplicationCorrelation(Optional.of("native-acceptance"), Optional.of(mode),
                         Optional.of(UUID.randomUUID().toString()), Optional.empty(), Optional.empty(), Optional.empty()))
                     .executionTimeout(LIMIT).runAsync();
                 var response = execution.result();
                 System.out.println("RESULT " + response.getResult());
-                if (!response.isSuccessful() || !response.getResult().contains("CLIENT_NATIVE_SENTINEL")) throw new AssertionError(response);
+                if (!response.isSuccessful() || !response.getResult().contains(control ? "ARCHIVE_CONTROL_926" : "CLIENT_NATIVE_SENTINEL")) throw new AssertionError(response);
                 if (!execution.awaitTermination(Duration.ofSeconds(10)).cleanupConfirmed()) throw new AssertionError("cleanup unknown");
-                record("one-shot", execution);
+                record(mode, execution);
                 if (execution.recording().evidence().acquisition() != CaptureAcquisition.COMPLETED) throw new AssertionError("source acquisition incomplete");
             } else if (mode.equals("retained")) {
                 try (var session = client.sessions().create(s -> s.workingDirectory(workspace))) {
@@ -87,7 +90,7 @@ public final class NativeClaude {
                     if (!after.inspect().reconnected() || !history.equals(session.providerReference().orElseThrow().nativeId())) throw new AssertionError("wrong reconnect");
                     record("after", after);
                 }
-            } else throw new IllegalArgumentException("one-shot or retained");
+            } else throw new IllegalArgumentException("one-shot, archive-control or retained");
         }
         System.out.println("CLIENT_CLOSED_OBSERVED_RESOURCES=true");
     }

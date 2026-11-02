@@ -40,7 +40,8 @@ budget cap, exact pre-tool policy, correlation, one-shot capture, retained follo
 and reconnect. Compile it against the selected runtime JARs, then run `NativeClaude one-shot
 <workspace> <output>` with `sentinel.txt` containing `CLIENT_NATIVE_SENTINEL`; use a fresh directory
 for each invocation. Its `retained` mode performs four tasks and creates `cancel-started` in the
-workspace. [ReadNativeClient.java](examples/ReadNativeClient.java) independently checks the native
+workspace. The distinct `archive-control` mode submits one text-only task with the hook still
+configured. [ReadNativeClient.java](examples/ReadNativeClient.java) independently checks the native
 archive using only Journal's reader JAR and runtime dependencies:
 
 ```text

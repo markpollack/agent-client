@@ -6,7 +6,7 @@
 | `ClaudeClientProvider` | SDK-backed one-shot, retained follow-up, observed-resource teardown, exact-history reconnect, immutable binding refresh and bounded progress | Cross-handle/restart loading, broader process containment |
 | Other native providers | Existing synchronous APIs | New async/retained Client routes require separate qualification |
 | Journal default recorder | Frozen decisions, exact receiver ACK, conflict/uncertain delivery and independent reader | Native sources are unavailable |
-| Journal explicit Claude recorder | Qualified one-shot Claude Code2.1.316 original sources, exact execution/connection association | Retained/reconnected archives and other native profiles |
+| Journal explicit Claude recorder | One-shot Claude Code2.1.316 source qualification and exact execution/connection association | Complete archive acceptance still encounters the upstream control-record issues below; retained/reconnected archives and other profiles remain unqualified |
 
 Start with the [installed native caller](examples/NativeClaude.java): `agent-client-claude` plus
 optional `agent-client-journal`, a working directory and an explicit execution deadline. The
@@ -35,6 +35,12 @@ and the qualifier's assembly expectation; a terminal ACK alone is insufficient.
 acceptance uncertainty and are also not automatically retried. A failed response does not prove
 publication never happened. Applications can retain a prepared delivery job and explicitly resend
 identical bytes when appropriate, without replaying provider work.
+
+Current native archive blockers: SDK hook control responses can serialize duplicate `subtype`
+fields (see [the no-model reproduction](examples/SdkControlResponseProbe.java)). A no-tool control
+can receive an ACK but fail independent Journal assembly verification because a pre-init
+`control_response` has no canonical `session_uid`. Preserve original bytes and reader failures;
+do not remove permission hooks or manufacture session evidence to pass qualification.
 
 Migration notes:
 
