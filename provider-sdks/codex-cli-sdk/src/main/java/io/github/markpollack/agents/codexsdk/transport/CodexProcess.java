@@ -42,13 +42,11 @@ public final class CodexProcess implements AutoCloseable {
 
 	/** Launch exactly once, with the prompt written to stdin rather than argv. */
 	public int run(byte[] prompt) throws IOException, InterruptedException, ExecutionException, TimeoutException {
-		try {
-			return launch(prompt).getFuture()
+		try (var resource = this) {
+			return resource.launch(prompt)
+				.getFuture()
 				.get(this.options.getTimeout().toMillis(), TimeUnit.MILLISECONDS)
 				.getExitValue();
-		}
-		finally {
-			close();
 		}
 	}
 

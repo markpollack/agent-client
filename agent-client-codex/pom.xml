@@ -8,6 +8,7 @@
   <jacoco.minimum.branch>0.75</jacoco.minimum.branch>
  </properties>
  <dependencies>
+  <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><scope>test</scope></dependency>
   <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit</artifactId><version>${archunit.version}</version><scope>test</scope></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-core</artifactId><version>${project.version}</version></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>codex-cli-sdk</artifactId><version>${project.version}</version></dependency>

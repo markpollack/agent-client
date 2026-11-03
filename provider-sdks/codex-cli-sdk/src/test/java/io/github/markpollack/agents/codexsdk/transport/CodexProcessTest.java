@@ -54,6 +54,42 @@ class CodexProcessTest {
 	}
 
 	@Test
+	void launchFailureKeepsCleanupFailureSuppressed() throws Exception {
+		var p = org.mockito.Mockito.spy(new CodexProcess(directory.resolve("absent").toString(),
+				ExecuteOptions.builder().workingDirectory(directory).build()));
+		var cleanup = failAfterRealClose(p);
+		assertThatThrownBy(() -> p.run(new byte[0])).isInstanceOf(java.io.IOException.class)
+			.hasSuppressedException(cleanup);
+		assertThat(p.terminated()).isTrue();
+	}
+
+	@Test
+	void transportTimeoutKeepsCleanupFailureSuppressed() throws Exception {
+		var p = org.mockito.Mockito.spy(process("sys.stdin.buffer.read()\ntime.sleep(60)\n", Duration.ofMillis(150)));
+		var cleanup = failAfterRealClose(p);
+		assertThatThrownBy(() -> p.run(new byte[0])).isInstanceOf(TimeoutException.class)
+			.hasSuppressedException(cleanup);
+		assertThat(p.terminated()).isTrue();
+	}
+
+	@Test
+	void successfulExecutionStillReportsCleanupFailure() throws Exception {
+		var p = org.mockito.Mockito.spy(process("sys.stdin.buffer.read()\n", Duration.ofSeconds(2)));
+		var cleanup = failAfterRealClose(p);
+		assertThatThrownBy(() -> p.run(new byte[0])).isSameAs(cleanup);
+		assertThat(p.terminated()).isTrue();
+	}
+
+	private static RuntimeException failAfterRealClose(CodexProcess process) {
+		var failure = new IllegalStateException("injected cleanup failure");
+		org.mockito.Mockito.doAnswer(call -> {
+			call.callRealMethod();
+			throw failure;
+		}).when(process).close();
+		return failure;
+	}
+
+	@Test
 	void stoppedBeforeLaunchCannotCreateProcess() throws Exception {
 		var p = process("pathlib.Path('ran').touch()\n", Duration.ofSeconds(1));
 		p.close();

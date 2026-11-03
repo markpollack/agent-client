@@ -35,7 +35,7 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 			this.started = true;
 		}
 		Instant start = Instant.now();
-		try {
+		try (this.connection) {
 			return dispatch(request, start);
 		}
 		catch (InterruptedException ex) {
@@ -44,9 +44,6 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 		}
 		catch (Exception ex) {
 			throw new IllegalStateException("Codex execution failed", ex);
-		}
-		finally {
-			this.connection.close();
 		}
 	}
 
