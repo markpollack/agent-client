@@ -4,9 +4,20 @@
 |---|---|---|
 | `AgentExecutionProvider` through `AgentClient` | One-shot and retained lifecycle, bounded acquisition, exact cancellation, independent result/termination waits and detached metadata | Each adapter proves its own transport contract |
 | `ClaudeClientProvider` | SDK-backed one-shot, retained follow-up, observed-resource teardown, exact-history reconnect, immutable binding refresh and bounded progress | Cross-handle/restart loading, broader process containment |
-| Other native providers | Existing synchronous APIs | New async/retained Client routes require separate qualification |
+| `CodexClientProvider` | One fresh `codex exec`, original byte capture, exact-thread rollout acquisition, cancellation and deadline handling | Deterministic subprocess qualification for CLI 0.166.0; live execution/archive acceptance remains separate. Retention, loading and progress are unsupported |
+| Other native providers | Existing synchronous APIs and provider-specific SDKs | New async/retained Client routes require separate qualification |
 | Journal default recorder | Frozen decisions, exact receiver ACK, conflict/uncertain delivery and independent reader | Native sources are unavailable |
-| Journal explicit Claude recorder | One-shot Claude Code2.1.316 source qualification, exact execution/connection association and independently verified tool-bearing archive readback | Retained/reconnected archives and other profiles remain unqualified |
+| Journal explicit Claude recorder | One-shot Claude Code 2.1.316 source qualification, exact execution/connection association and independently verified tool-bearing archive readback, including multiple permission denials with the repaired reader | A new native route needs its own qualification |
+| Installed Codex archive caller | Actual immutable Client decision, original synthetic capture, independent qualification, separate complete binding and packaged reader acceptance; mismatched capture rejected | Real CLI 0.166.0 execution and archive qualification remain separate |
+| Journal retained Claude recorder | Deterministic two-turn archive, original decisions, post-close attachments, replay and separate reader acceptance | Fresh live start is blocked: initialization provides no observed native identity/readable BEFORE prefix for the current profile. Reconnect and alternative fresh profiles remain unqualified |
+
+For Codex, start with the [one-shot guide](../agent-client-codex/README.md) and
+[installed archive fixture](codex-archive.md). Its fixture checks
+cover emitted argv, exact working directory, original stdin/stdout/stderr, native identity rejection,
+no replay, deadlines and both cancellation flags. They do not establish real CLI sandbox behavior,
+subscription authentication during a task, or live Journal acceptance. Transport failures retain their
+original cause and suppressed cleanup failures; unconfirmed cleanup remains visible through termination
+and close. An already accepted deadline or cancellation decision is unchanged by later failures.
 
 Start with the [installed native caller](examples/NativeClaude.java): `agent-client-claude` plus
 optional `agent-client-journal`, a working directory and an explicit execution deadline. The
@@ -52,9 +63,11 @@ it does not certify that a deny was enforced.
 On the pinned Claude Code2.1.316 route with the repaired hook serializer, a native case observed
 three denied Bash calls and one denied out-of-workspace Read as explicit error results, with no
 successful results for those tool IDs. This is case-specific policy evidence. The same task's
-complete acquisition and receiver ACK still failed independent archive normalization for multiple
-permission denials with the listed Journal artifacts. That Journal repair remains pending; task
-success and observed policy enforcement do not override an archive verification failure.
+complete acquisition and receiver ACK initially failed independent archive normalization for multiple
+permission denials. The repaired Journal reader now accepts the untouched original archive and a
+fresh assembly with the original decision and binding. Each denial retains its own tool ID, value and
+source reference; array position does not associate a denial with a tool. Use a reader containing that
+repair. Archive acceptance remains distinct from policy enforcement and downstream task assessment.
 
 A terminal provider non-success remains `STOPPED`; a closed stream without a terminal result fails
 with `PROVIDER_TRANSPORT`. A hook rejection reported only on stderr followed by a successful native
@@ -71,6 +84,10 @@ Migration notes:
 - `close()` may throw `CleanupUnconfirmedException`; inspect its cleanup handle and retain uncertainty.
 - Standalone setup failures use `AgentOperationException`; setup timeout and interruption are distinct.
 - Typed native metadata remains typed after copying; unsupported opaque metadata fails explicitly.
-- Legacy public model sessions/streaming APIs remain present. This is not a public API freeze.
+- Legacy Claude/Codex model, session and streaming entry points and their underlying SDKs remain
+  supported alongside these new routes. Their retirement requires a separate caller inventory and migration.
 
-Broader provider qualification and release acceptance remain separate from this Claude integration.
+The [retained archive caller](examples/RetainedClaudeArchive.java) uses an observed, readable
+pre-turn transcript and proves the existing two-turn profile with fixtures. It does not turn an absent
+fresh-start transcript into an empty prefix. A separate fresh-start profile is proposed, not implemented
+or live-qualified. Broader provider qualification and release acceptance remain separate.
