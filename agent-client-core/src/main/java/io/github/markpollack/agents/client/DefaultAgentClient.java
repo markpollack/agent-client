@@ -356,8 +356,8 @@ public class DefaultAgentClient implements AgentClient {
 			if (this.replacement != null)
 				request = new AgentClientRequest(request.goal(), request.workingDirectory(),
 						this.replacement.apply(request.options(), false), request.context());
-			request = new AgentClientRequest(request.goal(), request.workingDirectory(),
-					ExecutionOptions.copy(request.options()), request.context());
+			request = new AgentClientRequest(request.goal(), request.workingDirectory(), acceptedOptions(request),
+					request.context());
 			final AgentClientRequest acceptedRequest = request;
 			var advisors = List.copyOf(this.requestAdvisors);
 			var owner = this.session == null ? ownSession(request.options(), false) : this.session;
@@ -367,6 +367,20 @@ public class DefaultAgentClient implements AgentClient {
 					this.correlation, this.replacement, api -> invoke(acceptedRequest, api, advisors), this.observer,
 					DefaultAgentClient.this.recorder);
 			return owner.submit(work);
+		}
+
+		private AgentOptions acceptedOptions(AgentClientRequest request) {
+			AgentOptions options = request.options();
+			// A retained session already owns its process home. A request directory in
+			// that session is application context, not permission to relocate it.
+			if (this.session == null && (this.workingDirectory != null || this.goal.getWorkingDirectory() != null
+					|| DefaultAgentClient.this.defaultOptions.getWorkingDirectory() != null)) {
+				options = DefaultAgentOptions.builder()
+					.from(options)
+					.workingDirectory(request.workingDirectory().toAbsolutePath().normalize().toString())
+					.build();
+			}
+			return ExecutionOptions.copy(options);
 		}
 
 		private AgentClientRequest prepare() {

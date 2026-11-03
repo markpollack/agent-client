@@ -104,6 +104,8 @@ for line in sys.stdin:
                           'cwd': str(root), 'tool_name': 'Write', 'tool_use_id': 'fixture-tool',
                           'tool_input': {'file_path': str(root / 'operation'), 'content': 'fixture'}}}})
         continue
+    if prompt.startswith('cwd-marker:'):
+        (root / prompt.split(':', 1)[1]).write_text(str(root))
     if prompt == 'wait':
         (root / 'waiting').touch()
         while True: time.sleep(.05)

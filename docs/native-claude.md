@@ -121,3 +121,14 @@ on one child, delayed recording that does not block the second turn, close, and 
 export using the local fixture. [ReadRetainedDecisions.java](examples/ReadRetainedDecisions.java)
 runs separately with only the Journal reader and verifies the two original decision-only packages.
 These are deterministic examples; native retained archive qualification remains pending.
+
+### One-shot working directory
+
+For the lifecycle Client path, an explicit request `workingDirectory(...)` takes precedence over
+`Goal`'s directory and the Client builder default. The selected directory is copied into immutable
+one-shot options before the provider process opens, so relative child operations use that directory.
+Without any Client directory selection, existing provider/options defaults still apply.
+A retained session keeps the home selected by `sessions().create(s -> s.workingDirectory(...))`;
+a follow-up request directory supplies application context and does not relocate that process.
+[ClientDirectoryPrecedence.java](examples/ClientDirectoryPrecedence.java) exercises request, goal,
+builder and provider fallback, plus retained-home preservation, using a real local child marker.
