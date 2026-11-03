@@ -46,6 +46,9 @@ with (root / 'launches.jsonl').open('a') as f:
     f.write(json.dumps({'pid': os.getpid(), 'args': args, 'token': os.getenv('TOKEN_FILE')}) + '\n')
 callback = None
 hook_mode = None
+native_sequence = 0
+native_parent = None
+native_init = False
 
 def send(value):
     print(json.dumps(value), flush=True)
@@ -93,7 +96,12 @@ for line in sys.stdin:
         continue
     prompt = request['message']['content']
     with (root / 'prompts.jsonl').open('a') as f: f.write(json.dumps(prompt) + '\n')
-    print(json.dumps({'type': 'system', 'subtype': 'init', 'session_id': sid, 'cwd': str(root), 'tools': []}), flush=True)
+    contract_fixture = (root / 'native-projects' / 'project').is_dir()
+    if not contract_fixture or not native_init:
+        init = {'type': 'system', 'subtype': 'init', 'session_id': sid, 'cwd': str(root), 'tools': []}
+        if contract_fixture: init['claude_code_version'] = '2.1.316'
+        print(json.dumps(init), flush=True)
+        native_init = True
     if prompt.startswith('hook-'):
         hook_mode = prompt
         assert callback is not None, 'required hook was not registered'
@@ -114,9 +122,17 @@ for line in sys.stdin:
     if prompt == 'wrong-history': sid = 'different-history'
     projects = root / 'native-projects' / 'project'
     if projects.is_dir():
+        native_sequence += 1
+        user_id = 'u' + str(native_sequence)
+        assistant_id = 'a' + str(native_sequence)
         with (projects / (sid + '.jsonl')).open('a') as native:
-            native.write(json.dumps({'type': 'user', 'sessionId': sid, 'message': {'content': prompt}}) + '\n')
-            native.write(json.dumps({'type': 'assistant', 'sessionId': sid, 'message': {'content': prompt}}) + '\n')
+            native.write(json.dumps({'type': 'user', 'sessionId': sid, 'uuid': user_id,
+                'parentUuid': native_parent, 'version': '2.1.316',
+                'message': {'role': 'user', 'content': prompt}}) + '\n')
+            native.write(json.dumps({'type': 'assistant', 'sessionId': sid, 'uuid': assistant_id,
+                'parentUuid': user_id, 'version': '2.1.316', 'message': {'role': 'assistant',
+                'id': 'm' + str(native_sequence), 'content': [{'type': 'text', 'text': prompt}]}}) + '\n')
+        native_parent = assistant_id
     print(json.dumps({'type':'result','subtype':'success','is_error':False,'duration_ms':1,
         'duration_api_ms':1,'num_turns':1,'result':prompt,'session_id':sid,
         'usage':{'input_tokens':1,'output_tokens':1}}), flush=True)

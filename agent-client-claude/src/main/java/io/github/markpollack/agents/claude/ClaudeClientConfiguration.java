@@ -12,7 +12,7 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.claude.agent.sdk.transport.*;
 
 record ClaudeClientConfiguration(Path directory, String executable, List<String> tools, Path captureDirectory,
-		String cliVersion, Double maxBudgetUsd, List<PreToolHook> hooks) {
+		String cliVersion, Double maxBudgetUsd, List<PreToolHook> hooks, Path retainedTranscript) {
 	record PreToolHook(String pattern, io.github.markpollack.claude.agent.sdk.hooks.HookCallback callback) {
 	}
 

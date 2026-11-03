@@ -38,8 +38,8 @@ final class ClaudeClientGeneration {
 		this.reconnected = resume != null;
 		this.directory = config.directory(options);
 		this.sources = !retained && config.captureDirectory() != null ? new ClaudeClientSources() : null;
-		this.retainedCapture = retained && config.captureDirectory() != null
-				? new ClaudeRetainedCapture(this.id, config.captureDirectory(), config.cliVersion()) : null;
+		this.retainedCapture = retained && config.captureDirectory() != null ? new ClaudeRetainedCapture(this.id,
+				config.captureDirectory(), config.cliVersion(), config.retainedTranscript()) : null;
 		this.cli = config.options(options, this.retainedCapture != null ? this.retainedCapture::observe
 				: this.sources == null ? null : this.sources::observe, resume);
 		this.client = ClaudeClient.sync(this.cli)

@@ -19,7 +19,7 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 	private ClaudeClientProvider(Builder builder) {
 		this.config = new ClaudeClientConfiguration(builder.directory, builder.executable,
 				builder.tools == null ? null : List.copyOf(builder.tools), builder.captureDirectory, builder.cliVersion,
-				builder.maxBudgetUsd, List.copyOf(builder.hooks));
+				builder.maxBudgetUsd, List.copyOf(builder.hooks), builder.retainedTranscript);
 	}
 
 	public static Builder builder() {
@@ -60,6 +60,8 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 
 		private Path captureDirectory;
 
+		private Path retainedTranscript;
+
 		private String cliVersion = "unknown";
 
 		private Double maxBudgetUsd;
@@ -91,6 +93,17 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 		public Builder acquisitionDirectory(Path directory, String cliVersion) {
 			this.captureDirectory = Objects.requireNonNull(directory).toAbsolutePath().normalize();
 			this.cliVersion = Objects.requireNonNull(cliVersion);
+			return this;
+		}
+
+		/**
+		 * Observe bounded native file prefixes before/after retained turns for the
+		 * two-successful-text-turn archive profile. The exact file must be observable
+		 * before first dispatch; absent prefixes remain unknown. Also configure an
+		 * acquisitionDirectory. This does not establish native retained qualification.
+		 */
+		public Builder retainedTranscript(Path transcript) {
+			this.retainedTranscript = Objects.requireNonNull(transcript).toAbsolutePath().normalize();
 			return this;
 		}
 

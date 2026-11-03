@@ -27,6 +27,10 @@ public final class ClaudeRetainedCapture {
 
 	private final String cliVersion;
 
+	private final Path nativeTranscript;
+
+	private final String captureStart = Instant.now().toString();
+
 	private final EnumMap<TransportByteObserver.Stream, ByteArrayOutputStream> streams = new EnumMap<>(
 			TransportByteObserver.Stream.class);
 
@@ -53,7 +57,14 @@ public final class ClaudeRetainedCapture {
 
 	private Path manifest;
 
+	private String manifestHash;
+
 	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion) {
+		this(connectionId, directory, cliVersion, null);
+	}
+
+	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion, Path nativeTranscript) {
+		this.nativeTranscript = nativeTranscript;
 		this.connectionId = connectionId;
 		this.directory = directory.resolve(connectionId);
 		this.cliVersion = cliVersion;
@@ -93,25 +104,33 @@ public final class ClaudeRetainedCapture {
 		}
 	}
 
-	synchronized void begin(String executionId) {
-		if (this.turns.size() >= 256) {
-			this.overflow = true;
-			return;
+	void begin(String executionId) {
+		var prefix = NativePrefixObservation.observe(this.nativeTranscript);
+		synchronized (this) {
+			if (this.turns.size() >= 256) {
+				this.overflow = true;
+				return;
+			}
+			var turn = new LinkedHashMap<String, Object>();
+			turn.put("executionId", executionId);
+			turn.put("start", offsets());
+			turn.put("nativePrefixBefore", prefix);
+			turn.put("dispatchObservedAt", Instant.now().toString());
+			this.turns.add(turn);
 		}
-		var turn = new LinkedHashMap<String, Object>();
-		turn.put("executionId", executionId);
-		turn.put("start", offsets());
-		turn.put("dispatchObservedAt", Instant.now().toString());
-		this.turns.add(turn);
 	}
 
-	synchronized void end(String executionId, String session) {
-		this.nativeSession = session;
-		for (var turn : this.turns) {
-			if (executionId.equals(turn.get("executionId"))) {
-				turn.put("end", offsets());
-				turn.put("terminalObservedAt", Instant.now().toString());
-				turn.put("nativeSessionId", session == null ? "unknown" : session);
+	void end(String executionId, String session) {
+		var prefix = NativePrefixObservation.observe(this.nativeTranscript);
+		synchronized (this) {
+			this.nativeSession = session;
+			for (var turn : this.turns) {
+				if (executionId.equals(turn.get("executionId"))) {
+					turn.put("end", offsets());
+					turn.put("nativePrefixAfter", prefix);
+					turn.put("terminalObservedAt", Instant.now().toString());
+					turn.put("nativeSessionId", session == null ? "unknown" : session);
+				}
 			}
 		}
 	}
@@ -163,8 +182,22 @@ public final class ClaudeRetainedCapture {
 		Path output = this.directory.resolve("retained-capture.json");
 		Files.writeString(output, CaptureFiles.JSON.writerWithDefaultPrettyPrinter().writeValueAsString(values),
 				StandardOpenOption.CREATE_NEW);
+		this.manifestHash = CaptureFiles.hash(output);
 		this.manifest = output;
 		return output;
+	}
+
+	/**
+	 * Export the agreed two-turn source claims after close. Requires actual native prefix
+	 * observations and the two original successful decisions. Journal must independently
+	 * qualify this input; export alone is not archive acceptance.
+	 */
+	public synchronized Path writeGeneration(List<io.github.markpollack.agents.client.ExecutionDecision> decisions)
+			throws IOException {
+		Path diagnostic = write();
+		if (!CaptureFiles.hash(diagnostic).equals(this.manifestHash))
+			throw new IOException("Retained capture declaration changed after export");
+		return RetainedGenerationManifest.write(diagnostic, List.copyOf(decisions));
 	}
 
 	private List<Map<String, Object>> writeStreams(Map<TransportByteObserver.Stream, byte[]> raw) throws IOException {
@@ -188,6 +221,7 @@ public final class ClaudeRetainedCapture {
 		values.put("connectionId", this.connectionId);
 		values.put("nativeSessionId", this.nativeSession);
 		values.put("cliVersion", this.cliVersion);
+		values.put("captureStart", this.captureStart);
 		values.put("sealed", this.sealed);
 		values.put("observedResourcesTerminated", this.terminated);
 		values.put("stdoutNaturalEof", this.stdoutEof);
@@ -204,6 +238,11 @@ public final class ClaudeRetainedCapture {
 
 	private void addNativeSnapshot(Map<String, Object> values, Path nativeProjectsDirectory) {
 		try {
+			if (this.nativeTranscript != null) {
+				values.put("nativeFiles",
+						NativePrefixObservation.copy(this.nativeTranscript, this.directory, this.nativeSession));
+				return;
+			}
 			var options = new ClaudeCaptureOptions(this.directory, this.connectionId, this.cliVersion,
 					nativeProjectsDirectory, Map.of());
 			var nativeFiles = new ArrayList<Map<String, Object>>();
