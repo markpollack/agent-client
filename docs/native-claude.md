@@ -112,8 +112,9 @@ export retains its partial directory; it never overwrites or automatically retri
 
 Current `JournalExecutionRecorder.claude(...)` persists retained decisions as decision-only packages.
 The execution's recording snapshot can therefore show a successful delivery with capture still
-pending; it does not promise a later automatic evidence revision. Attaching sealed retained evidence
-to those original decisions awaits the shared Journal retained profile/qualifier/revision contract.
+pending; it does not promise a later automatic evidence revision. To attach retained evidence,
+select the separate `retainedClaude(...)` recorder before either turn as described below. Its
+initial envelope freezes the retained profile; an existing decision-only profile is not upgraded.
 The diagnostic capture itself remains usable without that integration.
 
 [RetainedClaudeCapture.java](examples/RetainedClaudeCapture.java) demonstrates two successful turns
@@ -132,3 +133,31 @@ A retained session keeps the home selected by `sessions().create(s -> s.workingD
 a follow-up request directory supplies application context and does not relocate that process.
 [ClientDirectoryPrecedence.java](examples/ClientDirectoryPrecedence.java) exercises request, goal,
 builder and provider fallback, plus retained-home preservation, using a real local child marker.
+
+### Retained two-turn archives
+
+For the bounded, opt-in two-successful-text-turn profile, use
+`JournalExecutionRecorder.retainedClaude(directory, namespace)`. Configure the provider with
+`acquisitionDirectory(directory, "2.1.316")` and `retainedTranscript(exactNativeFile)`.
+The latter must name an actually observable transcript before the first dispatch: absence is
+unknown, not an empty prefix. Client reads bounded prefixes before and after each turn;
+missing observations or unsupported source history cannot earn archive completeness.
+This deterministic profile has not been qualified against a live retained CLI.
+
+Each execution's normal recording freezes its original decision and pending association.
+Conversation progress does not wait for secondary delivery. After closing the session and
+observing both initial recording ACKs, retrieve `ClaudeRetainedCapture` from the recorder's
+`claudeRetainedCapture` evidence entry and call `writeGeneration(originalDecisions)` once.
+Pass that same manifest to `recorder.attach(executionId, manifest)` for each execution.
+Journal qualifies and attaches the full originals plus per-turn projections to the original
+binding. `recorder.attachment(executionId)` exposes the separate final delivery status;
+`AgentExecution.recording()` continues to describe initial delivery.
+
+Use a fresh retained recorder per two-turn session. Final attachment is explicit and synchronous
+on the caller's thread, outside result/admission handling; there is no automatic final-delivery
+scheduler. An explicit retry after an ambiguous receiver reply reuses the frozen association.
+Initial and final ACKs carry no cross-execution ordering or latency guarantee. Inspect the
+complete archive after all turns and close. The installed
+[`RetainedClaudeArchive.java`](examples/RetainedClaudeArchive.java) example exercises the
+workflow with a deterministic child fixture and a latch that blocks initial delivery while
+both turns complete. Live retained qualification and other providers remain separate work.

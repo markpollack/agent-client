@@ -40,6 +40,13 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 		return recorder;
 	}
 
+	/**
+	 * Explicit two-turn retained profile; final attachments are requested after close.
+	 */
+	public static RetainedJournalRecorder retainedClaude(Path directory, String namespace) throws IOException {
+		return new RetainedJournalRecorder(directory, namespace);
+	}
+
 	public JournalExecutionRecorder(Path directory, String namespace) throws IOException {
 		this(new TerminalReceiver(directory, namespace, WriterOptions.defaults()), directory, namespace);
 	}
@@ -78,7 +85,7 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 		return preparePayload(decision, revision, root, association, profile);
 	}
 
-	private Supplier<String> preparePayload(ExecutionDecision decision, String revision, Path root, String association,
+	Supplier<String> preparePayload(ExecutionDecision decision, String revision, Path root, String association,
 			String profile) {
 		byte[] frozen = DecisionEncoding
 			.json(DecisionEncoding.object("codec", "journal-terminal-envelope/1", "producerNamespace", this.namespace,
@@ -94,9 +101,18 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 		return () -> deliver(frozen, root);
 	}
 
+	Supplier<String> prepareRevision(String binding, byte[] association, Path root) {
+		byte[] frozen = association.clone();
+		return () -> acknowledge(() -> this.receiver.receiveRevision(binding, frozen, root));
+	}
+
 	private String deliver(byte[] frozen, Path root) {
+		return acknowledge(() -> this.receiver.receive(frozen, root));
+	}
+
+	private String acknowledge(ReceiptCall call) {
 		try {
-			String ack = this.receiver.receive(frozen, root);
+			String ack = call.receive();
 			return new ObjectMapper().readTree(ack).required("bindingId").asText();
 		}
 		catch (IllegalArgumentException ex) {
@@ -114,6 +130,13 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 			throw new RecordingDeliveryException(FailureCode.PERSISTENCE_FAILED, "Receiver acceptance is unknown", ex,
 					false, true);
 		}
+	}
+
+	@FunctionalInterface
+	private interface ReceiptCall {
+
+		String receive() throws IOException;
+
 	}
 
 	private static String base64(String value) {

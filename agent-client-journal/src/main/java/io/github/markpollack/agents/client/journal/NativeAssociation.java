@@ -24,6 +24,11 @@ record NativeAssociation(Path root, String json) {
 			throw new IllegalArgumentException("Acquisition manifest changed");
 		var qualified = io.github.markpollack.journal.tck.ocsf.inventory.ClaudeAcquisition.qualify(source.manifest(),
 				output);
+		return qualified(output, decision, revision, null, qualified);
+	}
+
+	static NativeAssociation qualified(Path output, ExecutionDecision decision, String revision, String parent,
+			io.github.markpollack.journal.tck.ocsf.inventory.ClaudeAcquisition.Qualified qualified) throws IOException {
 		var manifest = new ObjectMapper().readTree(Files.readAllBytes(qualified.manifest()));
 		String nativeId = manifest.required("run").required("session_uid").asText();
 		String connection = decision.connectionId().orElseThrow();
@@ -42,9 +47,9 @@ record NativeAssociation(Path root, String json) {
 		sources.add(occurrence(output, "acquisition.json", "qualified-manifest", null, nativeId, connection));
 		String association = DecisionEncoding.json(DecisionEncoding.object("codec", "journal-association/1",
 				"executionId", decision.executionId(), "decisionId", decision.decisionId(), "revisionId", revision,
-				"priorRevisionId", null, "clientSessionId", decision.sessionId(), "connectionIds", List.of(connection),
-				"providerObservation", DecisionEncoding.provider(decision.provider()), "acquisition", "COMPLETED",
-				"continuation", null, "sources", sources, "missing", List.of()));
+				"priorRevisionId", parent, "clientSessionId", decision.sessionId(), "connectionIds",
+				List.of(connection), "providerObservation", DecisionEncoding.provider(decision.provider()),
+				"acquisition", "COMPLETED", "continuation", null, "sources", sources, "missing", List.of()));
 		return new NativeAssociation(output, association);
 	}
 
