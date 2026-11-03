@@ -19,6 +19,8 @@ final class ClaudeClientGeneration {
 
 	final ClaudeClientSources sources;
 
+	final ClaudeRetainedCapture retainedCapture;
+
 	final CLIOptions cli;
 
 	final java.nio.file.Path directory;
@@ -36,7 +38,10 @@ final class ClaudeClientGeneration {
 		this.reconnected = resume != null;
 		this.directory = config.directory(options);
 		this.sources = !retained && config.captureDirectory() != null ? new ClaudeClientSources() : null;
-		this.cli = config.options(options, this.sources == null ? null : this.sources::observe, resume);
+		this.retainedCapture = retained && config.captureDirectory() != null
+				? new ClaudeRetainedCapture(this.id, config.captureDirectory(), config.cliVersion()) : null;
+		this.cli = config.options(options, this.retainedCapture != null ? this.retainedCapture::observe
+				: this.sources == null ? null : this.sources::observe, resume);
 		this.client = ClaudeClient.sync(this.cli)
 			.workingDirectory(this.directory)
 			.timeout(options.getTimeout() == null ? Duration.ofMinutes(2) : options.getTimeout())
@@ -53,15 +58,29 @@ final class ClaudeClientGeneration {
 		boolean interrupted = Thread.interrupted();
 		this.closeLock.lock();
 		try {
+			closeObserved();
+		}
+		finally {
+			this.closeLock.unlock();
+			if (interrupted)
+				Thread.currentThread().interrupt();
+		}
+	}
+
+	private void closeObserved() {
+		try {
 			this.client.close();
 			var snapshot = this.client.transportResources();
 			if (snapshot.isEmpty() || !snapshot.orElseThrow().observedResourcesTerminated())
 				throw new IllegalStateException("Claude observed-resource cessation is unconfirmed: " + this.id);
 		}
 		finally {
-			this.closeLock.unlock();
-			if (interrupted)
-				Thread.currentThread().interrupt();
+			if (this.retainedCapture != null) {
+				var resources = this.client.transportResources();
+				this.retainedCapture.seal(resources.map(r -> r.observedResourcesTerminated()).orElse(false),
+						resources.map(r -> r.stdout().eof()).orElse(false),
+						resources.map(r -> r.stderr().eof()).orElse(false));
+			}
 		}
 	}
 

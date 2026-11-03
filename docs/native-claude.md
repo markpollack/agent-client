@@ -92,3 +92,32 @@ reassembles the exact frozen envelope and source package with the installed Jour
 `ReplayNativeArchive <envelope.json> <protected-sources> <fresh-destination> <producer-namespace>`.
 Run the independent reader on the resulting archive, optionally supplying the original decision bytes
 for an exact comparison. This performs no provider task and does not repair malformed original bytes.
+
+### Retained diagnostic capture
+
+`ClaudeClientProvider.Builder.acquisitionDirectory(...)` also enables a bounded original
+transport buffer for each retained connection. A typed `ExecutionRecorder` receives the same
+`ClaudeRetainedCapture` handle under `claudeRetainedCapture` for each turn in that generation.
+Record the immutable decision immediately. After session close, call `capture.write()` off the
+result path to export the original streams, hashes, observation windows and candidate prompt/result
+locators. A turn result never seals the stream. The buffer is limited to 4 MiB, 16,384 byte
+observations and 256 turn observations; overflow preserves a prefix and is explicitly incomplete.
+
+The exported `client-retained-capture/1` document is a Client diagnostic format. It is **not a
+Journal acquisition**: controls, read-ahead and ambiguous records remain unassigned, and a final
+native-file snapshot does not establish per-turn membership or prefix high-water observations.
+`transportComplete` describes observed stream closure/integrity only; `archiveQualified` is always
+false. Missing natural EOF or dropped bytes cannot produce a complete transport claim. A failed
+export retains its partial directory; it never overwrites or automatically retries another capture.
+
+Current `JournalExecutionRecorder.claude(...)` persists retained decisions as decision-only packages.
+The execution's recording snapshot can therefore show a successful delivery with capture still
+pending; it does not promise a later automatic evidence revision. Attaching sealed retained evidence
+to those original decisions awaits the shared Journal retained profile/qualifier/revision contract.
+The diagnostic capture itself remains usable without that integration.
+
+[RetainedClaudeCapture.java](examples/RetainedClaudeCapture.java) demonstrates two successful turns
+on one child, delayed recording that does not block the second turn, close, and explicit capture
+export using the local fixture. [ReadRetainedDecisions.java](examples/ReadRetainedDecisions.java)
+runs separately with only the Journal reader and verifies the two original decision-only packages.
+These are deterministic examples; native retained archive qualification remains pending.

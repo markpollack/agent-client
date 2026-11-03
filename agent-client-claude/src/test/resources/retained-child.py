@@ -110,6 +110,11 @@ for line in sys.stdin:
     if prompt == 'eof':
         sys.exit(0)
     if prompt == 'wrong-history': sid = 'different-history'
+    projects = root / 'native-projects' / 'project'
+    if projects.is_dir():
+        with (projects / (sid + '.jsonl')).open('a') as native:
+            native.write(json.dumps({'type': 'user', 'sessionId': sid, 'message': {'content': prompt}}) + '\n')
+            native.write(json.dumps({'type': 'assistant', 'sessionId': sid, 'message': {'content': prompt}}) + '\n')
     print(json.dumps({'type':'result','subtype':'success','is_error':False,'duration_ms':1,
         'duration_api_ms':1,'num_turns':1,'result':prompt,'session_id':sid,
         'usage':{'input_tokens':1,'output_tokens':1}}), flush=True)

@@ -82,8 +82,11 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 		}
 
 		/**
-		 * Enable bounded one-shot byte acquisition, materialized by the configured
-		 * recorder after result acceptance.
+		 * Enable bounded byte acquisition. One-shot sources are materialized by the
+		 * recorder after acceptance. Retained turns provide a shared
+		 * ClaudeRetainedCapture handle to the recorder for explicit diagnostic export
+		 * after session close; retained Journal archive qualification is not yet
+		 * available.
 		 */
 		public Builder acquisitionDirectory(Path directory, String cliVersion) {
 			this.captureDirectory = Objects.requireNonNull(directory).toAbsolutePath().normalize();

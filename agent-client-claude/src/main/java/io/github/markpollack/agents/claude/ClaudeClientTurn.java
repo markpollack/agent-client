@@ -53,8 +53,12 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 			if (this.generation.sources != null)
 				this.generation.sources.observeProcess(this.generation.client);
 			this.generation.dispatched = true;
+			if (this.generation.retainedCapture != null)
+				this.generation.retainedCapture.begin(this.executionId);
 			this.generation.client.query(request.goal());
 			this.result = read();
+			if (this.generation.retainedCapture != null)
+				this.generation.retainedCapture.end(this.executionId, this.result.sessionId());
 			if (!this.retained)
 				this.generation.close();
 			synchronized (this) {
@@ -105,12 +109,16 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 
 	@Override
 	public io.github.markpollack.agents.client.CaptureAcquisition captureAcquisition() {
+		if (this.generation.retainedCapture != null)
+			return io.github.markpollack.agents.client.CaptureAcquisition.PENDING;
 		return this.generation.sources == null ? io.github.markpollack.agents.client.CaptureAcquisition.UNAVAILABLE
 				: this.acquisition;
 	}
 
 	@Override
 	public Map<String, Object> recordingEvidence() {
+		if (this.generation.retainedCapture != null)
+			return Map.of("claudeRetainedCapture", this.generation.retainedCapture);
 		var observed = this.result;
 		if (this.generation.sources == null)
 			return Map.of();
