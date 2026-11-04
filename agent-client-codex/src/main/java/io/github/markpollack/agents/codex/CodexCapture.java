@@ -13,7 +13,7 @@ import io.github.markpollack.agents.codexsdk.transport.CodexBytes;
 /**
  * Acquires native and writes immutable originals only on the secondary recording lane.
  */
-final class CodexCapture {
+final class CodexCapture implements CodexWitness {
 
 	private final CodexGeneration connection;
 
@@ -48,7 +48,8 @@ final class CodexCapture {
 		}
 	}
 
-	synchronized CodexAcquisition seal() {
+	@Override
+	public synchronized CodexAcquisition seal() {
 		if (this.sealed != null)
 			return this.sealed;
 		try {
@@ -64,7 +65,8 @@ final class CodexCapture {
 	 * seals: the next replacement process and connection close both call this before the
 	 * file can grow again, so a delayed recording cannot move this turn's boundary.
 	 */
-	synchronized void observeNative() {
+	@Override
+	public synchronized void observeNative() {
 		if (this.nativeObservation != null || this.nativeFailure != null || this.sealed != null)
 			return;
 		if (!this.connection.process.dispatched() || !this.connection.process.terminated())
@@ -77,7 +79,8 @@ final class CodexCapture {
 		}
 	}
 
-	CodexNativeSource.Observed nativeObservation() {
+	@Override
+	public CodexNativeSource.Observed nativeObservation() {
 		return this.nativeObservation;
 	}
 

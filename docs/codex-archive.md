@@ -37,3 +37,20 @@ second sources/acquisition manifest. Preserve both positive inputs unchanged.
 This proves deterministic integration. It does not qualify a real CLI execution, sandbox behavior,
 subscription authentication during a task, or a retained Codex session. A real launch needs its own
 explicit environment, executable, model, working directory, deadline and original-source verification.
+
+## Retained two-turn caller
+
+The [retained caller](examples/CodexRetained.java) runs two turns on one public `AgentSession` against
+the same synthetic child, holds recording delivery until both results are accepted, then checks both
+per-turn manifests and the thread-level `journal-codex-retained-generation/1` manifest the provider
+writes at close (`captures/codex-thread-*/codex-thread.json` with `transcript.bin`): whole-line
+`TRANSCRIPT` locators partition the final transcript, turn 1's snapshot is a prefix of turn 2's, and
+`thread_token_usage(2) − thread_token_usage(1) == turn_token_usage(2)` on the fixture.
+
+```bash
+javac -cp "$CALLER_CP" -d caller-classes docs/examples/CodexRetained.java
+java -cp "caller-classes:$CALLER_CP" CodexRetained /absolute/new/proof /absolute/fixtures/codex-child.py
+```
+
+This is fixture evidence only. Whether the real CLI re-emits `thread.started` on resume, honours
+global flags on resume, or reports per-turn or cumulative usage on turn 2 remains unobserved.

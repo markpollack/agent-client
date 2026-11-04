@@ -110,6 +110,19 @@ final class CodexThreadManifest {
 		turn.put("complete", sealed.complete());
 		turn.put("detail", sealed.detail());
 		turn.put("observed_resources_terminated", process.terminated());
+		turn.put("sources", sources(turn, sealed));
+		turn.put("per_turn_manifest", sealed.directory().resolve("codex-acquisition.json").toString());
+		turn.put("wire_usage", generation.wireUsage);
+		var observed = generation.capture.nativeObservation();
+		if (observed != null) {
+			turn.put("native_turn_uid", observed.turnId());
+			CodexManifest.nativeFacts(turn, observed);
+		}
+		return turn;
+	}
+
+	/** This process's own originals; the native snapshot is not a per-turn source. */
+	private static List<Map<String, Object>> sources(Map<String, Object> turn, CodexAcquisition sealed) {
 		var sources = new ArrayList<Map<String, Object>>();
 		for (var source : sealed.sources()) {
 			if ("native".equals(source.role()))
@@ -119,21 +132,7 @@ final class CodexThreadManifest {
 					source.path().toString(), "bytes", source.bytes(), "sha256", source.sha256(), "observed",
 					source.observedBytes(), "natural_eof", source.naturalEof())));
 		}
-		turn.put("sources", sources);
-		turn.put("per_turn_manifest", sealed.directory().resolve("codex-acquisition.json").toString());
-		turn.put("wire_usage", generation.wireUsage);
-		var observed = generation.capture.nativeObservation();
-		if (observed != null) {
-			turn.put("native_turn_uid", observed.turnId());
-			turn.put("native_prefix_after",
-					Map.of("bytes", observed.bytes().length, "sha256", CodexNativeSource.sha256(observed.bytes())));
-			turn.put("native_records", Map.of("records", observed.records(), "shared", observed.shared()));
-			var usage = observed.turnUsage();
-			turn.put("turn_token_usage", usage.get("turn_token_usage"));
-			turn.put("thread_token_usage", usage.get("thread_token_usage"));
-			turn.put("total_token_usage", observed.cumulativeUsage());
-		}
-		return turn;
+		return sources;
 	}
 
 }
