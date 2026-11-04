@@ -213,6 +213,68 @@ final class CodexNativeSource {
 			return usage;
 		}
 
+		/**
+		 * Whole-line byte locators of every record appended by this turn; the shared
+		 * session_meta line is never a turn record.
+		 */
+		List<Map<String, Object>> records() {
+			return locators(Math.max(this.regionStart, sharedEnd()), this.bytes.length);
+		}
+
+		/** The single pre-turn-1 session_meta line shared by every turn. */
+		List<Map<String, Object>> shared() {
+			return locators(0, sharedEnd());
+		}
+
+		private int sharedEnd() {
+			int end = 0;
+			while (end < this.bytes.length && this.bytes[end] != '\n')
+				end++;
+			return Math.min(end + 1, this.bytes.length);
+		}
+
+		private List<Map<String, Object>> locators(int from, int to) {
+			var result = new ArrayList<Map<String, Object>>();
+			int start = from;
+			for (int i = from; i < to; i++) {
+				if (this.bytes[i] == '\n') {
+					var locator = new LinkedHashMap<String, Object>();
+					locator.put("source", "TRANSCRIPT");
+					locator.put("start", start);
+					locator.put("end", i + 1);
+					locator.put("sha256", sha256(Arrays.copyOfRange(this.bytes, start, i + 1)));
+					result.add(locator);
+					start = i + 1;
+				}
+			}
+			return result;
+		}
+
+		/**
+		 * The token_usage_record inside this turn's region: per-turn and cumulative thread
+		 * usage as the CLI wrote them, never summed by Client.
+		 */
+		Map<String, Map<String, Object>> turnUsage() throws IOException {
+			var result = new LinkedHashMap<String, Map<String, Object>>();
+			try (var reader = new java.io.BufferedReader(
+					new java.io.InputStreamReader(new java.io.ByteArrayInputStream(this.bytes, this.regionStart,
+							this.bytes.length - this.regionStart), java.nio.charset.StandardCharsets.UTF_8))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					var event = JSON.readTree(line);
+					if (!"token_usage_record".equals(event.path("type").asText()))
+						continue;
+					var payload = event.path("payload");
+					for (var key : List.of("turn_token_usage", "thread_token_usage"))
+						if (payload.path(key).isObject())
+							result.put(key, JSON.convertValue(payload.get(key),
+									new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+									}));
+				}
+			}
+			return result;
+		}
+
 		Path path() {
 			return this.path;
 		}

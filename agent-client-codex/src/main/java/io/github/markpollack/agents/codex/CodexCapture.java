@@ -23,6 +23,8 @@ final class CodexCapture {
 
 	private String inventoryFailure;
 
+	private String nativeFailure;
+
 	private CodexAcquisition sealed;
 
 	private final java.time.Instant start = java.time.Instant.now();
@@ -57,6 +59,28 @@ final class CodexCapture {
 		}
 	}
 
+	/**
+	 * Observe the native rollout exactly once, independently of when the recorder lane
+	 * seals: the next replacement process and connection close both call this before the
+	 * file can grow again, so a delayed recording cannot move this turn's boundary.
+	 */
+	synchronized void observeNative() {
+		if (this.nativeObservation != null || this.nativeFailure != null || this.sealed != null)
+			return;
+		if (!this.connection.process.dispatched() || !this.connection.process.terminated())
+			return;
+		try {
+			acquireNative();
+		}
+		catch (IOException | RuntimeException ex) {
+			this.nativeFailure = String.valueOf(ex.getMessage());
+		}
+	}
+
+	CodexNativeSource.Observed nativeObservation() {
+		return this.nativeObservation;
+	}
+
 	private CodexAcquisition sealSources() throws IOException {
 		var process = this.connection.process;
 		Path root = this.connection.configuration.capture().toAbsolutePath().normalize();
@@ -70,7 +94,7 @@ final class CodexCapture {
 			sources.add(write(directory, "stdout", process.stdout()));
 			sources.add(write(directory, "stderr", process.stderr()));
 			try {
-				byte[] nativeBytes = acquireNative();
+				byte[] nativeBytes = observedNative();
 				sources.add(write(directory, "native", nativeBytes, nativeBytes.length, true, true));
 				complete = process.terminated() && sources.stream().allMatch(CodexAcquisition.Source::complete);
 				detail = complete ? "COMPLETE" : "INCOMPLETE_STREAMS_OR_CESSATION";
@@ -87,6 +111,14 @@ final class CodexCapture {
 		return this.sealed;
 	}
 
+	private byte[] observedNative() throws IOException {
+		if (this.nativeObservation != null)
+			return this.nativeObservation.bytes();
+		if (this.nativeFailure != null)
+			throw new IOException(this.nativeFailure);
+		return acquireNative();
+	}
+
 	/**
 	 * Fresh turn: new exact-thread file. Resumed turn: unchanged earlier prefix plus
 	 * growth.
@@ -94,6 +126,8 @@ final class CodexCapture {
 	private byte[] acquireNative() throws IOException {
 		if (this.nativeSource == null)
 			throw new IOException(this.inventoryFailure);
+		if (this.connection.nativeId == null)
+			throw new IOException("No observed native identity for this turn");
 		Path cwd = this.connection.options.getWorkingDirectory();
 		String version = this.connection.configuration.version();
 		if (this.connection.resumeId == null)

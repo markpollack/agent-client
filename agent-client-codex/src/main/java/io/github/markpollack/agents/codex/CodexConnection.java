@@ -63,6 +63,8 @@ final class CodexConnection implements AgentExecutionProvider.Connection {
 		String nativeId = this.thread.nativeId().orElse(null);
 		if (previous.process.dispatched() && nativeId == null)
 			throw new IllegalStateException("Cannot resume a dispatched Codex turn without emitted thread identity");
+		if (previous.capture != null)
+			previous.capture.observeNative();
 		var generation = new CodexGeneration(this.configuration, this.options, nativeId,
 				nativeId == null ? 0 : this.generations.size());
 		this.generations.add(generation);
@@ -94,14 +96,20 @@ final class CodexConnection implements AgentExecutionProvider.Connection {
 				generation.close();
 			}
 			catch (RuntimeException ex) {
-				if (failure == null)
-					failure = ex;
-				else
-					failure.addSuppressed(ex);
+				failure = suppress(failure, ex);
 			}
 		}
+		if (this.retained && this.configuration.capture() != null)
+			CodexThreadManifest.write(this.configuration, this.thread, owned);
 		if (failure != null)
 			throw failure;
+	}
+
+	private static RuntimeException suppress(RuntimeException failure, RuntimeException ex) {
+		if (failure == null)
+			return ex;
+		failure.addSuppressed(ex);
+		return failure;
 	}
 
 }

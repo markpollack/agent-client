@@ -58,9 +58,16 @@ final class CodexManifest {
 		if (nativeSource != null) {
 			byte[] after = nativeSource.bytes();
 			turn.put("native_prefix_after", object("bytes", after.length, "sha256", CodexNativeSource.sha256(after)));
-			turn.put("native_records", object("first_line", nativeSource.firstLine(), "last_line",
-					nativeSource.lastLine(), "region_start_byte", nativeSource.regionStart()));
-			turn.put("cumulative_usage", nativeSource.cumulativeUsage());
+			turn.put("native_records",
+					object("first_line", nativeSource.firstLine(), "last_line", nativeSource.lastLine(),
+							"region_start_byte", nativeSource.regionStart(), "records", nativeSource.records(),
+							"shared", nativeSource.shared()));
+			var cumulative = nativeSource.cumulativeUsage();
+			turn.put("cumulative_usage", cumulative);
+			var usage = nativeSource.turnUsage();
+			turn.put("turn_token_usage", usage.get("turn_token_usage"));
+			turn.put("thread_token_usage", usage.get("thread_token_usage"));
+			turn.put("total_token_usage", cumulative);
 		}
 		root.put("turns", List.of(turn));
 		return new ObjectMapper().writeValueAsString(root);

@@ -38,6 +38,9 @@ final class CodexGeneration implements AutoCloseable {
 
 	boolean prepared;
 
+	/** Secondary recording lane for this process; null when capture is not configured. */
+	volatile CodexCapture capture;
+
 	CodexGeneration(CodexConfiguration configuration, AgentOptions options) {
 		this(configuration, options, null, 0);
 	}

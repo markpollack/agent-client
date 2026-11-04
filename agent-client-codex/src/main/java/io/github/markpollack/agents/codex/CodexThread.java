@@ -38,6 +38,16 @@ final class CodexThread {
 		return Optional.ofNullable(this.quarantine);
 	}
 
+	private String manifestFailure;
+
+	synchronized void manifestFailure(String reason) {
+		this.manifestFailure = reason;
+	}
+
+	synchronized Optional<String> manifestFailure() {
+		return Optional.ofNullable(this.manifestFailure);
+	}
+
 	synchronized CodexNativeSource.Prefix nativePrefix() {
 		return this.nativePrefix;
 	}

@@ -18,7 +18,7 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 
 	private final CodexThread owner;
 
-	private boolean started;
+	private volatile boolean started;
 
 	private volatile CaptureAcquisition acquisition = CaptureAcquisition.PENDING;
 
@@ -79,8 +79,10 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 			.normalize()
 			.equals(this.connection.options.getWorkingDirectory()))
 			throw new IllegalArgumentException("Codex request directory differs from connection options");
-		if (this.connection.configuration.capture() != null)
+		if (this.connection.configuration.capture() != null) {
 			this.capture = new CodexCapture(this.connection, this.executionId, this.owner);
+			this.connection.capture = this.capture;
+		}
 		int exit = this.connection.process.run(request.goal().getBytes(StandardCharsets.UTF_8));
 		this.connection.exitCode = exit;
 		if (!this.connection.process.stdout().complete())
@@ -114,8 +116,15 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 		}
 	}
 
+	/**
+	 * The Client lifecycle stops a turn only for a cancel or deadline it decided. Even if
+	 * the process had already completed, the caller never accepted that result, so the
+	 * thread history is unsafe to resume: quarantine first, then close the process.
+	 */
 	@Override
 	public void stop(boolean mayInterruptIfRunning) {
+		if (this.started)
+			this.owner.quarantine("turn stopped by the Client lifecycle before its result was accepted");
 		this.connection.close();
 	}
 
