@@ -43,6 +43,7 @@
         <module>agent-client-journal</module>
         <module>agent-client-claude</module>
         <module>agent-client-codex</module>
+        <module>agent-client-antigravity</module>
         <module>agent-client-spring-boot-autoconfigure</module>
 
         <!-- SDK modules -->

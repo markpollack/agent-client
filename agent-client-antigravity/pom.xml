@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+ <modelVersion>4.0.0</modelVersion><parent><groupId>io.github.markpollack</groupId><artifactId>agent-client-parent</artifactId><version>0.32.1-SNAPSHOT</version></parent>
+ <artifactId>agent-client-antigravity</artifactId><name>Agent Client Antigravity Lifecycle</name>
+ <properties>
+  <!-- Two own-module measurements: line96.92%, branch74.46%; floors minus two points. -->
+  <jacoco.minimum.line>0.94</jacoco.minimum.line>
+  <jacoco.minimum.branch>0.72</jacoco.minimum.branch>
+ </properties>
+ <dependencies>
+  <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit</artifactId><version>${archunit.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-core</artifactId><version>${project.version}</version></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>antigravity-cli-sdk</artifactId><version>${project.version}</version></dependency>
+  <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+  <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
+ </dependencies>
+</project>
