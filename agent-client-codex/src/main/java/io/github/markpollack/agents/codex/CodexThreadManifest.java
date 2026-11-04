@@ -111,7 +111,9 @@ final class CodexThreadManifest {
 		turn.put("detail", sealed.detail());
 		turn.put("observed_resources_terminated", process.terminated());
 		turn.put("sources", sources(turn, sealed));
-		turn.put("per_turn_manifest", sealed.directory().resolve("codex-acquisition.json").toString());
+		Path perTurn = sealed.directory().resolve("codex-acquisition.json");
+		turn.put("per_turn_directory", sealed.directory().toString());
+		turn.put("per_turn_manifest", Files.exists(perTurn) ? perTurn.toString() : null);
 		turn.put("wire_usage", generation.wireUsage);
 		var observed = generation.capture.nativeObservation();
 		if (observed != null) {
