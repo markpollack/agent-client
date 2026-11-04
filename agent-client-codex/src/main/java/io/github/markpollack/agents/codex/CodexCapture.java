@@ -29,9 +29,15 @@ final class CodexCapture {
 
 	private CodexNativeSource.Observed nativeObservation;
 
-	CodexCapture(CodexGeneration connection, String executionId) {
+	private final CodexThread owner;
+
+	private final CodexNativeSource.Prefix previous;
+
+	CodexCapture(CodexGeneration connection, String executionId, CodexThread owner) {
 		this.connection = connection;
 		this.executionId = executionId;
+		this.owner = owner;
+		this.previous = owner.nativePrefix();
 		try {
 			this.nativeSource = new CodexNativeSource(connection.configuration.sessions(connection.options));
 		}
@@ -64,11 +70,7 @@ final class CodexCapture {
 			sources.add(write(directory, "stdout", process.stdout()));
 			sources.add(write(directory, "stderr", process.stderr()));
 			try {
-				if (this.nativeSource == null)
-					throw new IOException(this.inventoryFailure);
-				this.nativeObservation = this.nativeSource.read(this.connection.nativeId,
-						this.connection.options.getWorkingDirectory(), this.connection.configuration.version());
-				byte[] nativeBytes = this.nativeObservation.bytes();
+				byte[] nativeBytes = acquireNative();
 				sources.add(write(directory, "native", nativeBytes, nativeBytes.length, true, true));
 				complete = process.terminated() && sources.stream().allMatch(CodexAcquisition.Source::complete);
 				detail = complete ? "COMPLETE" : "INCOMPLETE_STREAMS_OR_CESSATION";
@@ -79,9 +81,31 @@ final class CodexCapture {
 		}
 		this.sealed = new CodexAcquisition(this.executionId, this.connection.id,
 				Optional.ofNullable(this.connection.nativeId), directory, sources, complete, detail,
-				CodexManifest.template(new CodexManifest.Context(this.connection, this.executionId, this.start),
+				CodexManifest.template(
+						new CodexManifest.Context(this.connection, this.executionId, this.start, this.previous),
 						sources, this.nativeObservation, complete, detail));
 		return this.sealed;
+	}
+
+	/**
+	 * Fresh turn: new exact-thread file. Resumed turn: unchanged earlier prefix plus
+	 * growth.
+	 */
+	private byte[] acquireNative() throws IOException {
+		if (this.nativeSource == null)
+			throw new IOException(this.inventoryFailure);
+		Path cwd = this.connection.options.getWorkingDirectory();
+		String version = this.connection.configuration.version();
+		if (this.connection.resumeId == null)
+			this.nativeObservation = this.nativeSource.read(this.connection.nativeId, cwd, version);
+		else if (this.previous == null)
+			throw new IOException("No sealed observation of the earlier turn's native prefix");
+		else
+			this.nativeObservation = this.nativeSource.readContinuation(this.previous, this.connection.nativeId, cwd,
+					version);
+		byte[] nativeBytes = this.nativeObservation.bytes();
+		this.owner.nativePrefix(new CodexNativeSource.Prefix(this.nativeObservation.path(), nativeBytes));
+		return nativeBytes;
 	}
 
 	private static CodexAcquisition.Source write(Path directory, String role, CodexBytes observed) throws IOException {

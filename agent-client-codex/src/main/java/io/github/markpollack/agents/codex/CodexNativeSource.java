@@ -43,7 +43,23 @@ final class CodexNativeSource {
 		Path file = select(nativeId);
 		byte[] bytes = readBytes(file);
 		validateHeader(bytes, nativeId, cwd, version);
-		return new Observed(file, bytes, turn(bytes));
+		return new Observed(file, bytes, 0, turn(bytes, 0));
+	}
+
+	/**
+	 * A resumed turn appends to the exact file observed before: the earlier bytes must be
+	 * an unchanged prefix and the appended region must carry exactly one new turn.
+	 */
+	Observed readContinuation(Prefix previous, String nativeId, Path cwd, String version) throws IOException {
+		Path file = previous.path();
+		if (outsideRoot(file))
+			throw new IOException("Native path escaped its root");
+		byte[] bytes = readBytes(file);
+		byte[] before = previous.bytes();
+		if (bytes.length <= before.length || !Arrays.equals(bytes, 0, before.length, before, 0, before.length))
+			throw new IOException("Native source prefix changed or did not grow after resume");
+		validateHeader(bytes, nativeId, cwd, version);
+		return new Observed(file, bytes, before.length, turn(bytes, before.length));
 	}
 
 	private Path select(String nativeId) throws IOException {
@@ -89,21 +105,55 @@ final class CodexNativeSource {
 			throw new IOException("Native identity, directory or version mismatch");
 	}
 
-	private static String turn(byte[] bytes) throws IOException {
+	private static String turn(byte[] bytes, int regionStart) throws IOException {
 		var turns = new HashSet<String>();
 		try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(
-				new java.io.ByteArrayInputStream(bytes), java.nio.charset.StandardCharsets.UTF_8))) {
+				new java.io.ByteArrayInputStream(bytes, regionStart, bytes.length - regionStart),
+				java.nio.charset.StandardCharsets.UTF_8))) {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				var event = JSON.readTree(line);
 				if ("event_msg".equals(event.path("type").asText())
 						&& "task_started".equals(event.path("payload").path("type").asText()))
 					turns.add(event.path("payload").path("turn_id").asText());
+				if (event.path("payload").path("forked_from_id").isTextual())
+					throw new IOException("Native source is a forked thread");
 			}
 		}
 		if (turns.size() != 1 || turns.contains(""))
 			throw new IOException("No unambiguous native turn identity");
 		return turns.iterator().next();
+	}
+
+	static String sha256(byte[] bytes) {
+		try {
+			return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+		}
+		catch (java.security.NoSuchAlgorithmException ex) {
+			throw new IllegalStateException(ex);
+		}
+	}
+
+	/** Exact observed file and its bytes at the end of an earlier turn. */
+	static final class Prefix {
+
+		private final Path path;
+
+		private final byte[] bytes;
+
+		Prefix(Path path, byte[] bytes) {
+			this.path = path;
+			this.bytes = bytes.clone();
+		}
+
+		Path path() {
+			return this.path;
+		}
+
+		byte[] bytes() {
+			return this.bytes.clone();
+		}
+
 	}
 
 	static final class Observed {
@@ -114,10 +164,53 @@ final class CodexNativeSource {
 
 		private final String turnId;
 
-		Observed(Path path, byte[] bytes, String turnId) {
+		private final int regionStart;
+
+		Observed(Path path, byte[] bytes, int regionStart, String turnId) {
 			this.path = path;
 			this.bytes = bytes.clone();
+			this.regionStart = regionStart;
 			this.turnId = turnId;
+		}
+
+		int regionStart() {
+			return this.regionStart;
+		}
+
+		/** Zero-based index of the first record appended by this turn. */
+		long firstLine() {
+			return lines(0, this.regionStart);
+		}
+
+		long lastLine() {
+			return lines(0, this.bytes.length) - 1;
+		}
+
+		private long lines(int from, int to) {
+			long count = 0;
+			for (int i = from; i < to; i++)
+				if (this.bytes[i] == '\n')
+					count++;
+			return count;
+		}
+
+		/** Last cumulative token_count snapshot inside this turn's region, if any. */
+		Map<String, Object> cumulativeUsage() throws IOException {
+			Map<String, Object> usage = Map.of();
+			try (var reader = new java.io.BufferedReader(
+					new java.io.InputStreamReader(new java.io.ByteArrayInputStream(this.bytes, this.regionStart,
+							this.bytes.length - this.regionStart), java.nio.charset.StandardCharsets.UTF_8))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					var event = JSON.readTree(line);
+					var total = event.path("payload").path("info").path("total_token_usage");
+					if ("token_count".equals(event.path("payload").path("type").asText()) && total.isObject())
+						usage = JSON.convertValue(total,
+								new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+								});
+				}
+			}
+			return usage;
 		}
 
 		Path path() {

@@ -146,10 +146,10 @@ class CodexClientTest {
 	}
 
 	@Test
-	void stopsBeforeDispatchAndRejectsRetainedAndReplay() throws Exception {
+	void stopsBeforeDispatchAndRejectsOneShotReplay() throws Exception {
 		var provider = provider();
-		assertThat(provider.capabilities().retention().supported()).isFalse();
-		assertThatThrownBy(() -> provider.open(options(), true)).isInstanceOf(UnsupportedOperationException.class);
+		assertThat(provider.capabilities().retention().supported()).isTrue();
+		assertThat(provider.capabilities().load().supported()).isFalse();
 		try (var connection = provider.open(options())) {
 			var turn = connection.prepare("E");
 			turn.stop(false);

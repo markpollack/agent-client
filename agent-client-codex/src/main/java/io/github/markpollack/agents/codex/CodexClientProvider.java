@@ -10,7 +10,10 @@ import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.codexsdk.types.SandboxMode;
 
-/** Fresh Codex exec on the Client lifecycle; retained conversations are unsupported. */
+/**
+ * Codex exec on the Client lifecycle. One-shot runs one fresh process; a retained session
+ * resumes the exact emitted thread with a replacement process per turn.
+ */
 public final class CodexClientProvider implements AgentExecutionProvider {
 
 	private final CodexConfiguration configuration;
@@ -31,15 +34,14 @@ public final class CodexClientProvider implements AgentExecutionProvider {
 
 	@Override
 	public Connection open(AgentOptions options, boolean retained) {
-		if (retained)
-			throw new UnsupportedOperationException("Retained Codex is not supported");
-		return new CodexConnection(this.configuration, options);
+		return new CodexConnection(this.configuration, options, retained);
 	}
 
 	@Override
 	public SessionCapabilities capabilities() {
-		var no = new Capability(false, Optional.of("Only one fresh Codex execution is supported"));
-		return new SessionCapabilities(no, no, no);
+		return new SessionCapabilities(new Capability(true, Optional.empty()),
+				new Capability(false, Optional.of("Cross-handle thread loading is not qualified")),
+				new Capability(false, Optional.of("Native progress is not implemented")));
 	}
 
 	public static final class Builder {

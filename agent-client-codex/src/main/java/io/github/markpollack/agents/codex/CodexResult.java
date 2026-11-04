@@ -26,7 +26,17 @@ final class CodexResult {
 
 	private Map<String, Object> usage = Map.of();
 
+	private String identitySource = "stdout";
+
 	static CodexResult parse(byte[] bytes) throws IOException {
+		return parse(bytes, null);
+	}
+
+	/**
+	 * A resumed turn may omit thread.started; its identity is then the exact resumed
+	 * thread. An emitted identity must equal the resumed one.
+	 */
+	static CodexResult parse(byte[] bytes, String resumed) throws IOException {
 		String stream = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
 		if (!stream.endsWith("\n"))
 			throw new IOException("Codex stdout has an incomplete final record");
@@ -35,9 +45,21 @@ final class CodexResult {
 			if (!line.isBlank())
 				result.accept(JSON.readTree(line));
 		}
+		result.resolveIdentity(resumed);
 		if (result.nativeId == null || result.terminal == null)
 			throw new IOException("Missing Codex identity or terminal event");
 		return result;
+	}
+
+	private void resolveIdentity(String resumed) throws IOException {
+		if (resumed == null)
+			return;
+		if (this.nativeId == null) {
+			this.nativeId = resumed;
+			this.identitySource = "resume-argv";
+		}
+		else if (!resumed.equals(this.nativeId))
+			throw new IOException("Resumed Codex thread identity mismatch");
 	}
 
 	private void accept(JsonNode event) throws IOException {
@@ -79,12 +101,24 @@ final class CodexResult {
 		return this.nativeId;
 	}
 
-	AgentResponse response(String model, Duration duration, int exit, String connectionId) {
+	String identitySource() {
+		return this.identitySource;
+	}
+
+	Map<String, Object> usage() {
+		return this.usage;
+	}
+
+	AgentResponse response(String model, Duration duration, int exit, CodexGeneration generation) {
 		var facts = new LinkedHashMap<String, Object>();
 		facts.put("exitCode", exit);
-		facts.put("connectionId", connectionId);
+		facts.put("connectionId", generation.id);
 		facts.put("nativeReason", this.terminal);
 		facts.put("usage", this.usage);
+		facts.put("identitySource", this.identitySource);
+		facts.put("turnIndex", generation.turnIndex);
+		if (generation.resumeId != null)
+			facts.put("resumedThread", generation.resumeId);
 		facts.put("costReported", false);
 		facts.put("launchPath", "direct-observed-process-inventory");
 		return new AgentResponse(

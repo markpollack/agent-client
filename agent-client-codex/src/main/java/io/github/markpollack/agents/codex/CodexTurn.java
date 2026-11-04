@@ -16,35 +16,61 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 
 	private final String executionId;
 
+	private final CodexThread owner;
+
 	private boolean started;
 
 	private volatile CaptureAcquisition acquisition = CaptureAcquisition.PENDING;
 
 	private volatile CodexCapture capture;
 
-	CodexTurn(CodexGeneration connection, String executionId) {
+	CodexTurn(CodexGeneration connection, String executionId, CodexThread owner) {
 		this.connection = connection;
 		this.executionId = executionId;
+		this.owner = owner;
 	}
 
 	@Override
 	public AgentResponse call(AgentTaskRequest request) {
-		synchronized (this) {
-			if (this.started)
-				throw new IllegalStateException("Codex turn cannot replay");
-			this.started = true;
-		}
-		Instant start = Instant.now();
+		startOnce();
+		String unsafe = "turn did not reach a parsed terminal";
 		try (this.connection) {
-			return dispatch(request, start);
-		}
-		catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("Codex interrupted", ex);
+			var response = dispatch(request, Instant.now());
+			unsafe = successful(response) ? null : "native terminal was not a successful turn.completed";
+			return response;
 		}
 		catch (Exception ex) {
-			throw new IllegalStateException("Codex execution failed", ex);
+			unsafe = "turn failed: " + ex.getMessage();
+			throw failure(ex);
 		}
+		finally {
+			settle(unsafe);
+		}
+	}
+
+	private synchronized void startOnce() {
+		if (this.started)
+			throw new IllegalStateException("Codex turn cannot replay");
+		this.started = true;
+	}
+
+	private boolean successful(AgentResponse response) {
+		Integer exit = this.connection.exitCode;
+		return exit != null && exit == 0 && "turn.completed".equals(response.getMetadata().get("nativeReason"));
+	}
+
+	private static IllegalStateException failure(Exception ex) {
+		if (ex instanceof InterruptedException) {
+			Thread.currentThread().interrupt();
+			return new IllegalStateException("Codex interrupted", ex);
+		}
+		return new IllegalStateException("Codex execution failed", ex);
+	}
+
+	/** Any turn without a parsed successful terminal leaves the thread history unsafe. */
+	private void settle(String unsafe) {
+		if (unsafe != null)
+			this.owner.quarantine(unsafe);
 	}
 
 	private AgentResponse dispatch(AgentTaskRequest request, Instant start) throws Exception {
@@ -54,15 +80,18 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 			.equals(this.connection.options.getWorkingDirectory()))
 			throw new IllegalArgumentException("Codex request directory differs from connection options");
 		if (this.connection.configuration.capture() != null)
-			this.capture = new CodexCapture(this.connection, this.executionId);
+			this.capture = new CodexCapture(this.connection, this.executionId, this.owner);
 		int exit = this.connection.process.run(request.goal().getBytes(StandardCharsets.UTF_8));
 		this.connection.exitCode = exit;
 		if (!this.connection.process.stdout().complete())
 			throw new IllegalStateException("Incomplete Codex stdout");
-		var result = CodexResult.parse(this.connection.process.stdout().bytes());
+		var result = CodexResult.parse(this.connection.process.stdout().bytes(), this.connection.resumeId);
 		this.connection.nativeId = result.nativeId();
+		this.connection.identitySource = result.identitySource();
+		this.connection.wireUsage = result.usage();
+		this.owner.observeIdentity(result.nativeId());
 		return result.response(this.connection.options.getModel(), Duration.between(start, Instant.now()), exit,
-				this.connection.id);
+				this.connection);
 	}
 
 	@Override

@@ -18,7 +18,7 @@ final class CodexManifest {
 	private CodexManifest() {
 	}
 
-	record Context(CodexGeneration connection, String execution, Instant start) {
+	record Context(CodexGeneration connection, String execution, Instant start, CodexNativeSource.Prefix previous) {
 	}
 
 	static String template(Context context, List<CodexAcquisition.Source> sources,
@@ -32,7 +32,7 @@ final class CodexManifest {
 		root.put("process", process(connection, sources, nativeSource));
 		root.put("run",
 				object("run_uid", execution, "session_uid", connection.nativeId, "capture_start",
-						context.start().toString(), "invocation_index", 0, "cli",
+						context.start().toString(), "invocation_index", connection.turnIndex, "cli",
 						object("name", "Codex CLI", "vendor_name", "OpenAI", "version",
 								connection.configuration.version()),
 						"launch_settings", object("route", "exec_stdio", "working_directory",
@@ -45,10 +45,24 @@ final class CodexManifest {
 		for (var source : sources)
 			if (!"native".equals(source.role()))
 				ends.put(source.role().toUpperCase(Locale.ROOT), source.bytes());
-		root.put("turns",
-				List.of(object("invocation_uid", execution, "decision_uid", null, "native_turn_uid",
-						nativeSource == null ? null : nativeSource.turnId(), "start_offsets",
-						Map.of("STDIN", 0, "STDOUT", 0, "STDERR", 0), "end_offsets", ends)));
+		var turn = object("invocation_uid", execution, "decision_uid", null, "native_turn_uid",
+				nativeSource == null ? null : nativeSource.turnId(), "start_offsets",
+				Map.of("STDIN", 0, "STDOUT", 0, "STDERR", 0), "end_offsets", ends);
+		turn.put("identity_source", connection.identitySource);
+		turn.put("resume_thread_id", connection.resumeId);
+		turn.put("wire_usage", connection.wireUsage);
+		var previous = context.previous();
+		turn.put("native_prefix_before", previous == null
+				? object("state", "ABSENT", "observation", "before-first-dispatch")
+				: object("bytes", previous.bytes().length, "sha256", CodexNativeSource.sha256(previous.bytes())));
+		if (nativeSource != null) {
+			byte[] after = nativeSource.bytes();
+			turn.put("native_prefix_after", object("bytes", after.length, "sha256", CodexNativeSource.sha256(after)));
+			turn.put("native_records", object("first_line", nativeSource.firstLine(), "last_line",
+					nativeSource.lastLine(), "region_start_byte", nativeSource.regionStart()));
+			turn.put("cumulative_usage", nativeSource.cumulativeUsage());
+		}
+		root.put("turns", List.of(turn));
 		return new ObjectMapper().writeValueAsString(root);
 	}
 
@@ -57,7 +71,8 @@ final class CodexManifest {
 		var process = connection.process;
 		return object("argv", process.argv(), "cwd", connection.options.getWorkingDirectory().toString(),
 				"connection_uid", connection.id, "client_session_uid", null, "exit_code", connection.exitCode, "sealed",
-				true, "fresh_session", true, "native_path_preexisting", nativeSource == null ? null : false,
+				true, "fresh_session", connection.resumeId == null, "observed_pids", process.observedPids(),
+				"native_path_preexisting", nativeSource == null ? null : connection.resumeId != null,
 				"observed_resources_terminated", process.terminated(), "stdin_closed", ended(sources, "stdin"),
 				"stdout_natural_eof", ended(sources, "stdout"), "stderr_natural_eof", ended(sources, "stderr"),
 				"overflow", sources.stream().anyMatch(source -> source.observedBytes() > source.bytes()));

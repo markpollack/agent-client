@@ -21,6 +21,8 @@ public final class CodexProcess implements AutoCloseable {
 
 	private final ExecuteOptions options;
 
+	private final String resumeThreadId;
+
 	private final Map<Long, ProcessHandle> owned = new ConcurrentHashMap<>();
 
 	private final ReentrantLock closing = new ReentrantLock();
@@ -36,8 +38,19 @@ public final class CodexProcess implements AutoCloseable {
 	private boolean launched;
 
 	public CodexProcess(String executable, ExecuteOptions options) {
+		this(executable, options, null);
+	}
+
+	/**
+	 * Resume the exact native thread previously emitted by Codex; null starts a fresh
+	 * thread. The prompt still arrives on stdin and no earlier prompt is replayed.
+	 */
+	public CodexProcess(String executable, ExecuteOptions options, String resumeThreadId) {
 		this.executable = Objects.requireNonNull(executable);
 		this.options = Objects.requireNonNull(options);
+		if (resumeThreadId != null && !resumeThreadId.matches("[A-Za-z0-9-]+"))
+			throw new IllegalArgumentException("Unsafe Codex thread identity");
+		this.resumeThreadId = resumeThreadId;
 	}
 
 	/** Launch exactly once, with the prompt written to stdin rather than argv. */
@@ -76,13 +89,27 @@ public final class CodexProcess implements AutoCloseable {
 	 * unchanged.
 	 */
 	public List<String> argv() {
-		return buildCommand(this.executable, this.options);
+		return buildCommand(this.executable, this.options, this.resumeThreadId);
+	}
+
+	public Optional<String> resumeThreadId() {
+		return Optional.ofNullable(this.resumeThreadId);
 	}
 
 	static List<String> buildCommand(String executable, ExecuteOptions options) {
-		var args = new ArrayList<>(CodexCommandBuilder.build(executable, "-", options, null));
+		return buildCommand(executable, options, null);
+	}
+
+	/**
+	 * Fresh: {@code exec --ignore-user-config ... -- -}. Resume: {@code exec resume
+	 * --ignore-user-config ... <thread> -- -} on the pinned CLI's documented resume
+	 * route.
+	 */
+	static List<String> buildCommand(String executable, ExecuteOptions options, String resumeThreadId) {
+		var args = new ArrayList<>(CodexCommandBuilder.build(executable, "-", options, resumeThreadId));
 		args.add(1, "--no-daemon");
-		args.add(args.indexOf("exec") + 1, "--ignore-user-config");
+		int subcommand = resumeThreadId == null ? args.indexOf("exec") : args.indexOf("resume");
+		args.add(subcommand + 1, "--ignore-user-config");
 		return List.copyOf(args);
 	}
 

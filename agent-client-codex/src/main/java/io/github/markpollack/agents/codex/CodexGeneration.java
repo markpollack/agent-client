@@ -4,13 +4,14 @@
  */
 package io.github.markpollack.agents.codex;
 
-import java.util.UUID;
+import java.util.*;
 import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.codexsdk.transport.CodexProcess;
 import io.github.markpollack.agents.codexsdk.types.ExecuteOptions;
 
 /**
- * Fixed direct-process generation, shared only by its one turn and source acquisition.
+ * One direct process: a fresh thread or an exact resume of the emitted thread. Shared
+ * only by its one turn and source acquisition.
  */
 final class CodexGeneration implements AutoCloseable {
 
@@ -22,14 +23,31 @@ final class CodexGeneration implements AutoCloseable {
 
 	final CodexProcess process;
 
+	/** Thread emitted by an earlier generation; null starts a fresh thread. */
+	final String resumeId;
+
+	final int turnIndex;
+
 	volatile String nativeId;
+
+	volatile String identitySource;
 
 	volatile Integer exitCode;
 
+	volatile Map<String, Object> wireUsage = Map.of();
+
+	boolean prepared;
+
 	CodexGeneration(CodexConfiguration configuration, AgentOptions options) {
+		this(configuration, options, null, 0);
+	}
+
+	CodexGeneration(CodexConfiguration configuration, AgentOptions options, String resumeId, int turnIndex) {
 		this.configuration = configuration;
 		this.options = configuration.options(options);
-		this.process = new CodexProcess(configuration.executable(), this.options);
+		this.resumeId = resumeId;
+		this.turnIndex = turnIndex;
+		this.process = new CodexProcess(configuration.executable(), this.options, resumeId);
 	}
 
 	@Override
