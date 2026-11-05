@@ -62,16 +62,40 @@ final class DefaultAgentSession implements AgentSession {
 		if (this.connection != null && this.connectionClose.compareAndSet(false, true)) {
 			try {
 				this.connection.close();
-				// Diagnostics are published before closure becomes observable as settled.
-				this.closeDiagnostics = recordingDiagnostics();
-				this.connectionClosed = true;
 			}
 			catch (RuntimeException ex) {
 				this.closeDiagnostics = recordingDiagnostics();
 				this.closeFailed = true;
 				throw ex;
 			}
+			List<String> diagnostics = recordingDiagnostics();
+			this.lock.lock();
+			try {
+				// The closed snapshot carries its diagnostics before closure can be
+				// observed as
+				// settled: no reader of a settled close can see a snapshot without them.
+				this.closeDiagnostics = diagnostics;
+				if (this.closing)
+					publishClosed();
+				this.connectionClosed = true;
+			}
+			finally {
+				this.lock.unlock();
+			}
 		}
+	}
+
+	/**
+	 * Under the lock: the terminal snapshot, UNKNOWN preserved, with the close
+	 * diagnostics.
+	 */
+	private void publishClosed() {
+		if (this.snapshot.state() == SessionState.UNKNOWN)
+			this.snapshot = new SessionSnapshot(this.id, SessionState.UNKNOWN, Optional.empty(),
+					this.snapshot.activeExecutionId(), this.snapshot.reason(), this.closeDiagnostics);
+		else
+			this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSED, Optional.empty(), Optional.empty(),
+					Optional.empty(), this.closeDiagnostics);
 	}
 
 	private List<String> recordingDiagnostics() {
@@ -365,12 +389,8 @@ final class DefaultAgentSession implements AgentSession {
 		}
 		this.lock.lock();
 		try {
-			if (this.snapshot.state() != SessionState.UNKNOWN)
-				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSED, Optional.empty(), Optional.empty(),
-						Optional.empty(), this.closeDiagnostics);
-			else
-				this.snapshot = new SessionSnapshot(this.id, SessionState.UNKNOWN, Optional.empty(),
-						this.snapshot.activeExecutionId(), this.snapshot.reason(), this.closeDiagnostics);
+			// Idempotent for a connection closed earlier on the ephemeral path.
+			publishClosed();
 		}
 		finally {
 			this.lock.unlock();
