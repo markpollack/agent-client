@@ -2,37 +2,22 @@
 # Runs ProviderParityTCK scenarios across Claude, Codex, Gemini, and Junie
 # to catch behavioral parity regressions (e.g., Codex skipGitCheck issue)
 #
-# The weekly scheduled run doubles as the latest-CLI drift canary: the CLIs are
-# installed at their latest published versions, so upstream changes (new flags,
-# payload fields, behavior shifts) surface here before they bite users.
+# A dispatched run doubles as the latest-CLI drift canary: the CLIs are installed
+# at their latest published versions, so upstream changes (new flags, payload
+# fields, behavior shifts) surface here before they bite users.
 
 name: Provider Parity
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'agent-models/**'
-      - 'provider-sdks/**'
-      - 'agent-client-core/**'
-  push:
-    branches: [main]
-    paths:
-      - 'agent-models/**'
-      - 'provider-sdks/**'
-      - 'agent-client-core/**'
-      # Re-run when the harness changes: credential/CLI wiring determines
-      # which providers have live evidence.
-      - '.github/workflows/parity.yml'
-  schedule:
-    - cron: '0 7 * * 1'  # Weekly Mondays
+  # Manual only. Live-CLI parity runs are scheduled by an explicit dispatch, never by
+  # a push, pull request or timer.
   workflow_dispatch:
 
 concurrency:
   group: parity-${{ github.ref }}
-  # Let in-flight runs finish: the live-agent suite takes minutes, and a push
-  # burst (e.g. release + snapshot bump) would otherwise cancel every run before
-  # it reports. The drift canary is only useful if it actually completes.
+  # Let in-flight runs finish: the live-agent suite takes minutes, and a dispatch
+  # burst would otherwise cancel every run before it reports. The drift canary is
+  # only useful if it actually completes.
   cancel-in-progress: false
 
 jobs:

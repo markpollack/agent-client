@@ -3,6 +3,9 @@ name: CI Build
 on:
   push:
     branches: [main]
+    # Point-release tags run the same build plus the published-consumer gate below.
+    # GitHub does not evaluate paths filters for tag pushes.
+    tags: ['v*']
     paths-ignore:
       - 'docs/**'
       - '*.md'
@@ -37,7 +40,11 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: ./mvnw clean verify -B
-      - name: Verify published no-BOM consumers
+      # The published-consumer gate applies to point releases only (tag pushes v*).
+      # Development snapshots on main keep the normal verification above; the gate
+      # itself is unchanged.
+      - name: Verify published no-BOM consumers (point releases only)
+        if: startsWith(github.ref, 'refs/tags/v')
         run: scripts/published-consumer-gate.py
       - name: Upload test results
         if: ${{ always() }}
