@@ -188,6 +188,21 @@ class ClaudeAgentModelTraceDirTest {
 	}
 
 	@Test
+	void knownSessionWithoutItsTranscriptIsNeverGivenAnotherRunsTranscript() throws Exception {
+		Path projects = temp.resolve("projects");
+		Path cwd = temp.resolve("work");
+		String slug = cwd.toAbsolutePath().normalize().toString().replaceAll("[^A-Za-z0-9]", "-");
+		Path other = projects.resolve(slug).resolve("other-session.jsonl");
+		Files.createDirectories(other.getParent());
+		Files.writeString(other, "{\"sessionId\":\"other-session\"}\n");
+		assertThat(ClaudeAgentModel.findTranscript("known-session", projects, cwd)).as("emitted identity has no match")
+			.isNull();
+		assertThat(ClaudeAgentModel.findTranscript("other-session", projects, cwd)).isEqualTo(other);
+		assertThat(ClaudeAgentModel.findTranscript(null, projects, cwd)).as("failed run: slug fallback")
+			.isEqualTo(other);
+	}
+
+	@Test
 	void legacyTraceDirMayDisableTranscriptArchiveButExplicitAcquisitionMayNot() {
 		assertThatCode(() -> ClaudeAgentModel.builder().traceDir(temp).archiveTranscript(false).build().close())
 			.doesNotThrowAnyException();

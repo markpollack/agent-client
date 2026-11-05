@@ -59,6 +59,51 @@ class FreshStartObserverTest {
 	}
 
 	@Test
+	void historyAppearingBeforeDispatchIsNeverTaggedAbsent() throws Exception {
+		var observer = new FreshStartObserver(root.resolve("projects"), root, "S");
+		observer.probe();
+		Files.createDirectories(observer.expected().getParent());
+		Files.writeString(observer.expected(), "{\"sessionId\":\"S\"}\n");
+		observer.probe();
+		assertThat(observer.before()).as("second probe saw EXISTS")
+			.isNotEqualTo(FreshStartObserver.ABSENT_BEFORE_FIRST_DISPATCH)
+			.containsKeys("bytes", "sha256");
+	}
+
+	@Test
+	void scanCountsTruncatedSubtreesAsSkipped() throws Exception {
+		Path projects = root.resolve("projects");
+		Files.createDirectories(projects.resolve("a/b/c"));
+		var observer = new FreshStartObserver(projects, root, "S");
+		observer.probe();
+		observer.scan();
+		observer.dispatch("E", 0, 0);
+		Files.createDirectories(observer.expected().getParent());
+		Files.writeString(observer.expected(), "{}\n");
+		Path out = Files.createDirectories(root.resolve("out"));
+		observer.finish(out, new byte[0], "G");
+		var scan = Files.readAllLines(out.resolve("observations.jsonl")).get(1);
+		assertThat(scan).contains("\"kind\":\"scan\"").doesNotContain("\"skipped\":0");
+	}
+
+	@Test
+	void prefixAndFinalIdentityComeFromTheSameReadAsTheBytes() throws Exception {
+		var observer = new FreshStartObserver(root.resolve("projects"), root, "S");
+		observer.probe();
+		observer.dispatch("E", 0, 0);
+		Files.createDirectories(observer.expected().getParent());
+		Files.writeString(observer.expected(), "{}\n");
+		observer.prefix();
+		Path out = Files.createDirectories(root.resolve("out"));
+		observer.finish(out, new byte[0], "G");
+		var lines = Files.readAllLines(out.resolve("observations.jsonl"));
+		String key = String.valueOf(
+				Files.readAttributes(observer.expected(), java.nio.file.attribute.BasicFileAttributes.class).fileKey());
+		assertThat(lines.get(2)).contains("\"kind\":\"prefix\"").contains("\"fileKey\":\"" + key + "\"");
+		assertThat(lines.get(3)).contains("\"kind\":\"final\"").contains("\"fileKey\":\"" + key + "\"");
+	}
+
+	@Test
 	void absentStartIsTaggedAndIdentityNeedsADispatch() throws Exception {
 		var observer = new FreshStartObserver(root.resolve("projects"), root, "S");
 		observer.probe();

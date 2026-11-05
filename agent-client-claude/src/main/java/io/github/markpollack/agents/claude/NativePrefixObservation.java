@@ -30,7 +30,36 @@ final class NativePrefixObservation {
 		}
 	}
 
+	/**
+	 * Bytes and the file identity that was stable around the very read that produced
+	 * them.
+	 */
+	static final class Read {
+
+		private final byte[] bytes;
+
+		private final String fileKey;
+
+		Read(byte[] bytes, String fileKey) {
+			this.bytes = bytes;
+			this.fileKey = fileKey;
+		}
+
+		byte[] bytes() {
+			return this.bytes;
+		}
+
+		String fileKey() {
+			return this.fileKey;
+		}
+
+	}
+
 	static byte[] read(Path file) throws IOException {
+		return readWithIdentity(file).bytes();
+	}
+
+	static Read readWithIdentity(Path file) throws IOException {
 		var before = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
 		if (!before.isRegularFile() || before.size() > LIMIT)
 			throw new IOException("Native prefix is not a bounded regular file");
@@ -39,11 +68,15 @@ final class NativePrefixObservation {
 			bytes = input.readNBytes(LIMIT + 1);
 		}
 		var after = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-		if (bytes.length != before.size() || bytes.length != after.size()
-				|| !before.lastModifiedTime().equals(after.lastModifiedTime())
-				|| !Objects.equals(before.fileKey(), after.fileKey()))
+		if (!stable(before, after, bytes.length))
 			throw new IOException("Native prefix changed during observation");
-		return bytes;
+		return new Read(bytes, Objects.toString(before.fileKey(), "UNAVAILABLE"));
+	}
+
+	private static boolean stable(BasicFileAttributes before, BasicFileAttributes after, int read) {
+		return read == before.size() && read == after.size()
+				&& before.lastModifiedTime().equals(after.lastModifiedTime())
+				&& Objects.equals(before.fileKey(), after.fileKey());
 	}
 
 	static String hash(byte[] bytes) {

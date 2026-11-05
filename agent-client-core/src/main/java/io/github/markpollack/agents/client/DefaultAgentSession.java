@@ -62,14 +62,14 @@ final class DefaultAgentSession implements AgentSession {
 		if (this.connection != null && this.connectionClose.compareAndSet(false, true)) {
 			try {
 				this.connection.close();
+				// Diagnostics are published before closure becomes observable as settled.
+				this.closeDiagnostics = recordingDiagnostics();
 				this.connectionClosed = true;
 			}
 			catch (RuntimeException ex) {
+				this.closeDiagnostics = recordingDiagnostics();
 				this.closeFailed = true;
 				throw ex;
-			}
-			finally {
-				this.closeDiagnostics = recordingDiagnostics();
 			}
 		}
 	}
@@ -368,6 +368,9 @@ final class DefaultAgentSession implements AgentSession {
 			if (this.snapshot.state() != SessionState.UNKNOWN)
 				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSED, Optional.empty(), Optional.empty(),
 						Optional.empty(), this.closeDiagnostics);
+			else
+				this.snapshot = new SessionSnapshot(this.id, SessionState.UNKNOWN, Optional.empty(),
+						this.snapshot.activeExecutionId(), this.snapshot.reason(), this.closeDiagnostics);
 		}
 		finally {
 			this.lock.unlock();

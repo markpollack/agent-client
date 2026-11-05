@@ -626,8 +626,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 	}
 
-	private static Path findTranscript(String sessionId, Path projectsDir, Path effectiveWorkingDir)
-			throws IOException {
+	static Path findTranscript(String sessionId, Path projectsDir, Path effectiveWorkingDir) throws IOException {
 		Path transcript = null;
 		if (sessionId != null && !sessionId.isBlank()) {
 			String fileName = sessionId + ".jsonl";
@@ -635,9 +634,11 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 				transcript = stream.filter(p -> p.getFileName().toString().equals(fileName)).findFirst().orElse(null);
 			}
 		}
-		if (transcript == null) {
-			// Failed runs have no session id: newest transcript under the working
-			// directory's project slug.
+		if (transcript == null && (sessionId == null || sessionId.isBlank())) {
+			// Only a run without an emitted identity may fall back to the newest
+			// transcript
+			// under the working directory's project slug; a known identity with no match
+			// stays unarchived rather than being given another run's transcript.
 			String slug = effectiveWorkingDir.toAbsolutePath().normalize().toString().replaceAll("[^A-Za-z0-9]", "-");
 			Path slugDir = projectsDir.resolve(slug);
 			if (Files.isDirectory(slugDir)) {

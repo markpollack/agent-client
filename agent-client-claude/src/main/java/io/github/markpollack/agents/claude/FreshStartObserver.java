@@ -39,7 +39,8 @@ final class FreshStartObserver {
 
 	private boolean finished;
 
-	private String firstProbe;
+	/** True only while every pre-dispatch probe has witnessed absence. */
+	private Boolean absent;
 
 	private long firstDispatchStdout = -1;
 
@@ -92,8 +93,10 @@ final class FreshStartObserver {
 		catch (IOException | RuntimeException ex) {
 			result = ex.getClass().getSimpleName();
 		}
-		if (this.firstProbe == null)
-			this.firstProbe = result;
+		if (!"ENOENT".equals(result))
+			this.absent = false;
+		else if (this.absent == null)
+			this.absent = true;
 		Path parent = this.expected.getParent();
 		record("probe", entries("path", this.expected.toString(), "result", result, "parentPath", parent.toString(),
 				"parentFileKey", fileKey(parent)));
@@ -126,7 +129,7 @@ final class FreshStartObserver {
 	 * prefix.
 	 */
 	synchronized Map<String, Object> before() {
-		if (!this.dispatched && "ENOENT".equals(this.firstProbe))
+		if (!this.dispatched && Boolean.TRUE.equals(this.absent))
 			return ABSENT_BEFORE_FIRST_DISPATCH;
 		return prefix();
 	}
@@ -136,10 +139,11 @@ final class FreshStartObserver {
 		if (this.finished)
 			return Map.of("unavailable", "observation journal already final");
 		try {
-			byte[] bytes = NativePrefixObservation.read(this.expected);
+			var read = NativePrefixObservation.readWithIdentity(this.expected);
+			byte[] bytes = read.bytes();
 			String hash = NativePrefixObservation.hash(bytes);
 			if (this.dispatched)
-				record("prefix", entries("path", this.expected.toString(), "fileKey", fileKey(this.expected), "bytes",
+				record("prefix", entries("path", this.expected.toString(), "fileKey", read.fileKey(), "bytes",
 						bytes.length, "sha256", hash));
 			return Map.of("bytes", bytes.length, "sha256", hash);
 		}
@@ -160,12 +164,13 @@ final class FreshStartObserver {
 				entries("requestedSessionId", this.sessionId, "expectedNativePath", this.expected.toString(),
 						"launchArgv", this.argv, "processIdentity", connectionId, "cwd", this.cwd.toString()));
 		result.put("observedNativeIdentity", identity(stdout));
-		byte[] bytes = NativePrefixObservation.read(this.expected);
+		var read = NativePrefixObservation.readWithIdentity(this.expected);
+		byte[] bytes = read.bytes();
 		var scan = new Scan();
 		record("final",
-				entries("path", this.expected.toString(), "fileKey", fileKey(this.expected), "bytes", bytes.length,
-						"sha256", NativePrefixObservation.hash(bytes), "candidates", scan.matches, "skipped",
-						scan.skipped, "unreadable", scan.unreadable));
+				entries("path", this.expected.toString(), "fileKey", read.fileKey(), "bytes", bytes.length, "sha256",
+						NativePrefixObservation.hash(bytes), "candidates", scan.matches, "skipped", scan.skipped,
+						"unreadable", scan.unreadable));
 		this.finished = true;
 		result.put("nativeFiles", NativePrefixObservation.copy(this.expected, bytes, directory, this.sessionId));
 		var lines = new StringBuilder();
@@ -247,8 +252,12 @@ final class FreshStartObserver {
 		int unreadable;
 
 		Scan() {
-			if (!Files.isDirectory(FreshStartObserver.this.root))
+			if (!Files.exists(FreshStartObserver.this.root, LinkOption.NOFOLLOW_LINKS))
 				return;
+			if (!Files.isDirectory(FreshStartObserver.this.root)) {
+				this.unreadable++;
+				return;
+			}
 			try {
 				Files.walkFileTree(FreshStartObserver.this.root, EnumSet.noneOf(FileVisitOption.class), 3, this);
 			}
@@ -260,9 +269,11 @@ final class FreshStartObserver {
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
 			String name = file.getFileName().toString();
-			if (!attributes.isRegularFile() && !attributes.isDirectory())
+			// A directory reached at the depth limit is a subtree this scan did not
+			// enter.
+			if (!attributes.isRegularFile())
 				this.skipped++;
-			else if (attributes.isRegularFile() && name.equals(FreshStartObserver.this.sessionId + ".jsonl"))
+			else if (name.equals(FreshStartObserver.this.sessionId + ".jsonl"))
 				this.matches.add(file.toString());
 			return FileVisitResult.CONTINUE;
 		}
