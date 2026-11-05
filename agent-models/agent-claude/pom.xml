@@ -37,16 +37,20 @@
             <artifactId>claude-code-sdk</artifactId>
         </dependency>
 
-        <!-- Agent Journal 1.x — legacy derived trace and PhaseCapture surface kept for compatibility -->
+        <!-- Agent Journal 1.x — legacy derived trace / PhaseCapture surface. Optional: consumers that use
+             traceDir, traceContentMode, phaseCapture, tracePath or transcriptPath add both artifacts
+             themselves (docs/legacy-tracing-migration.md); everything else runs without them. -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>journal-core</artifactId>
             <version>${agent-journal.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>claude-code-capture</artifactId>
             <version>${agent-journal.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Boot AutoConfiguration -->

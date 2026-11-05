@@ -30,10 +30,7 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.IterableAgentModel;
 import io.github.markpollack.agents.model.StreamingAgentModel;
 import io.github.markpollack.agents.model.mcp.McpServerDefinition;
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
 import io.github.markpollack.journal.trace.TraceContentMode;
-import io.github.markpollack.journal.trace.TraceRawMode;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
@@ -155,7 +152,13 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	private final Path traceDir;
 
-	private final TraceContentMode traceContentMode;
+	/**
+	 * Journal 1.x TraceContentMode when the legacy dependencies are present; otherwise
+	 * null.
+	 */
+	private final Object traceContentMode;
+
+	private final boolean legacyTrace;
 
 	private final boolean archiveTranscript;
 
@@ -170,7 +173,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		this.asyncExecutor = builder.asyncExecutor != null ? builder.asyncExecutor : DEFAULT_EXECUTOR;
 		this.messageListener = builder.messageListener;
 		this.traceDir = builder.traceDir;
-		this.traceContentMode = builder.traceContentMode;
+		this.legacyTrace = LegacyTrace.available();
+		this.traceContentMode = builder.contentMode(this.legacyTrace);
 		this.archiveTranscript = builder.archiveTranscript;
 		this.captureOptions = builder.captureOptions;
 	}
@@ -271,7 +275,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		CLIOptions options = ClaudeCliOptionsMapper.build(request, getEffectiveOptions(request), timeout,
 				acquisition == null ? null : acquisition.wire()::onBytes);
 		var result = new ClaudeExecutionResult();
-		PhaseCapture capture = null;
+		Object capture = null;
 		String failure = null;
 		ClaudeSyncClient tracked = null;
 		try (ClaudeSyncClient client = ClaudeClient.sync(options)
@@ -283,7 +287,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			tracked = client;
 			inFlight.add(client);
 			client.connect(formatPrompt(request));
-			capture = parse(client.receiveResponse(), request, options, trace, result, acquisition);
+			capture = consume(client.receiveResponse(), request, options, trace, result, acquisition);
 		}
 		catch (Exception ex) {
 			failure = ex.toString();
@@ -294,20 +298,24 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			}
 		}
 		// The client is closed: the CLI's own transcript is as flushed as it will be.
-		Path archived = harvestTranscript(capture == null ? null : capture.sessionId(), trace, cwd);
+		Path archived = harvestTranscript(result.sessionId(), trace, cwd);
 		ClaudeAcquisition reference = acquisition == null ? null
 				: acquisition.seal(result, failure, options, cwd, request.goal());
 		AgentResponse response = result.response(options.getModel(), Duration.between(start, Instant.now()), reference,
 				failure);
-		legacyFields(response.getMetadata(), capture, trace, archived);
+		if (capture != null) {
+			JournalOneTrace.legacyFields(response.getMetadata(), capture, trace.path(), archived);
+		}
 		return response;
 	}
 
 	/**
 	 * Every message reaches the execution result, the optional acquisition and the
-	 * listener before the legacy parser consumes it; the parser owns the derived trace.
+	 * listener. With Journal 1.x present the legacy parser consumes the stream and owns
+	 * the derived trace; without it the stream is drained here and no legacy field
+	 * exists.
 	 */
-	private PhaseCapture parse(Iterator<ParsedMessage> response, AgentTaskRequest request, CLIOptions options,
+	private Object consume(Iterator<ParsedMessage> response, AgentTaskRequest request, CLIOptions options,
 			TraceTarget trace, ClaudeExecutionResult result, ClaudeCaptureSession acquisition) {
 		Iterator<ParsedMessage> teed = new TeeingIterator(response, message -> {
 			if (acquisition != null) {
@@ -318,32 +326,16 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 				messageListener.accept(message);
 			}
 		});
+		if (!this.legacyTrace) {
+			while (teed.hasNext()) {
+				teed.next();
+			}
+			return null;
+		}
 		// Claude Code never echoes maxTurns; without it a trace cannot tell a finished
 		// run from a cut-off one.
-		int maxTurns = options.getMaxTurns() != null ? options.getMaxTurns() : SessionLogParser.UNKNOWN_MAX_TURNS;
-		return SessionLogParser.parse(teed, trace.runId(), formatPrompt(request), trace.path(), traceContentMode,
-				TraceRawMode.NONE, maxTurns);
-	}
-
-	/** The pre-acquisition provider fields callers read through AgentClientResponse. */
-	private static void legacyFields(AgentResponseMetadata metadata, PhaseCapture capture, TraceTarget trace,
-			Path archived) {
-		if (capture == null) {
-			return;
-		}
-		metadata.put("phaseCapture", capture);
-		metadata.put("inputTokens", capture.inputTokens());
-		metadata.put("outputTokens", capture.outputTokens());
-		metadata.put("thinkingTokens", capture.thinkingTokens());
-		if (metadata.get("totalCostUsd") == null) {
-			metadata.put("totalCostUsd", capture.totalCostUsd());
-		}
-		if (trace.path() != null) {
-			metadata.put("tracePath", trace.path().toAbsolutePath().toString());
-		}
-		if (archived != null) {
-			metadata.put("transcriptPath", archived.toAbsolutePath().toString());
-		}
+		return JournalOneTrace.parse(teed, trace.runId(), formatPrompt(request), trace.path(), this.traceContentMode,
+				options.getMaxTurns());
 	}
 
 	// ========== StreamingAgentModel (Reactive) ==========
@@ -675,7 +667,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 		private Path traceDir;
 
-		private TraceContentMode traceContentMode = TraceContentMode.TRUNCATED;
+		private Object traceContentMode;
+
+		private String traceContentModeName;
 
 		private ClaudeCaptureOptions captureOptions;
 
@@ -775,7 +769,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		 * CLI's own session transcript is also archived verbatim into
 		 * {@code <traceDir>/transcripts/} by default; see
 		 * {@link #archiveTranscript(boolean)}. Lossless original-byte acquisition is the
-		 * separate, explicit {@link #capture(ClaudeCaptureOptions)} surface.
+		 * separate, explicit {@link #capture(ClaudeCaptureOptions)} surface. Requires the
+		 * optional Journal 1.x dependencies (journal-core, claude-code-capture) at build
+		 * time; see docs/legacy-tracing-migration.md.
 		 * @param traceDir the trace output directory (created on first use if absent)
 		 * @return this builder
 		 */
@@ -795,8 +791,34 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		 * @return this builder
 		 */
 		public Builder traceContentMode(TraceContentMode traceContentMode) {
-			this.traceContentMode = traceContentMode != null ? traceContentMode : TraceContentMode.TRUNCATED;
+			this.traceContentMode = traceContentMode;
 			return this;
+		}
+
+		/**
+		 * Sets the trace content policy by name (FULL, TRUNCATED or LENGTHS,
+		 * case-insensitive), for configuration binding that must not reference Journal
+		 * 1.x types. Requires the optional Journal 1.x dependencies at build time.
+		 * @param traceContentModeName the policy name, or null for the default
+		 * @return this builder
+		 */
+		public Builder traceContentModeName(String traceContentModeName) {
+			this.traceContentModeName = traceContentModeName;
+			return this;
+		}
+
+		/**
+		 * Resolved under the presence check; the TRUNCATED default is applied by the
+		 * parser.
+		 */
+		Object contentMode(boolean legacyAvailable) {
+			if (!legacyAvailable) {
+				return null;
+			}
+			if (this.traceContentMode != null) {
+				return this.traceContentMode;
+			}
+			return this.traceContentModeName == null ? null : JournalOneTrace.contentMode(this.traceContentModeName);
 		}
 
 		/**
@@ -832,6 +854,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		public ClaudeAgentModel build() {
 			if (!archiveTranscript && captureOptions != null) {
 				throw new IllegalArgumentException("Explicit acquisition requires native source lookup");
+			}
+			if (traceDir != null || traceContentMode != null || traceContentModeName != null) {
+				LegacyTrace.require("Legacy derived tracing (traceDir/traceContentMode)");
 			}
 			if (workingDirectory == null) {
 				workingDirectory = Path.of(System.getProperty("user.dir"));

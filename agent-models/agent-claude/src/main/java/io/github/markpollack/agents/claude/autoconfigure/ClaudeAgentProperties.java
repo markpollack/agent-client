@@ -4,7 +4,6 @@
  */
 package io.github.markpollack.agents.claude.autoconfigure;
 
-import io.github.markpollack.journal.trace.TraceContentMode;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -202,9 +201,11 @@ public class ClaudeAgentProperties {
 	 * full thinking/text/tool_result content, 60KB per-item cap), or LENGTHS (lengths
 	 * only, pins the pre-content-capture disk footprint). Content-carrying traces may
 	 * include prompts, file contents, and command output — treat them as sensitive local
-	 * artifacts.
+	 * artifacts. Bound as a name so this bean never references Journal 1.x types; the
+	 * legacy tracing it configures requires the optional journal-core and
+	 * claude-code-capture dependencies (docs/legacy-tracing-migration.md).
 	 */
-	private TraceContentMode traceContentMode;
+	private String traceContentMode;
 
 	/**
 	 * Whether to archive the CLI session transcript verbatim into
@@ -410,11 +411,11 @@ public class ClaudeAgentProperties {
 		this.traceDir = traceDir;
 	}
 
-	public TraceContentMode getTraceContentMode() {
+	public String getTraceContentMode() {
 		return traceContentMode;
 	}
 
-	public void setTraceContentMode(TraceContentMode traceContentMode) {
+	public void setTraceContentMode(String traceContentMode) {
 		this.traceContentMode = traceContentMode;
 	}
 

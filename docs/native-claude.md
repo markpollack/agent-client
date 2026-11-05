@@ -93,6 +93,13 @@ reassembles the exact frozen envelope and source package with the installed Jour
 Run the independent reader on the resulting archive, optionally supplying the original decision bytes
 for an exact comparison. This performs no provider task and does not repair malformed original bytes.
 
+### Legacy derived tracing is optional
+
+The pre-acquisition Claude surface (`traceDir`, `traceContentMode`, `phaseCapture`, `tracePath`, `transcriptPath`) depends
+on Journal 1.x, which `agent-claude` now declares as optional. Add `journal-core` 1.10.0 and `claude-code-capture` 1.10.0 to
+keep it; without them the builder and the Boot auto-configuration refuse a legacy tracing request with a message naming
+both artifacts, and ordinary calls run without `phaseCapture`. Details: [legacy-tracing-migration.md](legacy-tracing-migration.md).
+
 ### Retained diagnostic capture
 
 `ClaudeClientProvider.Builder.acquisitionDirectory(...)` also enables a bounded original

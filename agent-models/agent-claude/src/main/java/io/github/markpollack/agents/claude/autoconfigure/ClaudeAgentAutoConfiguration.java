@@ -80,8 +80,8 @@ public class ClaudeAgentAutoConfiguration {
 		if (StringUtils.hasText(properties.getTraceDir())) {
 			builder.traceDir(Path.of(properties.getTraceDir()));
 		}
-		if (properties.getTraceContentMode() != null) {
-			builder.traceContentMode(properties.getTraceContentMode());
+		if (StringUtils.hasText(properties.getTraceContentMode())) {
+			builder.traceContentModeName(properties.getTraceContentMode());
 		}
 		if (properties.getArchiveTranscript() != null) {
 			builder.archiveTranscript(properties.getArchiveTranscript());

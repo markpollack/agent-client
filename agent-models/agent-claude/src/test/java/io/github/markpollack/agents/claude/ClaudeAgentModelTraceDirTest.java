@@ -203,6 +203,15 @@ class ClaudeAgentModelTraceDirTest {
 	}
 
 	@Test
+	void contentModeNameBindsTheLegacyPolicyWhenJournalOneIsPresent() {
+		assertThat(LegacyTrace.available()).isTrue();
+		assertThatCode(() -> ClaudeAgentModel.builder().traceDir(temp).traceContentModeName("full").build().close())
+			.doesNotThrowAnyException();
+		assertThatThrownBy(() -> ClaudeAgentModel.builder().traceDir(temp).traceContentModeName("bogus").build())
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
 	void legacyTraceDirMayDisableTranscriptArchiveButExplicitAcquisitionMayNot() {
 		assertThatCode(() -> ClaudeAgentModel.builder().traceDir(temp).archiveTranscript(false).build().close())
 			.doesNotThrowAnyException();

@@ -20,6 +20,11 @@ provider guides, configuration reference, tutorials, and migration notes.
 </dependency>
 ```
 
+> **Legacy Claude tracing (Journal 1.x) is optional since 0.32.1.** `traceDir`, `traceContentMode`, `phaseCapture`,
+> `tracePath` and `transcriptPath` need `journal-core` 1.10.0 and `claude-code-capture` 1.10.0 on your class path; add
+> them yourself. This is a dependency/runtime compatibility change for legacy callers; see
+> [docs/legacy-tracing-migration.md](docs/legacy-tracing-migration.md). Everything else runs without Journal 1.x.
+
 Agent Client requires Java 21. Provider CLIs and authentication are required only when running the
 corresponding live integration.
 

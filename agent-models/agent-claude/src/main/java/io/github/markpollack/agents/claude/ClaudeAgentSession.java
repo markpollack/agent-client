@@ -27,8 +27,6 @@ import io.github.markpollack.claude.agent.sdk.hooks.HookRegistry;
 import io.github.markpollack.claude.agent.sdk.parsing.ParsedMessage;
 import io.github.markpollack.claude.agent.sdk.streaming.MessageStreamIterator;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
-import io.github.markpollack.journal.claude.PhaseCapture;
-import io.github.markpollack.journal.claude.SessionLogParser;
 
 /**
  * Claude Code CLI implementation of {@link AgentSession}. Wraps a live
@@ -115,13 +113,12 @@ public class ClaudeAgentSession implements AgentSession {
 		try {
 			client.query(message);
 			ClaudeExecutionResult observed = new ClaudeExecutionResult();
-			PhaseCapture capture = SessionLogParser
-				.parse(new TeeingIterator(client.receiveResponse(), observed::accept), "session-prompt", message);
+			Object capture = consume(new TeeingIterator(client.receiveResponse(), observed::accept), message);
 
 			AgentResponse result = observed.response(null, Duration.between(startTime, Instant.now()), null, null);
-			result.getMetadata().put("phaseCapture", capture);
-			result.getMetadata().put("inputTokens", capture.inputTokens());
-			result.getMetadata().put("outputTokens", capture.outputTokens());
+			if (capture != null) {
+				JournalOneTrace.sessionFields(result.getMetadata(), capture);
+			}
 
 			this.lastActivity = Instant.now();
 			return result;
@@ -133,6 +130,19 @@ public class ClaudeAgentSession implements AgentSession {
 		catch (Exception ex) {
 			throw new IllegalStateException("Session " + sessionId + " prompt failed: " + ex.getMessage(), ex);
 		}
+	}
+
+	/**
+	 * Legacy phase capture when Journal 1.x is present; otherwise the stream is drained.
+	 */
+	private static Object consume(Iterator<ParsedMessage> messages, String prompt) {
+		if (LegacyTrace.available()) {
+			return JournalOneTrace.parseSession(messages, prompt);
+		}
+		while (messages.hasNext()) {
+			messages.next();
+		}
+		return null;
 	}
 
 	@Override
