@@ -20,6 +20,7 @@ fresh profile, close-time recording diagnostics, and the removal of the legacy C
   defaults, so implementations compiled against 0.32.0 keep working; the lifecycle-only options refuse explicitly.
 - `SessionSnapshot` gained a `diagnostics` component (the five-argument constructor is kept): a closed session reports the
   provider's recording diagnostics, such as the Codex thread-manifest outcome.
+  Record patterns deconstructing `SessionSnapshot` with five components need a source update (six components now).
 
 ## Added
 

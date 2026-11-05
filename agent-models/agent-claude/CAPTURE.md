@@ -43,7 +43,8 @@ Ordinary response metadata retains available reported cost, usage, turn count an
 presence. Missing reported cost is absent, not zero; no per-tool allocation is made. Retained
 sessions use the same terminal extraction but do not gain capture parity with this blocking path.
 `traceDir` is removed in 0.32.1 (legacy derived tracing, breaking); use
-explicit capture settings. Derived trace-content modes are retired and rejected by auto-configuration.
+explicit capture settings. The derived trace-content modes and their properties are removed; Spring Boot ignores
+unknown `agent-client.claude.trace-*` properties, it does not reject them.
 
 ## Explicit permissions and available tools
 

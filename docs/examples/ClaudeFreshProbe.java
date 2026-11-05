@@ -31,7 +31,8 @@ public final class ClaudeFreshProbe {
         };
         var provider = ClaudeClientProvider.builder().workingDirectory(work).claudePath(args[1]).tools(List.of())
             .maxBudgetUsd(0.50).acquisitionDirectory(root.resolve("capture"), args[3]).freshTranscript(projects).build();
-        var options = DefaultAgentOptions.builder().workingDirectory(work.toString()).timeout(Duration.ofSeconds(120));
+        // Explicit permissions: autoApprove(false) selects --permission-mode default, never --dangerously-skip-permissions.
+        var options = DefaultAgentOptions.builder().workingDirectory(work.toString()).timeout(Duration.ofSeconds(120)).autoApprove(false);
         if (args.length > 4) options.model(args[4]);
         var opts = options.build();
         var report = JSON.createObjectNode().put("kind", "client-claude-fresh-two-turn-probe").put("synthetic", false);
