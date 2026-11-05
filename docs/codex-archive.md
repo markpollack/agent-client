@@ -52,5 +52,12 @@ javac -cp "$CALLER_CP" -d caller-classes docs/examples/CodexRetained.java
 java -cp "caller-classes:$CALLER_CP" CodexRetained /absolute/new/proof /absolute/fixtures/codex-child.py
 ```
 
-This is fixture evidence only. Whether the real CLI re-emits `thread.started` on resume, honours
-global flags on resume, or reports per-turn or cumulative usage on turn 2 remains unobserved.
+This is fixture evidence only, but the fixture now follows what one native two-turn probe on codex-cli
+0.166.0 observed (2026-11-04): the resumed process re-emits `thread.started` with the same thread id,
+the global flags and `--model` are repeated on resume, the resumed rollout region starts with a
+`thread_settings_applied` record carrying `thread_id` and `thread_settings`, and the resumed turn's
+`turn.completed.usage` on stdout is the thread total (equal to the rollout's
+`token_count.info.total_token_usage`), while the turn's own figure lives only in the rollout
+(`token_count.info.last_token_usage` and `token_usage_record.turn_token_usage`). The thread manifest
+therefore records `wire_usage` (cumulative on a resumed turn), `turn_token_usage` (per turn) and
+`thread_token_usage` separately; Journal refuses a resumed turn whose wire usage is not the thread total.

@@ -204,7 +204,7 @@ class CodexRetainedRaceTest {
 			assertThat(u2.path("total_tokens").asInt() - u1.path("total_tokens").asInt())
 				.isEqualTo(w2.path("total_tokens").asInt());
 			assertThat(turns.get(1).path("total_token_usage").path("total_tokens").asInt()).isEqualTo(30);
-			assertThat(turns.get(1).path("wire_usage").path("input_tokens").asInt()).isEqualTo(11);
+			assertThat(turns.get(1).path("wire_usage").path("input_tokens").asInt()).isEqualTo(22);
 		}
 		CodexClientTest.assertDead(home);
 	}

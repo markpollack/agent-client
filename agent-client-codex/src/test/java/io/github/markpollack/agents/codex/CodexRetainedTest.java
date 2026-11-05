@@ -123,7 +123,11 @@ class CodexRetainedTest {
 				.isNotEqualTo(m1.path("turns").get(0).path("native_turn_uid").asText());
 			assertThat(t2.path("cumulative_usage").path("total_tokens").asInt()).isEqualTo(30);
 			assertThat(m1.path("turns").get(0).path("cumulative_usage").path("total_tokens").asInt()).isEqualTo(15);
-			assertThat(t2.path("wire_usage").path("input_tokens").asInt()).isEqualTo(11);
+			// Resumed-turn wire usage is the thread total on 0.166.0 (native probe);
+			// per-turn lives in
+			// turn_token_usage.
+			assertThat(t2.path("wire_usage").path("input_tokens").asInt()).isEqualTo(22);
+			assertThat(t2.path("turn_token_usage").path("input_tokens").asInt()).isEqualTo(11);
 			assertThat(new String(native2, java.nio.charset.StandardCharsets.UTF_8)).containsOnlyOnce("session_meta");
 			assertThat(second.awaitTermination(Duration.ofSeconds(3)).cleanupConfirmed()).isTrue();
 		}

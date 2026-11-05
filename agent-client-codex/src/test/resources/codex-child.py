@@ -45,10 +45,16 @@ for record in records:
         payload['usage'] = dict(usage,total_tokens=15); payload['turn_token_usage'] = dict(usage,total_tokens=15)
         payload['thread_token_usage'] = dict(cumulative,total_tokens=15*turn)
 if resume:
+    # Observed on codex-cli 0.166.0 (native probe 2026-11-04): the resumed region starts with a
+    # thread_settings_applied record carrying thread_id and thread_settings.
     records = [r for r in records if r['type'] != 'session_meta']
-    records.insert(0, {'ordinal': 0, 'payload': {'type': 'thread_settings_applied'}, 'timestamp': '2026-11-03T00:00:00Z', 'type': 'event_msg'})
+    settings = {'approval_policy': 'never', 'cwd': str(cwd), 'model': 'synthetic-model', 'model_provider_id': 'openai',
+                'permission_profile': {'type': 'managed', 'file_system': {'type': 'restricted', 'entries': [{'path': {'type': 'special', 'value': {'kind': 'root'}}, 'access': 'read'}]}, 'network': 'restricted'}}
+    records.insert(0, {'ordinal': 0, 'payload': {'type': 'thread_settings_applied', 'thread_id': n, 'thread_settings': settings}, 'timestamp': '2026-11-03T00:00:00Z', 'type': 'event_msg'})
 native = existing + ''.join(json.dumps(record)+'\n' for record in records)
 if mode != 'missing': source.write_text(native.rstrip('\n') if mode=='incomplete' else native)
 if mode == 'eof': sys.exit(0)
 if mode == 'malformed': print('{bad}',flush=True)
-else: emit({'type':'turn.failed' if mode=='failed' else 'turn.completed','usage':usage})
+# Observed on codex-cli 0.166.0: turn.completed.usage on a resumed turn is the THREAD total
+# (equal to token_count.info.total_token_usage), not the turn's own figure.
+else: emit({'type':'turn.failed' if mode=='failed' else 'turn.completed','usage':cumulative})
