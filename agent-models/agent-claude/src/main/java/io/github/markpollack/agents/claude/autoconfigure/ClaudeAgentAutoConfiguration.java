@@ -16,7 +16,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.StringUtils;
 
-import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -74,17 +73,6 @@ public class ClaudeAgentAutoConfiguration {
 
 		if (properties.getExecutablePath() != null) {
 			builder.claudePath(properties.getExecutablePath());
-		}
-
-		// Trace directory + content capture policy
-		if (StringUtils.hasText(properties.getTraceDir())) {
-			builder.traceDir(Path.of(properties.getTraceDir()));
-		}
-		if (StringUtils.hasText(properties.getTraceContentMode())) {
-			builder.traceContentModeName(properties.getTraceContentMode());
-		}
-		if (properties.getArchiveTranscript() != null) {
-			builder.archiveTranscript(properties.getArchiveTranscript());
 		}
 
 		// Inject hook registry if available (from ClaudeHookAutoConfiguration)

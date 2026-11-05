@@ -112,13 +112,10 @@ public class ClaudeAgentSession implements AgentSession {
 		Instant startTime = Instant.now();
 		try {
 			client.query(message);
-			ClaudeExecutionResult observed = new ClaudeExecutionResult();
-			Object capture = consume(new TeeingIterator(client.receiveResponse(), observed::accept), message);
+			Iterator<ParsedMessage> response = client.receiveResponse();
+			ClaudeExecutionResult capture = ClaudeExecutionResult.read(response, null);
 
-			AgentResponse result = observed.response(null, Duration.between(startTime, Instant.now()), null, null);
-			if (capture != null) {
-				JournalOneTrace.sessionFields(result.getMetadata(), capture);
-			}
+			AgentResponse result = capture.response(null, Duration.between(startTime, Instant.now()), null, null);
 
 			this.lastActivity = Instant.now();
 			return result;
@@ -130,19 +127,6 @@ public class ClaudeAgentSession implements AgentSession {
 		catch (Exception ex) {
 			throw new IllegalStateException("Session " + sessionId + " prompt failed: " + ex.getMessage(), ex);
 		}
-	}
-
-	/**
-	 * Legacy phase capture when Journal 1.x is present; otherwise the stream is drained.
-	 */
-	private static Object consume(Iterator<ParsedMessage> messages, String prompt) {
-		if (LegacyTrace.available()) {
-			return JournalOneTrace.parseSession(messages, prompt);
-		}
-		while (messages.hasNext()) {
-			messages.next();
-		}
-		return null;
 	}
 
 	@Override

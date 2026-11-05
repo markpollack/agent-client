@@ -42,7 +42,7 @@ availability and canonical adequacy require separate consumer checks.
 Ordinary response metadata retains available reported cost, usage, turn count and terminal
 presence. Missing reported cost is absent, not zero; no per-tool allocation is made. Retained
 sessions use the same terminal extraction but do not gain capture parity with this blocking path.
-`traceDir` now selects a parent for per-call acquired-source directories (version unknown); prefer
+`traceDir` is removed in 0.32.1 (legacy derived tracing, breaking); use
 explicit capture settings. Derived trace-content modes are retired and rejected by auto-configuration.
 
 ## Explicit permissions and available tools

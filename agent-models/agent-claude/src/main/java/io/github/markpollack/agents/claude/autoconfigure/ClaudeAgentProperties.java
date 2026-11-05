@@ -189,32 +189,6 @@ public class ClaudeAgentProperties {
 	 */
 	private String user;
 
-	/**
-	 * Directory for Claude-specific JSONL trace files. Each agent invocation writes one
-	 * trace file containing events observed during SDK transport acquisition. Null
-	 * (default) disables tracing.
-	 */
-	private String traceDir;
-
-	/**
-	 * Content capture policy for trace files: FULL (never truncate), TRUNCATED (default —
-	 * full thinking/text/tool_result content, 60KB per-item cap), or LENGTHS (lengths
-	 * only, pins the pre-content-capture disk footprint). Content-carrying traces may
-	 * include prompts, file contents, and command output — treat them as sensitive local
-	 * artifacts. Bound as a name so this bean never references Journal 1.x types; the
-	 * legacy tracing it configures requires the optional journal-core and
-	 * claude-code-capture dependencies (docs/legacy-tracing-migration.md).
-	 */
-	private String traceContentMode;
-
-	/**
-	 * Whether to archive the CLI session transcript verbatim into
-	 * {@code <trace-dir>/transcripts/} after each call. Default true; effective only when
-	 * trace-dir is set. Best-effort — a missing transcript logs a warning, never fails
-	 * the call.
-	 */
-	private Boolean archiveTranscript;
-
 	public String getModel() {
 		return model;
 	}
@@ -401,30 +375,6 @@ public class ClaudeAgentProperties {
 
 	public void setUser(String user) {
 		this.user = user;
-	}
-
-	public String getTraceDir() {
-		return traceDir;
-	}
-
-	public void setTraceDir(String traceDir) {
-		this.traceDir = traceDir;
-	}
-
-	public String getTraceContentMode() {
-		return traceContentMode;
-	}
-
-	public void setTraceContentMode(String traceContentMode) {
-		this.traceContentMode = traceContentMode;
-	}
-
-	public Boolean getArchiveTranscript() {
-		return archiveTranscript;
-	}
-
-	public void setArchiveTranscript(Boolean archiveTranscript) {
-		this.archiveTranscript = archiveTranscript;
 	}
 
 	/**

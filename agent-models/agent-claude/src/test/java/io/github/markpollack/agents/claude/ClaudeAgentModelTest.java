@@ -437,45 +437,4 @@ class ClaudeAgentModelTest {
 
 	}
 
-	@Nested
-	@DisplayName("Trace Directory Tests")
-	class TraceDirTests {
-
-		@TempDir
-		Path tempDir;
-
-		@Test
-		@DisplayName("Should build with traceDir")
-		void buildWithTraceDir() {
-			model = ClaudeAgentModel.builder().workingDirectory(TEST_WORKING_DIR).traceDir(tempDir).build();
-
-			assertThat(model).isNotNull();
-		}
-
-		@Test
-		@DisplayName("Should build without traceDir (null-safe default)")
-		void buildWithoutTraceDir() {
-			model = ClaudeAgentModel.builder().workingDirectory(TEST_WORKING_DIR).build();
-
-			assertThat(model).isNotNull();
-		}
-
-		@Test
-		@DisplayName("Should fail fast when traceDir cannot be created")
-		void failFastOnUnwritableTraceDir() throws Exception {
-			// Create a regular file where a directory is expected
-			Path regularFile = tempDir.resolve("not-a-directory");
-			Files.writeString(regularFile, "x");
-			Path impossibleDir = regularFile.resolve("child");
-
-			model = ClaudeAgentModel.builder().workingDirectory(TEST_WORKING_DIR).traceDir(impossibleDir).build();
-
-			AgentTaskRequest request = AgentTaskRequest.builder("test", TEST_WORKING_DIR).build();
-
-			assertThatThrownBy(() -> model.call(request)).isInstanceOf(IllegalStateException.class)
-				.hasMessageContaining("trace directory");
-		}
-
-	}
-
 }

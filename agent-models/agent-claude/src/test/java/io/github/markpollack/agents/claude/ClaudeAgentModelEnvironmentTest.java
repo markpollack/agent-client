@@ -45,7 +45,6 @@ class ClaudeAgentModelEnvironmentTest {
 			.defaultOptions(defaults)
 			.claudePath(executable.toString())
 			.timeout(Duration.ofSeconds(5))
-			.archiveTranscript(false)
 			.build()) {
 			model.call(new AgentTaskRequest("test", directory, requestOptions));
 			assertThat(Files.readAllLines(directory.resolve("observed-env"))).containsExactly("retained", "request",

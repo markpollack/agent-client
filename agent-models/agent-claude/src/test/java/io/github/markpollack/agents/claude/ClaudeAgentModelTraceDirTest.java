@@ -61,7 +61,7 @@ class ClaudeAgentModelTraceDirTest {
 		var response = execute("session-a", false, nativeDir, temp.resolve("package"));
 		assertThat(response.getResult().getOutput()).isEqualTo("sentinel-answer");
 		assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("SUCCESS");
-		assertThat(response.getMetadata().<Object>get("phaseCapture")).isNotNull();
+		assertThat(response.getMetadata().<Object>get("phaseCapture")).isNull();
 		var acquisition = ClaudeAcquisition.from(response);
 		assertThat(acquisition.complete()).isTrue();
 		assertThat(acquisition.sha256()).isEqualTo(CaptureFiles.hash(acquisition.manifest()));
@@ -158,78 +158,6 @@ class ClaudeAgentModelTraceDirTest {
 		var options = new ClaudeCaptureOptions(temp, "id", "2.1.316", temp, map);
 		map.put("commit", "changed");
 		assertThat(options.provenance()).containsEntry("commit", "exact");
-	}
-
-	@Test
-	@EnabledOnOs({ OS.LINUX, OS.MAC })
-	void traceDirAloneKeepsTheDerivedTraceAndPhaseCaptureSurface() throws Exception {
-		Path traceDir = temp.resolve("traces");
-		var response = executeLegacy("session-l", traceDir);
-		assertThat(response.getResult().getOutput()).isEqualTo("sentinel-answer");
-		assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("SUCCESS");
-		assertThat(response.getMetadata().<Object>get("phaseCapture"))
-			.isInstanceOf(io.github.markpollack.journal.claude.PhaseCapture.class);
-		assertThat(response.getMetadata().<Object>get("inputTokens")).isEqualTo(1);
-		assertThat(response.getMetadata().<Object>get("outputTokens")).isEqualTo(1);
-		assertThat(ClaudeAcquisition.from(response)).isNull();
-		String tracePath = response.getMetadata().get("tracePath");
-		assertThat(tracePath).isNotNull();
-		Path trace = Path.of(tracePath);
-		assertThat(trace).exists();
-		assertThat(trace.getParent()).isEqualTo(traceDir.toAbsolutePath().normalize());
-		assertThat(trace.getFileName().toString()).startsWith("agent-run-").endsWith(".jsonl");
-		var lines = Files.readAllLines(trace);
-		assertThat(lines.get(0)).contains("\"type\":\"header\"").contains("\"schemaVersion\":2");
-		assertThat(lines.getLast()).contains("\"type\":\"result\"").contains("\"sessionId\":\"session-l\"");
-		try (var entries = Files.list(traceDir)) {
-			assertThat(entries.filter(Files::isDirectory).map(p -> p.getFileName().toString()))
-				.allMatch("transcripts"::equals);
-		}
-	}
-
-	@Test
-	void knownSessionWithoutItsTranscriptIsNeverGivenAnotherRunsTranscript() throws Exception {
-		Path projects = temp.resolve("projects");
-		Path cwd = temp.resolve("work");
-		String slug = cwd.toAbsolutePath().normalize().toString().replaceAll("[^A-Za-z0-9]", "-");
-		Path other = projects.resolve(slug).resolve("other-session.jsonl");
-		Files.createDirectories(other.getParent());
-		Files.writeString(other, "{\"sessionId\":\"other-session\"}\n");
-		assertThat(ClaudeAgentModel.findTranscript("known-session", projects, cwd)).as("emitted identity has no match")
-			.isNull();
-		assertThat(ClaudeAgentModel.findTranscript("other-session", projects, cwd)).isEqualTo(other);
-		assertThat(ClaudeAgentModel.findTranscript(null, projects, cwd)).as("failed run: slug fallback")
-			.isEqualTo(other);
-	}
-
-	@Test
-	void contentModeNameBindsTheLegacyPolicyWhenJournalOneIsPresent() {
-		assertThat(LegacyTrace.available()).isTrue();
-		assertThatCode(() -> ClaudeAgentModel.builder().traceDir(temp).traceContentModeName("full").build().close())
-			.doesNotThrowAnyException();
-		assertThatThrownBy(() -> ClaudeAgentModel.builder().traceDir(temp).traceContentModeName("bogus").build())
-			.isInstanceOf(IllegalArgumentException.class);
-	}
-
-	@Test
-	void legacyTraceDirMayDisableTranscriptArchiveButExplicitAcquisitionMayNot() {
-		assertThatCode(() -> ClaudeAgentModel.builder().traceDir(temp).archiveTranscript(false).build().close())
-			.doesNotThrowAnyException();
-		var capture = new ClaudeCaptureOptions(temp.resolve("package"), "invocation", "2.1.316");
-		assertThatThrownBy(() -> ClaudeAgentModel.builder().capture(capture).archiveTranscript(false).build())
-			.isInstanceOf(IllegalArgumentException.class);
-	}
-
-	private io.github.markpollack.agents.model.AgentResponse executeLegacy(String session, Path traceDir)
-			throws Exception {
-		try (var model = ClaudeAgentModel.builder()
-			.traceDir(traceDir)
-			.claudePath(fakeClaude(session, false).toString())
-			.timeout(Duration.ofSeconds(5))
-			.defaultOptions(ClaudeAgentOptions.builder().model("test-model").yolo(true).build())
-			.build()) {
-			return model.call(new AgentTaskRequest("find sentinel", temp, null));
-		}
 	}
 
 	private Path fakeClaude(String session, boolean error) throws Exception {
