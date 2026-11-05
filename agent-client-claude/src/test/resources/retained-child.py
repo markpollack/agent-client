@@ -42,6 +42,10 @@ if '--policy-self-test' in sys.argv:
 (root / ('pid-' + str(os.getpid()))).write_text(str(os.getpid()))
 args = sys.argv[1:]
 sid = args[args.index('--resume') + 1] if '--resume' in args else 'fixture-history'
+# A fresh launch names its own session; the native file then lives under the encoded cwd, as the CLI does.
+fresh = '--session-id' in args
+if fresh:
+    sid = args[args.index('--session-id') + 1]
 with (root / 'launches.jsonl').open('a') as f:
     f.write(json.dumps({'pid': os.getpid(), 'args': args, 'token': os.getenv('TOKEN_FILE')}) + '\n')
 callback = None
@@ -96,7 +100,7 @@ for line in sys.stdin:
         continue
     prompt = request['message']['content']
     with (root / 'prompts.jsonl').open('a') as f: f.write(json.dumps(prompt) + '\n')
-    contract_fixture = (root / 'native-projects' / 'project').is_dir()
+    contract_fixture = fresh or (root / 'native-projects' / 'project').is_dir()
     if not contract_fixture or not native_init:
         init = {'type': 'system', 'subtype': 'init', 'session_id': sid, 'cwd': str(root), 'tools': []}
         if contract_fixture: init['claude_code_version'] = '2.1.316'
@@ -121,16 +125,20 @@ for line in sys.stdin:
         sys.exit(0)
     if prompt == 'wrong-history': sid = 'different-history'
     projects = root / 'native-projects' / 'project'
+    if fresh:
+        projects = root / 'native-projects' / ''.join(c if c.isalnum() else '-' for c in str(root))
+        projects.mkdir(parents=True, exist_ok=True)
     if projects.is_dir():
         native_sequence += 1
         user_id = 'u' + str(native_sequence)
         assistant_id = 'a' + str(native_sequence)
+        cwd = {'cwd': str(root)} if fresh else {}
         with (projects / (sid + '.jsonl')).open('a') as native:
             native.write(json.dumps({'type': 'user', 'sessionId': sid, 'uuid': user_id,
-                'parentUuid': native_parent, 'version': '2.1.316',
+                'parentUuid': native_parent, 'version': '2.1.316', **cwd,
                 'message': {'role': 'user', 'content': prompt}}) + '\n')
             native.write(json.dumps({'type': 'assistant', 'sessionId': sid, 'uuid': assistant_id,
-                'parentUuid': user_id, 'version': '2.1.316', 'message': {'role': 'assistant',
+                'parentUuid': user_id, 'version': '2.1.316', **cwd, 'message': {'role': 'assistant',
                 'id': 'm' + str(native_sequence), 'content': [{'type': 'text', 'text': prompt}]}}) + '\n')
         native_parent = assistant_id
     print(json.dumps({'type':'result','subtype':'success','is_error':False,'duration_ms':1,

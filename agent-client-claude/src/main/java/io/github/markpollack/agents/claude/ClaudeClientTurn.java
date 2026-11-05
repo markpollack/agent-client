@@ -52,6 +52,8 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 		try {
 			if (this.generation.sources != null)
 				this.generation.sources.observeProcess(this.generation.client);
+			if (this.generation.retainedCapture != null)
+				this.generation.retainedCapture.observeProcess(this.generation.client);
 			this.generation.dispatched = true;
 			if (this.generation.retainedCapture != null)
 				this.generation.retainedCapture.begin(this.executionId);

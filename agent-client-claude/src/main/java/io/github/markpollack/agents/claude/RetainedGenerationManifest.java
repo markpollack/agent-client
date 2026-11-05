@@ -30,13 +30,17 @@ final class RetainedGenerationManifest {
 		return new RetainedGenerationManifest(diagnostic).write(decisions);
 	}
 
+	private boolean fresh() {
+		return this.capture.has("freshStart");
+	}
+
 	private Path write(List<ExecutionDecision> decisions) throws IOException {
 		validate(decisions);
 		var document = header(decisions.getFirst().sessionId());
 		document.put("sources", sources());
 		var turns = new ArrayList<Map<String, Object>>();
 		for (var observed : this.capture.required("turns"))
-			turns.add(turn(observed, decisions));
+			turns.add(turn(observed, decisions, turns.isEmpty() && fresh()));
 		document.put("turns", turns);
 		document.put("shared",
 				this.records.stream().filter(RetainedRecord::shared).map(RetainedRecord::locator).toList());
@@ -45,7 +49,9 @@ final class RetainedGenerationManifest {
 					.filter(r -> !r.shared() && !this.owned.contains(r))
 					.map(RetainedRecord::locator)
 					.toList());
-		Path target = this.root.resolve("retained-generation.json");
+		if (fresh())
+			freshMembers(document);
+		Path target = this.root.resolve(fresh() ? "retained-fresh-generation.json" : "retained-generation.json");
 		Files.writeString(target, CaptureFiles.JSON.writerWithDefaultPrettyPrinter().writeValueAsString(document),
 				StandardOpenOption.CREATE_NEW);
 		return target;
@@ -67,9 +73,22 @@ final class RetainedGenerationManifest {
 			throw new IllegalArgumentException("Wrong decision/session/generation or unsuccessful turn");
 	}
 
+	/**
+	 * The ordered observation journal, launch and emitted identity are carried through
+	 * unchanged.
+	 */
+	private void freshMembers(Map<String, Object> document) {
+		for (String member : List.of("freshStart", "observedNativeIdentity", "observations")) {
+			var value = this.capture.get(member);
+			if (value == null || value.isNull())
+				throw new IllegalArgumentException("Fresh start not fully observed: " + member);
+			document.put(member, CaptureFiles.JSON.convertValue(value, Map.class));
+		}
+	}
+
 	private Map<String, Object> header(String logicalSession) {
 		var result = new LinkedHashMap<String, Object>();
-		result.put("kind", "journal-retained-generation/1");
+		result.put("kind", fresh() ? "journal-retained-fresh-generation/1" : "journal-retained-generation/1");
 		result.put("logicalSessionId", logicalSession);
 		for (String field : List.of("connectionId", "nativeSessionId", "cliVersion", "captureStart"))
 			result.put(field, this.capture.required(field).asText());
@@ -106,7 +125,7 @@ final class RetainedGenerationManifest {
 				"size", bytes.length, "observed", bytes.length, "dropped", 0);
 	}
 
-	private Map<String, Object> turn(JsonNode observed, List<ExecutionDecision> decisions) {
+	private Map<String, Object> turn(JsonNode observed, List<ExecutionDecision> decisions, boolean firstFresh) {
 		String execution = observed.required("executionId").asText();
 		var matches = decisions.stream().filter(d -> d.executionId().equals(execution)).toList();
 		if (matches.size() != 1)
@@ -115,9 +134,11 @@ final class RetainedGenerationManifest {
 				observed.required("end").required("STDIN").asLong());
 		var stdout = select("STDOUT", observed.required("start").required("STDOUT").asLong(),
 				observed.required("end").required("STDOUT").asLong());
-		var before = prefix(observed.required("nativePrefixBefore"));
+		var before = firstFresh ? absentBefore(observed.required("nativePrefixBefore"))
+				: prefix(observed.required("nativePrefixBefore"));
 		var after = prefix(observed.required("nativePrefixAfter"));
-		var nativeRecords = select("TRANSCRIPT", ((Number) before.get("bytes")).longValue(),
+		var nativeRecords = select("TRANSCRIPT",
+				before.containsKey("bytes") ? ((Number) before.get("bytes")).longValue() : 0,
 				((Number) after.get("bytes")).longValue());
 		var value = new LinkedHashMap<String, Object>();
 		value.put("executionId", execution);
@@ -131,6 +152,16 @@ final class RetainedGenerationManifest {
 		value.put("startOffsets", CaptureFiles.JSON.convertValue(observed.required("start"), Map.class));
 		value.put("endOffsets", CaptureFiles.JSON.convertValue(observed.required("end"), Map.class));
 		return value;
+	}
+
+	/**
+	 * A fresh first turn starts from witnessed absence; anything else is the ordinary
+	 * observed prefix.
+	 */
+	private static Map<String, Object> absentBefore(JsonNode prefix) {
+		if ("ABSENT".equals(prefix.path("state").asText()))
+			return FreshStartObserver.ABSENT_BEFORE_FIRST_DISPATCH;
+		return prefix(prefix);
 	}
 
 	private static Map<String, Object> prefix(JsonNode prefix) {

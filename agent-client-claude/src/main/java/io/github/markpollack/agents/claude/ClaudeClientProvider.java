@@ -19,7 +19,7 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 	private ClaudeClientProvider(Builder builder) {
 		this.config = new ClaudeClientConfiguration(builder.directory, builder.executable,
 				builder.tools == null ? null : List.copyOf(builder.tools), builder.captureDirectory, builder.cliVersion,
-				builder.maxBudgetUsd, List.copyOf(builder.hooks), builder.retainedTranscript);
+				builder.maxBudgetUsd, List.copyOf(builder.hooks), builder.retainedTranscript, builder.freshProjects);
 	}
 
 	public static Builder builder() {
@@ -61,6 +61,8 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 		private Path captureDirectory;
 
 		private Path retainedTranscript;
+
+		private Path freshProjects;
 
 		private String cliVersion = "unknown";
 
@@ -107,6 +109,20 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 			return this;
 		}
 
+		/**
+		 * Start each retained generation as a fresh native session that this Client names
+		 * ({@code --session-id}), and observe its transcript under the native projects
+		 * root from absence through final enumeration for Journal's fresh-start retained
+		 * profile. Also configure an acquisitionDirectory. Reconnected generations resume
+		 * the emitted identity and are not fresh starts.
+		 * @param nativeProjectsRoot the CLI's projects directory, ordinarily
+		 * {@code ~/.claude/projects}
+		 */
+		public Builder freshTranscript(Path nativeProjectsRoot) {
+			this.freshProjects = Objects.requireNonNull(nativeProjectsRoot).toAbsolutePath().normalize();
+			return this;
+		}
+
 		public Builder workingDirectory(Path directory) {
 			this.directory = Objects.requireNonNull(directory);
 			return this;
@@ -123,6 +139,10 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 		}
 
 		public ClaudeClientProvider build() {
+			if (this.retainedTranscript != null && this.freshProjects != null)
+				throw new IllegalArgumentException("An exact retained transcript and a fresh start exclude each other");
+			if (this.freshProjects != null && this.captureDirectory == null)
+				throw new IllegalArgumentException("Fresh-start observation requires an acquisition directory");
 			return new ClaudeClientProvider(this);
 		}
 

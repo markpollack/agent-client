@@ -49,6 +49,71 @@ class RetainedGenerationTest {
 	}
 
 	@Test
+	void freshStartObservationsProduceJournalFreshGenerationClaims() throws Exception {
+		var value = run(false, root.resolve("native-projects"));
+		Path manifest = value.capture().writeGeneration(value.decisions());
+		assertThat(manifest.getFileName().toString()).isEqualTo("retained-fresh-generation.json");
+		var generation = CaptureFiles.JSON.readTree(manifest.toFile());
+		assertThat(generation.path("kind").asText()).isEqualTo("journal-retained-fresh-generation/1");
+		String session = generation.path("nativeSessionId").asText();
+		var fresh = generation.path("freshStart");
+		assertThat(fresh.path("requestedSessionId").asText()).isEqualTo(session);
+		assertThat(fresh.path("processIdentity").asText()).isEqualTo(value.capture().connectionId());
+		assertThat(fresh.path("cwd").asText()).isEqualTo(root.toString());
+		Path expected = root.resolve("native-projects")
+			.resolve(FreshStartObserver.encode(root.toString()))
+			.resolve(session + ".jsonl");
+		assertThat(fresh.path("expectedNativePath").asText()).isEqualTo(expected.toString());
+		var argv = CaptureFiles.JSON.convertValue(fresh.path("launchArgv"), List.class);
+		assertThat(argv).contains("--session-id", session).doesNotContain("--resume", "--continue");
+		var first = generation.path("turns").get(0);
+		var second = generation.path("turns").get(1);
+		assertThat(CaptureFiles.JSON.convertValue(first.path("nativePrefixBefore"), Map.class))
+			.isEqualTo(FreshStartObserver.ABSENT_BEFORE_FIRST_DISPATCH);
+		assertThat(second.path("nativePrefixBefore")).isEqualTo(first.path("nativePrefixAfter"));
+		assertThat(first.path("nativeRecords")).hasSize(2);
+		var identity = generation.path("observedNativeIdentity");
+		assertThat(identity.path("source").asText()).isEqualTo("STDOUT");
+		assertThat(identity.path("recordType").asText()).isEqualTo("system");
+		assertThat(identity.path("reportedSessionId").asText()).isEqualTo(session);
+		Path journal = manifest.getParent().resolve("observations.jsonl");
+		byte[] journalBytes = Files.readAllBytes(journal);
+		assertThat(generation.path("observations").path("sha256").asText())
+			.isEqualTo(NativePrefixObservation.hash(journalBytes));
+		assertThat(generation.path("observations").path("size").asLong()).isEqualTo(journalBytes.length);
+		var lines = Files.readAllLines(journal).stream().map(this::json).toList();
+		assertThat(lines.stream().map(l -> l.path("kind").asText())).containsExactly("probe", "scan", "probe",
+				"dispatch", "prefix", "prefix", "dispatch", "prefix", "final");
+		assertThat(lines.stream().filter(l -> l.path("kind").asText().equals("probe"))).allMatch(
+				l -> l.path("result").asText().equals("ENOENT") && l.path("path").asText().equals(expected.toString()));
+		assertThat(lines.get(1).path("matches")).isEmpty();
+		assertThat(lines.get(3).path("executionId").asText()).isEqualTo(value.decisions().getFirst().executionId());
+		assertThat(lines.get(3).path("stdinOffset").asLong()).isEqualTo(first.path("prompt").path("start").asLong());
+		assertThat(identity.path("start").asLong()).isGreaterThanOrEqualTo(lines.get(3).path("stdoutOffset").asLong());
+		var last = lines.getLast();
+		assertThat(CaptureFiles.JSON.convertValue(last.path("candidates"), List.class))
+			.containsExactly(expected.toString());
+		assertThat(last.path("bytes").asLong()).isEqualTo(Files.size(expected));
+		assertThat(last.path("fileKey").asText()).isNotEmpty().isEqualTo(lines.get(4).path("fileKey").asText());
+		for (int i = 1; i < lines.size(); i++) {
+			assertThat(lines.get(i).path("seq").asLong()).isEqualTo(lines.get(i - 1).path("seq").asLong() + 1);
+			assertThat(lines.get(i).path("monotonicNanos").asLong())
+				.isGreaterThan(lines.get(i - 1).path("monotonicNanos").asLong());
+		}
+		assertThat(Files.readAllBytes(expected))
+			.isEqualTo(Files.readAllBytes(manifest.getParent().resolve("native/transcript.jsonl")));
+	}
+
+	private com.fasterxml.jackson.databind.JsonNode json(String line) {
+		try {
+			return CaptureFiles.JSON.readTree(line);
+		}
+		catch (java.io.IOException ex) {
+			throw new IllegalArgumentException(ex);
+		}
+	}
+
+	@Test
 	void absentInitialFileRemainsUnknownAndCannotEarnCompleteProfile() throws Exception {
 		var value = run(false);
 		assertThat(value.decisions()).allMatch(d -> d.outcome() instanceof ExecutionOutcome.Success);
@@ -99,6 +164,10 @@ class RetainedGenerationTest {
 	}
 
 	private Run run(boolean createInitial) throws Exception {
+		return run(createInitial, null);
+	}
+
+	private Run run(boolean createInitial, Path freshProjects) throws Exception {
 		Path projects = Files.createDirectories(root.resolve("native-projects/project"));
 		Path transcript = projects.resolve("fixture-history.jsonl");
 		if (createInitial)
@@ -119,11 +188,12 @@ class RetainedGenerationTest {
 				return () -> d.decisionId();
 			}
 		};
-		var provider = ClaudeClientProvider.builder()
+		var builder = ClaudeClientProvider.builder()
 			.claudePath(child.toString())
 			.workingDirectory(root)
-			.acquisitionDirectory(root.resolve("captures"), "2.1.316")
-			.retainedTranscript(transcript)
+			.acquisitionDirectory(root.resolve("captures"), "2.1.316");
+		var provider = (freshProjects == null ? builder.retainedTranscript(transcript)
+				: builder.freshTranscript(freshProjects))
 			.build();
 		var decisions = new ArrayList<ExecutionDecision>();
 		byte[] firstBytes;
@@ -135,7 +205,7 @@ class RetainedGenerationTest {
 			var first = session.goal("first").runAsync();
 			first.result();
 			decisions.add(first.decision().orElseThrow());
-			firstBytes = Files.readAllBytes(transcript);
+			firstBytes = freshProjects == null ? Files.readAllBytes(transcript) : new byte[0];
 			var second = session.goal("second").runAsync();
 			second.result();
 			decisions.add(second.decision().orElseThrow());

@@ -153,6 +153,25 @@ Journal qualifies and attaches the full originals plus per-turn projections to t
 binding. `recorder.attachment(executionId)` exposes the separate final delivery status;
 `AgentExecution.recording()` continues to describe initial delivery.
 
+### Fresh-start retained generations
+
+When no native history may be reused, configure `freshTranscript(nativeProjectsRoot)` instead of
+`retainedTranscript(...)` (the two exclude each other; `acquisitionDirectory(...)` is still required).
+The Client then names each retained generation's native session itself (`--session-id <uuid>`), computes
+the expected transcript path under the projects root exactly as the CLI encodes the working directory,
+and keeps an ordered observation journal: two absence probes and one candidate scan before the first
+dispatch, every dispatch's stdin/stdout offsets, each readable whole-file prefix after a dispatch, and
+one final enumeration taken from the same read that produces the retained transcript copy. The first
+turn's before-boundary is the tagged absence `{"state":"ABSENT","observation":"before-first-dispatch"}`,
+never an invented empty prefix; a pre-existing file is recorded as `EXISTS`, and a missing project
+directory as `parentFileKey: "ENOENT"`. `writeGeneration(originalDecisions)` then writes
+`retained-fresh-generation.json` (`journal-retained-fresh-generation/1`) with `freshStart`,
+`observedNativeIdentity` (the first CLI-emitted stdout record carrying the requested identity at or
+after the first dispatch) and the `observations.jsonl` declaration, beside the originals. Reconnected
+generations resume the emitted identity and are not fresh starts. Journal qualifies the result
+independently; [RetainedClaudeFresh.java](examples/RetainedClaudeFresh.java) is the deterministic
+fixture run whose output Journal's `FreshRetainedGeneration` validator accepts.
+
 Use a fresh retained recorder per two-turn session. Final attachment is explicit and synchronous
 on the caller's thread, outside result/admission handling; there is no automatic final-delivery
 scheduler. An explicit retry after an ambiguous receiver reply reuses the frozen association.

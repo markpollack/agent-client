@@ -31,11 +31,24 @@ final class ClaudeCliOptionsMapper {
 
 	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
 			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer, String resume) {
+		return build(request, options, timeout, observer, resume, null);
+	}
+
+	/**
+	 * @param sessionId a caller-requested fresh native session identity
+	 * ({@code --session-id}), or null; never combined with resume
+	 */
+	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
+			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer, String resume,
+			String sessionId) {
+		if (resume != null && sessionId != null) {
+			throw new IllegalArgumentException("A resumed session cannot also request a fresh identity");
+		}
 		CLIOptions.Builder builder = CLIOptions.builder().transportByteObserver(observer).resume(resume);
 		applyEnvironment(builder, options, request);
 		applyModel(builder, options, timeout);
 		applyPermissions(builder, options, request);
-		applyEffort(builder, options, request);
+		applyEffort(builder, options, request, sessionId);
 		applyTokens(builder, options);
 		applySystemPrompt(builder, options);
 		applyTools(builder, options);
@@ -81,17 +94,26 @@ final class ClaudeCliOptionsMapper {
 						: io.github.markpollack.claude.agent.sdk.config.PermissionMode.DEFAULT);
 	}
 
-	private static void applyEffort(CLIOptions.Builder builder, ClaudeAgentOptions options, AgentTaskRequest request) {
+	private static void applyEffort(CLIOptions.Builder builder, ClaudeAgentOptions options, AgentTaskRequest request,
+			String sessionId) {
 		// Reasoning effort: Claude-native effort (full CLI range) wins; otherwise the
 		// portable AgentOptions effort (low/medium/high). Reaches the CLI as
 		// "--effort <level>" via extraArgs (first-class SDK CLIOptions support TBD —
-		// the flag is in CLIFlagParityIT's EXCLUDED_FLAGS for this reason).
+		// the flag is in CLIFlagParityIT's EXCLUDED_FLAGS for this reason). A requested
+		// fresh session identity travels the same way as "--session-id <uuid>".
 		String effort = options.getEffort();
 		if (effort == null && !(request.options() instanceof ClaudeAgentOptions) && request.options() != null) {
 			effort = request.options().getEffort();
 		}
+		Map<String, String> extra = new LinkedHashMap<>();
 		if (effort != null && !effort.isBlank()) {
-			builder.extraArgs(Map.of("effort", effort));
+			extra.put("effort", effort);
+		}
+		if (sessionId != null) {
+			extra.put("session-id", sessionId);
+		}
+		if (!extra.isEmpty()) {
+			builder.extraArgs(extra);
 		}
 	}
 

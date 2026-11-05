@@ -44,19 +44,22 @@ final class ClaudeClientSources {
 	void observeProcess(io.github.markpollack.claude.agent.sdk.ClaudeSyncClient client) {
 		if (!this.process.isEmpty())
 			return;
-		client.transportResources()
-			.ifPresent(snapshot -> snapshot.processes()
-				.stream()
-				.filter(p -> p.root())
-				.findFirst()
-				.flatMap(p -> ProcessHandle.of(p.pid()))
-				.ifPresent(p -> {
-					var argv = new ArrayList<String>();
-					p.info().command().ifPresent(argv::add);
-					p.info().arguments().ifPresent(args -> argv.addAll(List.of(args)));
-					this.process = Map.of("pid", p.pid(), "argv", List.copyOf(argv), "basis", "SDK_owned_root_handle",
-							"observed_at", Instant.now().toString());
-				}));
+		rootProcess(client).ifPresent(p -> this.process = Map.of("pid", p.pid(), "argv", argv(p), "basis",
+				"SDK_owned_root_handle", "observed_at", Instant.now().toString()));
+	}
+
+	/** The SDK's own root process handle, when it is still enumerable. */
+	static Optional<ProcessHandle> rootProcess(io.github.markpollack.claude.agent.sdk.ClaudeSyncClient client) {
+		return client.transportResources()
+			.flatMap(snapshot -> snapshot.processes().stream().filter(p -> p.root()).findFirst())
+			.flatMap(p -> ProcessHandle.of(p.pid()));
+	}
+
+	static List<String> argv(ProcessHandle process) {
+		var argv = new ArrayList<String>();
+		process.info().command().ifPresent(argv::add);
+		process.info().arguments().ifPresent(args -> argv.addAll(List.of(args)));
+		return List.copyOf(argv);
 	}
 
 	void observe(TransportByteObserver.Stream stream, byte[] data) {

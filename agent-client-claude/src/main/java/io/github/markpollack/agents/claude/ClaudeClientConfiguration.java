@@ -12,7 +12,7 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.claude.agent.sdk.transport.*;
 
 record ClaudeClientConfiguration(Path directory, String executable, List<String> tools, Path captureDirectory,
-		String cliVersion, Double maxBudgetUsd, List<PreToolHook> hooks, Path retainedTranscript) {
+		String cliVersion, Double maxBudgetUsd, List<PreToolHook> hooks, Path retainedTranscript, Path freshProjects) {
 	record PreToolHook(String pattern, io.github.markpollack.claude.agent.sdk.hooks.HookCallback callback) {
 	}
 
@@ -29,6 +29,14 @@ record ClaudeClientConfiguration(Path directory, String executable, List<String>
 	}
 
 	CLIOptions options(AgentOptions options, TransportByteObserver observer, String resume) {
+		return options(options, observer, resume, null);
+	}
+
+	/**
+	 * A fresh launch may request its own native session identity; resume and request
+	 * exclude each other.
+	 */
+	CLIOptions options(AgentOptions options, TransportByteObserver observer, String resume, String sessionId) {
 		var nativeOptions = ClaudeAgentOptions.builder()
 			.maxBudgetUsd(this.maxBudgetUsd)
 			.model(options.getModel())
@@ -36,6 +44,6 @@ record ClaudeClientConfiguration(Path directory, String executable, List<String>
 			.yolo(options.isAutoApprove())
 			.build();
 		return ClaudeCliOptionsMapper.build(new AgentTaskRequest("", directory(options), options), nativeOptions,
-				options.getTimeout(), observer, resume);
+				options.getTimeout(), observer, resume, sessionId);
 	}
 }

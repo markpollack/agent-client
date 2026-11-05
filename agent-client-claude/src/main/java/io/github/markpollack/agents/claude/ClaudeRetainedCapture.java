@@ -59,11 +59,19 @@ public final class ClaudeRetainedCapture {
 
 	private String manifestHash;
 
+	private final FreshStartObserver fresh;
+
 	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion) {
 		this(connectionId, directory, cliVersion, null);
 	}
 
 	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion, Path nativeTranscript) {
+		this(connectionId, directory, cliVersion, nativeTranscript, null);
+	}
+
+	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion, Path nativeTranscript,
+			FreshStartObserver fresh) {
+		this.fresh = fresh;
 		this.nativeTranscript = nativeTranscript;
 		this.connectionId = connectionId;
 		this.directory = directory.resolve(connectionId);
@@ -104,8 +112,16 @@ public final class ClaudeRetainedCapture {
 		}
 	}
 
+	/** Fresh starts record the launch argv the CLI actually received. */
+	void observeProcess(io.github.markpollack.claude.agent.sdk.ClaudeSyncClient client) {
+		if (this.fresh != null)
+			ClaudeClientSources.rootProcess(client).ifPresent(p -> this.fresh.argv(ClaudeClientSources.argv(p)));
+	}
+
 	void begin(String executionId) {
-		var prefix = NativePrefixObservation.observe(this.nativeTranscript);
+		if (this.fresh != null)
+			this.fresh.probe();
+		var prefix = this.fresh != null ? this.fresh.before() : NativePrefixObservation.observe(this.nativeTranscript);
 		synchronized (this) {
 			if (this.turns.size() >= 256) {
 				this.overflow = true;
@@ -113,15 +129,18 @@ public final class ClaudeRetainedCapture {
 			}
 			var turn = new LinkedHashMap<String, Object>();
 			turn.put("executionId", executionId);
-			turn.put("start", offsets());
+			var start = offsets();
+			turn.put("start", start);
 			turn.put("nativePrefixBefore", prefix);
 			turn.put("dispatchObservedAt", Instant.now().toString());
 			this.turns.add(turn);
+			if (this.fresh != null)
+				this.fresh.dispatch(executionId, start.get("STDIN"), start.get("STDOUT"));
 		}
 	}
 
 	void end(String executionId, String session) {
-		var prefix = NativePrefixObservation.observe(this.nativeTranscript);
+		var prefix = this.fresh != null ? this.fresh.prefix() : NativePrefixObservation.observe(this.nativeTranscript);
 		synchronized (this) {
 			this.nativeSession = session;
 			for (var turn : this.turns) {
@@ -238,6 +257,11 @@ public final class ClaudeRetainedCapture {
 
 	private void addNativeSnapshot(Map<String, Object> values, Path nativeProjectsDirectory) {
 		try {
+			if (this.fresh != null) {
+				values.putAll(this.fresh.finish(this.directory,
+						this.streams.get(TransportByteObserver.Stream.STDOUT).toByteArray(), this.connectionId));
+				return;
+			}
 			if (this.nativeTranscript != null) {
 				values.put("nativeFiles",
 						NativePrefixObservation.copy(this.nativeTranscript, this.directory, this.nativeSession));

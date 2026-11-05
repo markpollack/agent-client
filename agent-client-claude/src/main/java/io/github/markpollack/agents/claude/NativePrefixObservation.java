@@ -56,6 +56,15 @@ final class NativePrefixObservation {
 	}
 
 	static List<Map<String, Object>> copy(Path original, Path directory, String session) throws IOException {
+		return copy(original, read(original), directory, session);
+	}
+
+	/**
+	 * Copies bytes already observed, so a final observation and the retained copy are one
+	 * read.
+	 */
+	static List<Map<String, Object>> copy(Path original, byte[] bytes, Path directory, String session)
+			throws IOException {
 		Path owned = original.getParent().resolve(session == null ? "" : session);
 		if (Files.isDirectory(owned)) {
 			try (var paths = Files.walk(owned)) {
@@ -63,7 +72,6 @@ final class NativePrefixObservation {
 					throw new IOException("Native child/sidecar capture is outside the retained text profile");
 			}
 		}
-		byte[] bytes = read(original);
 		Path target = directory.resolve("native/transcript.jsonl");
 		Files.createDirectory(target.getParent());
 		Files.write(target, bytes, StandardOpenOption.CREATE_NEW);

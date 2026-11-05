@@ -38,16 +38,41 @@ final class ClaudeClientGeneration {
 		this.reconnected = resume != null;
 		this.directory = config.directory(options);
 		this.sources = !retained && config.captureDirectory() != null ? new ClaudeClientSources() : null;
-		this.retainedCapture = retained && config.captureDirectory() != null ? new ClaudeRetainedCapture(this.id,
-				config.captureDirectory(), config.cliVersion(), config.retainedTranscript()) : null;
-		this.cli = config.options(options, this.retainedCapture != null ? this.retainedCapture::observe
-				: this.sources == null ? null : this.sources::observe, resume);
+		var fresh = freshStart(config, resume, retained);
+		this.retainedCapture = retainedCapture(config, retained, fresh);
+		this.cli = config.options(options, observer(), resume, fresh == null ? null : fresh.sessionId());
 		this.client = ClaudeClient.sync(this.cli)
 			.workingDirectory(this.directory)
 			.timeout(options.getTimeout() == null ? Duration.ofMinutes(2) : options.getTimeout())
 			.claudePath(config.executable())
 			.hookRegistry(config.hookRegistry())
 			.build();
+	}
+
+	/**
+	 * Absence is witnessed before the process exists; the second probe precedes dispatch.
+	 */
+	private FreshStartObserver freshStart(ClaudeClientConfiguration config, String resume, boolean retained) {
+		if (!retained || resume != null || config.freshProjects() == null)
+			return null;
+		var fresh = new FreshStartObserver(config.freshProjects(), this.directory, UUID.randomUUID().toString());
+		fresh.probe();
+		fresh.scan();
+		return fresh;
+	}
+
+	private ClaudeRetainedCapture retainedCapture(ClaudeClientConfiguration config, boolean retained,
+			FreshStartObserver fresh) {
+		if (!retained || config.captureDirectory() == null)
+			return null;
+		return new ClaudeRetainedCapture(this.id, config.captureDirectory(), config.cliVersion(),
+				fresh != null ? fresh.expected() : config.retainedTranscript(), fresh);
+	}
+
+	private io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer() {
+		if (this.retainedCapture != null)
+			return this.retainedCapture::observe;
+		return this.sources == null ? null : this.sources::observe;
 	}
 
 	void connect() {
