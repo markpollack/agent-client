@@ -27,6 +27,8 @@ import io.github.markpollack.claude.agent.sdk.hooks.HookRegistry;
 import io.github.markpollack.claude.agent.sdk.parsing.ParsedMessage;
 import io.github.markpollack.claude.agent.sdk.streaming.MessageStreamIterator;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
+import io.github.markpollack.journal.claude.PhaseCapture;
+import io.github.markpollack.journal.claude.SessionLogParser;
 
 /**
  * Claude Code CLI implementation of {@link AgentSession}. Wraps a live
@@ -112,10 +114,14 @@ public class ClaudeAgentSession implements AgentSession {
 		Instant startTime = Instant.now();
 		try {
 			client.query(message);
-			Iterator<ParsedMessage> response = client.receiveResponse();
-			ClaudeExecutionResult capture = ClaudeExecutionResult.read(response, null);
+			ClaudeExecutionResult observed = new ClaudeExecutionResult();
+			PhaseCapture capture = SessionLogParser
+				.parse(new TeeingIterator(client.receiveResponse(), observed::accept), "session-prompt", message);
 
-			AgentResponse result = capture.response(null, Duration.between(startTime, Instant.now()), null, null);
+			AgentResponse result = observed.response(null, Duration.between(startTime, Instant.now()), null, null);
+			result.getMetadata().put("phaseCapture", capture);
+			result.getMetadata().put("inputTokens", capture.inputTokens());
+			result.getMetadata().put("outputTokens", capture.outputTokens());
 
 			this.lastActivity = Instant.now();
 			return result;

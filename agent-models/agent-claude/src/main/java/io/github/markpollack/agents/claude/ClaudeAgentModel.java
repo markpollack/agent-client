@@ -30,12 +30,22 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
 import io.github.markpollack.agents.model.IterableAgentModel;
 import io.github.markpollack.agents.model.StreamingAgentModel;
 import io.github.markpollack.agents.model.mcp.McpServerDefinition;
+import io.github.markpollack.journal.claude.PhaseCapture;
+import io.github.markpollack.journal.claude.SessionLogParser;
+import io.github.markpollack.journal.trace.TraceContentMode;
+import io.github.markpollack.journal.trace.TraceRawMode;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -145,6 +155,10 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 
 	private final Path traceDir;
 
+	private final TraceContentMode traceContentMode;
+
+	private final boolean archiveTranscript;
+
 	private final ClaudeCaptureOptions captureOptions;
 
 	private ClaudeAgentModel(Builder builder) {
@@ -156,8 +170,9 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		this.asyncExecutor = builder.asyncExecutor != null ? builder.asyncExecutor : DEFAULT_EXECUTOR;
 		this.messageListener = builder.messageListener;
 		this.traceDir = builder.traceDir;
+		this.traceContentMode = builder.traceContentMode;
+		this.archiveTranscript = builder.archiveTranscript;
 		this.captureOptions = builder.captureOptions;
-
 	}
 
 	/**
@@ -249,10 +264,14 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 	public AgentResponse call(AgentTaskRequest request) {
 		Instant start = Instant.now();
 		Path cwd = request.workingDirectory() != null ? request.workingDirectory() : workingDirectory;
-		ClaudeCaptureSession acquisition = openCapture();
+		// Resolve the legacy trace target before client setup: fail fast on config
+		// errors.
+		TraceTarget trace = resolveTraceTarget();
+		ClaudeCaptureSession acquisition = captureOptions == null ? null : new ClaudeCaptureSession(captureOptions);
 		CLIOptions options = ClaudeCliOptionsMapper.build(request, getEffectiveOptions(request), timeout,
 				acquisition == null ? null : acquisition.wire()::onBytes);
 		var result = new ClaudeExecutionResult();
+		PhaseCapture capture = null;
 		String failure = null;
 		ClaudeSyncClient tracked = null;
 		try (ClaudeSyncClient client = ClaudeClient.sync(options)
@@ -264,7 +283,7 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			tracked = client;
 			inFlight.add(client);
 			client.connect(formatPrompt(request));
-			consume(client.receiveResponse(), result, acquisition);
+			capture = parse(client.receiveResponse(), request, options, trace, result, acquisition);
 		}
 		catch (Exception ex) {
 			failure = ex.toString();
@@ -274,24 +293,23 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 				inFlight.remove(tracked);
 			}
 		}
+		// The client is closed: the CLI's own transcript is as flushed as it will be.
+		Path archived = harvestTranscript(capture == null ? null : capture.sessionId(), trace, cwd);
 		ClaudeAcquisition reference = acquisition == null ? null
 				: acquisition.seal(result, failure, options, cwd, request.goal());
-		return result.response(options.getModel(), Duration.between(start, Instant.now()), reference, failure);
+		AgentResponse response = result.response(options.getModel(), Duration.between(start, Instant.now()), reference,
+				failure);
+		legacyFields(response.getMetadata(), capture, trace, archived);
+		return response;
 	}
 
-	private ClaudeCaptureSession openCapture() {
-		ClaudeCaptureOptions selected = captureOptions;
-		if (selected == null && traceDir != null) {
-			String id = UUID.randomUUID().toString();
-			selected = new ClaudeCaptureOptions(traceDir.resolve(id), id, "unknown");
-		}
-		return selected == null ? null : new ClaudeCaptureSession(selected);
-	}
-
-	private void consume(Iterator<ParsedMessage> response, ClaudeExecutionResult result,
-			ClaudeCaptureSession acquisition) {
-		while (response.hasNext()) {
-			var message = response.next();
+	/**
+	 * Every message reaches the execution result, the optional acquisition and the
+	 * listener before the legacy parser consumes it; the parser owns the derived trace.
+	 */
+	private PhaseCapture parse(Iterator<ParsedMessage> response, AgentTaskRequest request, CLIOptions options,
+			TraceTarget trace, ClaudeExecutionResult result, ClaudeCaptureSession acquisition) {
+		Iterator<ParsedMessage> teed = new TeeingIterator(response, message -> {
 			if (acquisition != null) {
 				acquisition.observeProcess();
 			}
@@ -299,6 +317,32 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 			if (messageListener != null) {
 				messageListener.accept(message);
 			}
+		});
+		// Claude Code never echoes maxTurns; without it a trace cannot tell a finished
+		// run from a cut-off one.
+		int maxTurns = options.getMaxTurns() != null ? options.getMaxTurns() : SessionLogParser.UNKNOWN_MAX_TURNS;
+		return SessionLogParser.parse(teed, trace.runId(), formatPrompt(request), trace.path(), traceContentMode,
+				TraceRawMode.NONE, maxTurns);
+	}
+
+	/** The pre-acquisition provider fields callers read through AgentClientResponse. */
+	private static void legacyFields(AgentResponseMetadata metadata, PhaseCapture capture, TraceTarget trace,
+			Path archived) {
+		if (capture == null) {
+			return;
+		}
+		metadata.put("phaseCapture", capture);
+		metadata.put("inputTokens", capture.inputTokens());
+		metadata.put("outputTokens", capture.outputTokens());
+		metadata.put("thinkingTokens", capture.thinkingTokens());
+		if (metadata.get("totalCostUsd") == null) {
+			metadata.put("totalCostUsd", capture.totalCostUsd());
+		}
+		if (trace.path() != null) {
+			metadata.put("tracePath", trace.path().toAbsolutePath().toString());
+		}
+		if (archived != null) {
+			metadata.put("transcriptPath", archived.toAbsolutePath().toString());
 		}
 	}
 
@@ -527,6 +571,86 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		return ClaudeCliOptionsMapper.toClaudeMcpServerConfig(definition);
 	}
 
+	// ========== Legacy derived trace ==========
+
+	private record TraceTarget(String runId, Path path) {
+	}
+
+	private TraceTarget resolveTraceTarget() {
+		if (this.traceDir == null) {
+			return new TraceTarget("agent-run", null);
+		}
+		Path absoluteTraceDir = this.traceDir.toAbsolutePath().normalize();
+		try {
+			Files.createDirectories(absoluteTraceDir);
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("Failed to create trace directory: " + absoluteTraceDir, ex);
+		}
+		String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
+			.format(Instant.now().atZone(ZoneOffset.UTC));
+		String runId = "agent-run-" + timestamp + "-" + UUID.randomUUID();
+		return new TraceTarget(runId, absoluteTraceDir.resolve(runId + ".jsonl"));
+	}
+
+	/**
+	 * Best-effort verbatim archive of the CLI's own session transcript into
+	 * {@code <traceDir>/transcripts/}. A missing transcript logs a warning and returns
+	 * null; callers must never require archive success.
+	 */
+	private Path harvestTranscript(String sessionId, TraceTarget trace, Path effectiveWorkingDir) {
+		if (!archiveTranscript || trace.path() == null) {
+			return null;
+		}
+		Path projectsDir = Path.of(System.getProperty("user.home"), ".claude", "projects");
+		if (!Files.isDirectory(projectsDir)) {
+			logger.warn("Transcript archive: {} does not exist; is this a Claude CLI environment?", projectsDir);
+			return null;
+		}
+		try {
+			Path transcript = findTranscript(sessionId, projectsDir, effectiveWorkingDir);
+			if (transcript == null) {
+				logger.warn("Transcript archive: no transcript found (sessionId={}, projectsDir={}, cwd={})", sessionId,
+						projectsDir, effectiveWorkingDir);
+				return null;
+			}
+			Path destDir = trace.path().getParent().resolve("transcripts");
+			Files.createDirectories(destDir);
+			Path dest = destDir.resolve(trace.runId() + ".transcript.jsonl");
+			Files.copy(transcript, dest, StandardCopyOption.REPLACE_EXISTING);
+			return dest;
+		}
+		catch (IOException ex) {
+			logger.warn("Transcript archive failed (best-effort): {}", ex.getMessage());
+			return null;
+		}
+	}
+
+	private static Path findTranscript(String sessionId, Path projectsDir, Path effectiveWorkingDir)
+			throws IOException {
+		Path transcript = null;
+		if (sessionId != null && !sessionId.isBlank()) {
+			String fileName = sessionId + ".jsonl";
+			try (java.util.stream.Stream<Path> stream = Files.walk(projectsDir, 2)) {
+				transcript = stream.filter(p -> p.getFileName().toString().equals(fileName)).findFirst().orElse(null);
+			}
+		}
+		if (transcript == null) {
+			// Failed runs have no session id: newest transcript under the working
+			// directory's project slug.
+			String slug = effectiveWorkingDir.toAbsolutePath().normalize().toString().replaceAll("[^A-Za-z0-9]", "-");
+			Path slugDir = projectsDir.resolve(slug);
+			if (Files.isDirectory(slugDir)) {
+				try (java.util.stream.Stream<Path> stream = Files.list(slugDir)) {
+					transcript = stream.filter(p -> p.getFileName().toString().endsWith(".jsonl"))
+						.max(Comparator.comparingLong(p -> p.toFile().lastModified()))
+						.orElse(null);
+				}
+			}
+		}
+		return transcript;
+	}
+
 	// ========== Builder ==========
 
 	/**
@@ -549,6 +673,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		private Consumer<ParsedMessage> messageListener;
 
 		private Path traceDir;
+
+		private TraceContentMode traceContentMode = TraceContentMode.TRUNCATED;
 
 		private ClaudeCaptureOptions captureOptions;
 
@@ -641,10 +767,15 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 
 		/**
-		 * Compatibility destination for lossless acquired-source directories, one per
-		 * call. Prefer capture(ClaudeCaptureOptions) to supply actual version and
-		 * invocation identity. This no longer writes the retired derived trace format.
-		 * @param traceDir parent output directory
+		 * Sets the directory for JSONL trace files. Each {@code call()} writes one
+		 * Claude-specific JSONL trace file containing the events observed during
+		 * SessionLogParser parsing (tool calls, tool results, text, thinking blocks and
+		 * result events). Null (default) disables tracing. When tracing is enabled, the
+		 * CLI's own session transcript is also archived verbatim into
+		 * {@code <traceDir>/transcripts/} by default; see
+		 * {@link #archiveTranscript(boolean)}. Lossless original-byte acquisition is the
+		 * separate, explicit {@link #capture(ClaudeCaptureOptions)} surface.
+		 * @param traceDir the trace output directory (created on first use if absent)
 		 * @return this builder
 		 */
 		public Builder traceDir(Path traceDir) {
@@ -653,7 +784,24 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 
 		/**
-		 * Sets one invocation's acquired-source destination. Only blocking call captures.
+		 * Sets the content capture policy for trace files. Default
+		 * {@link TraceContentMode#TRUNCATED}: full thinking/text/tool_result content,
+		 * truncated per item at 60KB. {@link TraceContentMode#FULL} never truncates;
+		 * {@link TraceContentMode#LENGTHS} pins the lengths-only disk footprint.
+		 * Content-carrying traces may include prompts, file contents and command output;
+		 * treat them as sensitive local artifacts.
+		 * @param traceContentMode the content mode (null resets to default)
+		 * @return this builder
+		 */
+		public Builder traceContentMode(TraceContentMode traceContentMode) {
+			this.traceContentMode = traceContentMode != null ? traceContentMode : TraceContentMode.TRUNCATED;
+			return this;
+		}
+
+		/**
+		 * Sets one invocation's lossless acquired-source destination (original bytes plus
+		 * the exact native session files). Only the blocking call captures. Independent
+		 * of {@link #traceDir(Path)}: both may be configured.
 		 * @param captureOptions new-directory and invocation settings
 		 * @return this builder
 		 */
@@ -663,9 +811,12 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		}
 
 		/**
-		 * Compatibility switch. Explicit acquisition always preserves native sources.
-		 * @param archiveTranscript true to permit acquisition; false only with capture
-		 * disabled
+		 * Enables or disables verbatim archival of the CLI session transcript into
+		 * {@code <traceDir>/transcripts/} after each call. Default true (effective only
+		 * when a {@link #traceDir(Path)} is set). Best-effort: a missing transcript logs
+		 * a warning, never fails the call. Explicit acquisition always preserves native
+		 * sources, so it cannot be combined with {@code false}.
+		 * @param archiveTranscript whether to archive session transcripts
 		 * @return this builder
 		 */
 		public Builder archiveTranscript(boolean archiveTranscript) {
@@ -678,8 +829,8 @@ public class ClaudeAgentModel implements AgentModel, StreamingAgentModel, Iterab
 		 * @return the configured model
 		 */
 		public ClaudeAgentModel build() {
-			if (!archiveTranscript && (captureOptions != null || traceDir != null)) {
-				throw new IllegalArgumentException("Acquisition requires native source lookup");
+			if (!archiveTranscript && captureOptions != null) {
+				throw new IllegalArgumentException("Explicit acquisition requires native source lookup");
 			}
 			if (workingDirectory == null) {
 				workingDirectory = Path.of(System.getProperty("user.dir"));

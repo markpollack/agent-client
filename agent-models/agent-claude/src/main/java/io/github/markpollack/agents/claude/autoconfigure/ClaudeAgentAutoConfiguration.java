@@ -81,7 +81,7 @@ public class ClaudeAgentAutoConfiguration {
 			builder.traceDir(Path.of(properties.getTraceDir()));
 		}
 		if (properties.getTraceContentMode() != null) {
-			throw new IllegalArgumentException("traceContentMode was retired; acquisition preserves original bytes");
+			builder.traceContentMode(properties.getTraceContentMode());
 		}
 		if (properties.getArchiveTranscript() != null) {
 			builder.archiveTranscript(properties.getArchiveTranscript());

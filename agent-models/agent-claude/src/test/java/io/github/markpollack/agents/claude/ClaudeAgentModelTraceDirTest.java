@@ -61,7 +61,7 @@ class ClaudeAgentModelTraceDirTest {
 		var response = execute("session-a", false, nativeDir, temp.resolve("package"));
 		assertThat(response.getResult().getOutput()).isEqualTo("sentinel-answer");
 		assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("SUCCESS");
-		assertThat(response.getMetadata().<Object>get("phaseCapture")).isNull();
+		assertThat(response.getMetadata().<Object>get("phaseCapture")).isNotNull();
 		var acquisition = ClaudeAcquisition.from(response);
 		assertThat(acquisition.complete()).isTrue();
 		assertThat(acquisition.sha256()).isEqualTo(CaptureFiles.hash(acquisition.manifest()));
@@ -160,16 +160,55 @@ class ClaudeAgentModelTraceDirTest {
 		assertThat(options.provenance()).containsEntry("commit", "exact");
 	}
 
-	private Path nativeTranscript(String filename, String sessionId) throws Exception {
-		Path nativeDir = temp.resolve("native");
-		Files.createDirectories(nativeDir.resolve("project"));
-		Files.writeString(nativeDir.resolve("project/" + filename + ".jsonl"), "{\"type\":\"user\",\"sessionId\":\""
-				+ sessionId + "\",\"message\":{\"content\":\"find sentinel\"}}\n");
-		return nativeDir;
+	@Test
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void traceDirAloneKeepsTheDerivedTraceAndPhaseCaptureSurface() throws Exception {
+		Path traceDir = temp.resolve("traces");
+		var response = executeLegacy("session-l", traceDir);
+		assertThat(response.getResult().getOutput()).isEqualTo("sentinel-answer");
+		assertThat(response.getResult().getMetadata().getFinishReason()).isEqualTo("SUCCESS");
+		assertThat(response.getMetadata().<Object>get("phaseCapture"))
+			.isInstanceOf(io.github.markpollack.journal.claude.PhaseCapture.class);
+		assertThat(response.getMetadata().<Object>get("inputTokens")).isEqualTo(1);
+		assertThat(response.getMetadata().<Object>get("outputTokens")).isEqualTo(1);
+		assertThat(ClaudeAcquisition.from(response)).isNull();
+		String tracePath = response.getMetadata().get("tracePath");
+		assertThat(tracePath).isNotNull();
+		Path trace = Path.of(tracePath);
+		assertThat(trace).exists();
+		assertThat(trace.getParent()).isEqualTo(traceDir.toAbsolutePath().normalize());
+		assertThat(trace.getFileName().toString()).startsWith("agent-run-").endsWith(".jsonl");
+		var lines = Files.readAllLines(trace);
+		assertThat(lines.get(0)).contains("\"type\":\"header\"").contains("\"schemaVersion\":2");
+		assertThat(lines.getLast()).contains("\"type\":\"result\"").contains("\"sessionId\":\"session-l\"");
+		try (var entries = Files.list(traceDir)) {
+			assertThat(entries.filter(Files::isDirectory).map(p -> p.getFileName().toString()))
+				.allMatch("transcripts"::equals);
+		}
 	}
 
-	private io.github.markpollack.agents.model.AgentResponse execute(String session, boolean error, Path nativeDir,
-			Path output) throws Exception {
+	@Test
+	void legacyTraceDirMayDisableTranscriptArchiveButExplicitAcquisitionMayNot() {
+		assertThatCode(() -> ClaudeAgentModel.builder().traceDir(temp).archiveTranscript(false).build().close())
+			.doesNotThrowAnyException();
+		var capture = new ClaudeCaptureOptions(temp.resolve("package"), "invocation", "2.1.316");
+		assertThatThrownBy(() -> ClaudeAgentModel.builder().capture(capture).archiveTranscript(false).build())
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	private io.github.markpollack.agents.model.AgentResponse executeLegacy(String session, Path traceDir)
+			throws Exception {
+		try (var model = ClaudeAgentModel.builder()
+			.traceDir(traceDir)
+			.claudePath(fakeClaude(session, false).toString())
+			.timeout(Duration.ofSeconds(5))
+			.defaultOptions(ClaudeAgentOptions.builder().model("test-model").yolo(true).build())
+			.build()) {
+			return model.call(new AgentTaskRequest("find sentinel", temp, null));
+		}
+	}
+
+	private Path fakeClaude(String session, boolean error) throws Exception {
 		Path executable = temp.resolve("fake-claude");
 		Files.writeString(executable,
 				"""
@@ -182,6 +221,20 @@ class ClaudeAgentModelTraceDirTest {
 						"""
 					.formatted(session, error, session));
 		assertThat(executable.toFile().setExecutable(true)).isTrue();
+		return executable;
+	}
+
+	private Path nativeTranscript(String filename, String sessionId) throws Exception {
+		Path nativeDir = temp.resolve("native");
+		Files.createDirectories(nativeDir.resolve("project"));
+		Files.writeString(nativeDir.resolve("project/" + filename + ".jsonl"), "{\"type\":\"user\",\"sessionId\":\""
+				+ sessionId + "\",\"message\":{\"content\":\"find sentinel\"}}\n");
+		return nativeDir;
+	}
+
+	private io.github.markpollack.agents.model.AgentResponse execute(String session, boolean error, Path nativeDir,
+			Path output) throws Exception {
+		Path executable = fakeClaude(session, error);
 		var capture = new ClaudeCaptureOptions(output, "invocation-a", "2.1.316", nativeDir,
 				Map.of("fixture", "synthetic"));
 		try (var model = ClaudeAgentModel.builder()

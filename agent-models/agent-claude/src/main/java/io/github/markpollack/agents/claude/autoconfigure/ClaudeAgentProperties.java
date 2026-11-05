@@ -4,6 +4,7 @@
  */
 package io.github.markpollack.agents.claude.autoconfigure;
 
+import io.github.markpollack.journal.trace.TraceContentMode;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -203,7 +204,7 @@ public class ClaudeAgentProperties {
 	 * include prompts, file contents, and command output — treat them as sensitive local
 	 * artifacts.
 	 */
-	private String traceContentMode;
+	private TraceContentMode traceContentMode;
 
 	/**
 	 * Whether to archive the CLI session transcript verbatim into
@@ -409,11 +410,11 @@ public class ClaudeAgentProperties {
 		this.traceDir = traceDir;
 	}
 
-	public String getTraceContentMode() {
+	public TraceContentMode getTraceContentMode() {
 		return traceContentMode;
 	}
 
-	public void setTraceContentMode(String traceContentMode) {
+	public void setTraceContentMode(TraceContentMode traceContentMode) {
 		this.traceContentMode = traceContentMode;
 	}
 

@@ -35,15 +35,24 @@ import io.github.markpollack.agents.model.mcp.McpServerCatalog;
  */
 public interface AgentClient extends AutoCloseable {
 
-	/** Retained conversations for providers implementing AgentExecutionProvider. */
-	AgentSessionRegistry sessions();
+	/**
+	 * Retained conversations for providers implementing AgentExecutionProvider.
+	 * Implementations compiled against the earlier interface keep working: they have no
+	 * sessions, and say so.
+	 */
+	default AgentSessionRegistry sessions() {
+		throw new UnsupportedOperationException(
+				"Retained sessions require the lifecycle AgentClient built from an AgentExecutionProvider");
+	}
 
 	/**
 	 * Stop owned executions and close owned conversations. Does not close the borrowed
 	 * provider.
 	 */
 	@Override
-	void close();
+	default void close() {
+		// An implementation without a lifecycle owns nothing to release.
+	}
 
 	/**
 	 * Create a new agent client from an agent API.
@@ -177,22 +186,36 @@ public interface AgentClient extends AutoCloseable {
 		 */
 		AgentClientResponse run();
 
-		/** Accept an asynchronous execution. Requires an opt-in lifecycle provider. */
-		AgentExecution runAsync();
+		/**
+		 * Accept an asynchronous execution. Requires an opt-in lifecycle provider; an
+		 * implementation of the earlier interface refuses explicitly rather than
+		 * pretending a blocking run was accepted asynchronously.
+		 */
+		default AgentExecution runAsync() {
+			throw new UnsupportedOperationException("Asynchronous execution requires the lifecycle AgentClient");
+		}
 
 		/**
 		 * Positive execution budget starting at acceptance; distinct from result waiting.
 		 */
-		AgentClientRequestSpec executionTimeout(Duration timeout);
+		default AgentClientRequestSpec executionTimeout(Duration timeout) {
+			throw new UnsupportedOperationException("Execution timeouts require the lifecycle AgentClient");
+		}
 
 		/** Best effort terminal observation on an isolated bounded lane. */
-		AgentClientRequestSpec onEvent(Consumer<AgentClientEvent> observer);
+		default AgentClientRequestSpec onEvent(Consumer<AgentClientEvent> observer) {
+			throw new UnsupportedOperationException("Event observation requires the lifecycle AgentClient");
+		}
 
 		/** Optional application association; never inferred from provider identities. */
-		AgentClientRequestSpec correlation(ApplicationCorrelation correlation);
+		default AgentClientRequestSpec correlation(ApplicationCorrelation correlation) {
+			throw new UnsupportedOperationException("Application correlation requires the lifecycle AgentClient");
+		}
 
 		/** Install immutable replacement connection authority for this next execution. */
-		AgentClientRequestSpec refreshBinding(ConnectionBinding replacement);
+		default AgentClientRequestSpec refreshBinding(ConnectionBinding replacement) {
+			throw new UnsupportedOperationException("Binding refresh requires the lifecycle AgentClient");
+		}
 
 	}
 
@@ -264,16 +287,22 @@ public interface AgentClient extends AutoCloseable {
 		AgentClient build();
 
 		/** Positive execution-owned setup allowance. */
-		Builder setupTimeout(Duration timeout);
+		default Builder setupTimeout(Duration timeout) {
+			throw new UnsupportedOperationException("Setup timeouts require the lifecycle AgentClient builder");
+		}
 
 		/** Positive cleanup allowance; repeated cancellation cannot restart it. */
-		Builder cleanupTimeout(Duration timeout);
+		default Builder cleanupTimeout(Duration timeout) {
+			throw new UnsupportedOperationException("Cleanup timeouts require the lifecycle AgentClient builder");
+		}
 
 		/**
 		 * Optional secondary decision sink returning its own nonempty receipt ID. Its
 		 * failure cannot fail execution.
 		 */
-		Builder executionRecorder(java.util.function.Function<ExecutionDecision, String> recorder);
+		default Builder executionRecorder(java.util.function.Function<ExecutionDecision, String> recorder) {
+			throw new UnsupportedOperationException("Execution recording requires the lifecycle AgentClient builder");
+		}
 
 	}
 
