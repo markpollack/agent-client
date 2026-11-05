@@ -66,10 +66,10 @@ class CodexRetainedRaceTest {
 	}
 
 	/**
-	 * Both recorder-lane threads are held by two one-shot executions whose delivery blocks
-	 * on a latch, so the retained session's acquisitions queue behind them. Turn two must
-	 * start and finish before any of that recording happens; when the gate opens, each
-	 * turn's native region and prefix continuity must still be its own.
+	 * Both recorder-lane threads are held by two one-shot executions whose delivery
+	 * blocks on a latch, so the retained session's acquisitions queue behind them. Turn
+	 * two must start and finish before any of that recording happens; when the gate
+	 * opens, each turn's native region and prefix continuity must still be its own.
 	 */
 	@Test
 	void secondTurnStartsBeforeFirstTurnRecordingAndBoundariesStayCorrect() throws Exception {
@@ -118,7 +118,8 @@ class CodexRetainedRaceTest {
 				var first = session.goal("first").runAsync();
 				assertThat(first.result(Duration.ofSeconds(5)).getResult()).isEqualTo("answer:first");
 				thread = session.providerReference().orElseThrow().nativeId();
-				// Turn two starts and completes while turn one's recording is still queued.
+				// Turn two starts and completes while turn one's recording is still
+				// queued.
 				var second = session.goal("second").runAsync();
 				assertThat(second.result(Duration.ofSeconds(5)).getResult()).isEqualTo("answer:second");
 				assertThat(sealed).as("no retained acquisition sealed before the gate opens").isEmpty();
@@ -138,7 +139,8 @@ class CodexRetainedRaceTest {
 				assertThat(a1.getValue().complete()).as("turn 1: " + a1.getValue().detail()).isTrue();
 				assertThat(a2.getValue().complete()).as("turn 2: " + a2.getValue().detail()).isTrue();
 				var m1 = JSON.readTree(Files.readAllBytes(a1.getValue().writeManifest(first.decision().orElseThrow())));
-				var m2 = JSON.readTree(Files.readAllBytes(a2.getValue().writeManifest(second.decision().orElseThrow())));
+				var m2 = JSON
+					.readTree(Files.readAllBytes(a2.getValue().writeManifest(second.decision().orElseThrow())));
 				t1 = m1.path("turns").get(0);
 				t2 = m2.path("turns").get(0);
 				byte[] native1 = Files.readAllBytes(a1.getValue().directory().resolve("native.bin"));
@@ -154,7 +156,8 @@ class CodexRetainedRaceTest {
 				assertThat(a2.getValue().nativeId()).contains(thread);
 				assertThat(second.awaitTermination(Duration.ofSeconds(5)).cleanupConfirmed()).isTrue();
 			}
-			// Thread-level manifest written at close: one final transcript, two turns, partitioned locators.
+			// Thread-level manifest written at close: one final transcript, two turns,
+			// partitioned locators.
 			Path threadManifest;
 			try (var stream = Files.list(home.resolve("captures"))) {
 				threadManifest = stream.filter(p -> p.getFileName().toString().startsWith("codex-thread-"))
@@ -177,7 +180,8 @@ class CodexRetainedRaceTest {
 			assertThat(turns.get(0).path("native_turn_uid").asText()).isEqualTo(t1.path("native_turn_uid").asText());
 			assertThat(turns.get(1).path("native_turn_uid").asText()).isEqualTo(t2.path("native_turn_uid").asText());
 			assertThat(turns.get(1).path("resume_thread_id").asText()).isEqualTo(thread);
-			// Locators partition the whole transcript: shared session_meta, then turn 1, then turn 2.
+			// Locators partition the whole transcript: shared session_meta, then turn 1,
+			// then turn 2.
 			long covered = 0;
 			var shared = turns.get(0).path("native_records").path("shared");
 			assertThat(shared).hasSize(1);
@@ -193,7 +197,8 @@ class CodexRetainedRaceTest {
 					covered = end;
 				}
 			assertThat(covered).isEqualTo(finalBytes.length);
-			// Usage identity: thread(2) - thread(1) == turn(2) on the fixture, never summed by Client.
+			// Usage identity: thread(2) - thread(1) == turn(2) on the fixture, never
+			// summed by Client.
 			JsonNode u1 = turns.get(0).path("thread_token_usage"), u2 = turns.get(1).path("thread_token_usage");
 			var w2 = turns.get(1).path("turn_token_usage");
 			assertThat(u2.path("total_tokens").asInt() - u1.path("total_tokens").asInt())
@@ -229,16 +234,19 @@ class CodexRetainedRaceTest {
 		Path home = Files.createDirectories(root.resolve("sandbox"));
 		Path work = Files.createDirectories(root.resolve("work-dir"));
 		var provider = provider(home).sandbox(SandboxMode.WORKSPACE_WRITE).build();
-		try (var client = AgentClient.builder(provider).defaultOptions(options(work)).defaultWorkingDirectory(work).build();
-				var session = client.sessions().create(s -> s.workingDirectory(work).options(options(work)))) {
+		try (var client = AgentClient.builder(provider)
+			.defaultOptions(options(work))
+			.defaultWorkingDirectory(work)
+			.build(); var session = client.sessions().create(s -> s.workingDirectory(work).options(options(work)))) {
 			session.goal("first").runAsync().result(Duration.ofSeconds(5));
 			session.goal("second").runAsync().result(Duration.ofSeconds(5));
 		}
 		var launches = Files.readAllLines(work.resolve("launches.jsonl"));
 		assertThat(launches).hasSize(2);
 		for (var launch : launches) {
-			List<String> argv = JSON.readValue(launch, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
-			});
+			List<String> argv = JSON.readValue(launch,
+					new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
+					});
 			int exec = argv.indexOf("exec");
 			assertThat(argv.subList(0, exec)).as("globals before exec: " + argv)
 				.containsSequence("--sandbox", "workspace-write")

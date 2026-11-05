@@ -31,7 +31,8 @@ final class CodexThreadManifest {
 			return Optional.of(writeManifest(configuration, thread, generations));
 		}
 		catch (IOException | RuntimeException ex) {
-			// Secondary evidence never blocks process cleanup; the failure is kept on the thread.
+			// Secondary evidence never blocks process cleanup; the failure is kept on the
+			// thread.
 			thread.manifestFailure(String.valueOf(ex.getMessage()));
 			return Optional.empty();
 		}
@@ -72,7 +73,10 @@ final class CodexThreadManifest {
 		return file;
 	}
 
-	/** The final transcript is the rollout as it stands at close, compared with the last sealed prefix. */
+	/**
+	 * The final transcript is the rollout as it stands at close, compared with the last
+	 * sealed prefix.
+	 */
 	private static Map<String, Object> transcript(Path directory, CodexNativeSource.Prefix prefix) throws IOException {
 		var result = new LinkedHashMap<String, Object>();
 		if (prefix == null) {
@@ -89,8 +93,7 @@ final class CodexThreadManifest {
 		result.put("origin", prefix.path().toString());
 		result.put("bytes", current.length);
 		result.put("sha256", CodexNativeSource.sha256(current));
-		result.put("last_sealed_prefix",
-				Map.of("bytes", last.length, "sha256", CodexNativeSource.sha256(last)));
+		result.put("last_sealed_prefix", Map.of("bytes", last.length, "sha256", CodexNativeSource.sha256(last)));
 		result.put("final_equals_last_sealed_prefix", Arrays.equals(current, last));
 		return result;
 	}

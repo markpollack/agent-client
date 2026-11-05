@@ -20,7 +20,7 @@ public final class CodexClientProvider implements AgentExecutionProvider {
 
 	private CodexClientProvider(Builder builder) {
 		this.configuration = new CodexConfiguration(builder.executable, builder.directory, builder.sessions,
-				builder.capture, builder.version, builder.sandbox, builder.skipGitCheck);
+				builder.capture, builder.version, builder.sandbox, builder.skipGitCheck, builder.captureObserver);
 	}
 
 	public static Builder builder() {
@@ -59,6 +59,14 @@ public final class CodexClientProvider implements AgentExecutionProvider {
 		private SandboxMode sandbox = SandboxMode.READ_ONLY;
 
 		private boolean skipGitCheck;
+
+		private java.util.function.Consumer<CodexWitness> captureObserver;
+
+		/** Package-private test seam: observe each dispatched turn's capture handle. */
+		Builder captureObserver(java.util.function.Consumer<CodexWitness> observer) {
+			this.captureObserver = observer;
+			return this;
+		}
 
 		public Builder codexPath(String executable) {
 			this.executable = Objects.requireNonNull(executable);

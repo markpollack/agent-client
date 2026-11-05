@@ -82,6 +82,7 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 		if (this.connection.configuration.capture() != null) {
 			this.capture = new CodexCapture(this.connection, this.executionId, this.owner);
 			this.connection.capture = this.capture;
+			this.connection.configuration.observe(this.capture);
 		}
 		int exit = this.connection.process.run(request.goal().getBytes(StandardCharsets.UTF_8));
 		this.connection.exitCode = exit;

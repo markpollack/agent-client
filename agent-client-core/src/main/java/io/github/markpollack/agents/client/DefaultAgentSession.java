@@ -52,6 +52,12 @@ final class DefaultAgentSession implements AgentSession {
 			closeConnection();
 	}
 
+	/**
+	 * Secondary recording facts the provider established at close; never an execution
+	 * result.
+	 */
+	private volatile List<String> closeDiagnostics = List.of();
+
 	private void closeConnection() {
 		if (this.connection != null && this.connectionClose.compareAndSet(false, true)) {
 			try {
@@ -62,6 +68,18 @@ final class DefaultAgentSession implements AgentSession {
 				this.closeFailed = true;
 				throw ex;
 			}
+			finally {
+				this.closeDiagnostics = recordingDiagnostics();
+			}
+		}
+	}
+
+	private List<String> recordingDiagnostics() {
+		try {
+			return List.copyOf(this.connection.recordingDiagnostics());
+		}
+		catch (RuntimeException ex) {
+			return List.of("recording diagnostics unavailable: " + ex);
 		}
 	}
 
@@ -309,7 +327,7 @@ final class DefaultAgentSession implements AgentSession {
 		try {
 			if (this.snapshot.state() != SessionState.CLOSED)
 				this.snapshot = new SessionSnapshot(this.id, SessionState.UNKNOWN, Optional.empty(),
-						this.snapshot.activeExecutionId(), Optional.empty());
+						this.snapshot.activeExecutionId(), Optional.empty(), this.closeDiagnostics);
 		}
 		finally {
 			this.lock.unlock();
@@ -349,7 +367,7 @@ final class DefaultAgentSession implements AgentSession {
 		try {
 			if (this.snapshot.state() != SessionState.UNKNOWN)
 				this.snapshot = new SessionSnapshot(this.id, SessionState.CLOSED, Optional.empty(), Optional.empty(),
-						Optional.empty());
+						Optional.empty(), this.closeDiagnostics);
 		}
 		finally {
 			this.lock.unlock();

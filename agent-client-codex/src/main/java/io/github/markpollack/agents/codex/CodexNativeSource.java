@@ -251,8 +251,8 @@ final class CodexNativeSource {
 		}
 
 		/**
-		 * The token_usage_record inside this turn's region: per-turn and cumulative thread
-		 * usage as the CLI wrote them, never summed by Client.
+		 * The token_usage_record inside this turn's region: per-turn and cumulative
+		 * thread usage as the CLI wrote them, never summed by Client.
 		 */
 		Map<String, Map<String, Object>> turnUsage() throws IOException {
 			var result = new LinkedHashMap<String, Map<String, Object>>();

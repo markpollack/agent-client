@@ -60,6 +60,15 @@ public interface AgentExecutionProvider extends AgentApi {
 		/** Create an exact turn target without dispatching provider work. */
 		Turn prepare(String executionId);
 
+		/**
+		 * Recording diagnostics the provider established while closing: secondary
+		 * evidence that was or was not written (for example a retained thread manifest),
+		 * never an execution result. Read after {@link #close()}.
+		 */
+		default java.util.List<String> recordingDiagnostics() {
+			return java.util.List.of();
+		}
+
 		/** Return only when connection resources have ceased. */
 		@Override
 		void close();

@@ -4,6 +4,7 @@
  */
 package io.github.markpollack.agents.codex;
 
+import java.nio.file.Path;
 import java.util.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.model.AgentOptions;
@@ -29,6 +30,8 @@ final class CodexConnection implements AgentExecutionProvider.Connection {
 	private final CodexThread thread = new CodexThread();
 
 	private boolean closed;
+
+	private final List<String> diagnostics = new ArrayList<>();
 
 	CodexConnection(CodexConfiguration configuration, AgentOptions options, boolean retained) {
 		this.configuration = configuration;
@@ -100,9 +103,33 @@ final class CodexConnection implements AgentExecutionProvider.Connection {
 			}
 		}
 		if (this.retained && this.configuration.capture() != null)
-			CodexThreadManifest.write(this.configuration, this.thread, owned);
+			threadManifestDiagnostic(CodexThreadManifest.write(this.configuration, this.thread, owned));
+		this.thread.quarantined().ifPresent(reason -> diagnostic("codex thread quarantined: " + reason));
 		if (failure != null)
 			throw failure;
+	}
+
+	/**
+	 * The thread manifest is secondary evidence; whether it was written is reported here
+	 * because every execution result has already been returned by the time it is known.
+	 */
+	private void threadManifestDiagnostic(Optional<Path> written) {
+		if (written.isPresent()) {
+			diagnostic("codex thread manifest written: " + written.get());
+			return;
+		}
+		diagnostic(this.thread.manifestFailure()
+			.map(reason -> "codex thread manifest not written: " + reason)
+			.orElse("codex thread manifest not applicable: no captured generation"));
+	}
+
+	private synchronized void diagnostic(String line) {
+		this.diagnostics.add(line);
+	}
+
+	@Override
+	public synchronized List<String> recordingDiagnostics() {
+		return List.copyOf(this.diagnostics);
 	}
 
 	private static RuntimeException suppress(RuntimeException failure, RuntimeException ex) {
