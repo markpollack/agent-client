@@ -1,0 +1,50 @@
+# Credentialed Smoke
+# Opt-in live run of AgentClientHelloWorldSmokeTest against the Claude and Gemini
+# CLIs with the repository's provider credentials. Manual only: no push, pull
+# request, tag or schedule trigger may make a live model call. The CI Build and
+# Publish Snapshot workflows pass no provider key and install no CLI, so the same
+# tests self-skip there (@EnabledIfEnvironmentVariable).
+
+name: Credentialed Smoke
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    # Only in the upstream repo (forks have no secrets)
+    if: github.repository_owner == 'markpollack'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up agent CLIs
+        uses: markpollack/build-tools/.github/actions/setup-agent-clis@35297f1ade5f47c2925d6dab42a7e2d43bd734d0
+        with:
+          clis: 'claude,gemini'
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run credentialed smoke tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          ./mvnw test -B --no-transfer-progress \
+            -pl agent-client-core -am \
+            -Dtest=AgentClientHelloWorldSmokeTest \
+            -Dsurefire.failIfNoSpecifiedTests=false
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: agent-client-core/target/surefire-reports/
+          retention-days: 7

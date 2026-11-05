@@ -25,10 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up agent CLIs
-        uses: markpollack/build-tools/.github/actions/setup-agent-clis@35297f1ade5f47c2925d6dab42a7e2d43bd734d0
-        with:
-          clis: 'claude,gemini'
+      # No agent CLI is installed and no provider credential is passed here: the
+      # credentialed Claude/Gemini smoke tests self-skip without their keys and run
+      # only through the dispatch-only Credentialed Smoke workflow (smoke.yml).
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -36,9 +35,6 @@ jobs:
           distribution: 'temurin'
           cache: maven
       - name: Build with Maven
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: ./mvnw clean verify -B
       # The published-consumer gate applies to point releases only (tag pushes v*).
       # Development snapshots on main keep the normal verification above; the gate
