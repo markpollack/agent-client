@@ -40,7 +40,8 @@ import io.github.markpollack.journal.tck.ocsf.TerminalBindingReader;
  * selector names a decision field ({@code executionId}, {@code decisionId}) or a
  * correlation field ({@code workflowRunId} and the other five); exactly one archived
  * decision must match all of them. {@code assembly=<path>} overrides the assembly
- * expectation, which otherwise is the recorder's {@code native-<executionId>} copy.
+ * expectation, which otherwise is the recorder's {@code native-<executionId>} copy, and
+ * {@code export=<new path>} keeps the canonical export for a downstream consumer.
  *
  * <p>
  * The report states what the archive says. It decides nothing beyond Journal's own
@@ -83,6 +84,7 @@ public final class RecordingArchiveReader {
 
 	static ObjectNode read(Path store, Map<String, String> selector) throws IOException {
 		var assemblyOverride = selector.remove("assembly");
+		var exportTarget = selector.remove("export");
 		var matches = new ArrayList<Match>();
 		List<Path> candidates;
 		try (Stream<Path> files = Files.walk(store)) {
@@ -104,12 +106,12 @@ public final class RecordingArchiveReader {
 		if (matches.size() != 1)
 			return report;
 		var match = matches.get(0);
-		describe(report, store, match, assemblyOverride);
+		describe(report, store, match, assemblyOverride, exportTarget);
 		return report;
 	}
 
-	private static void describe(ObjectNode report, Path store, Match match, String assemblyOverride)
-			throws IOException {
+	private static void describe(ObjectNode report, Path store, Match match, String assemblyOverride,
+			String exportTarget) throws IOException {
 		var envelope = JSON
 			.readTree(match.pkg.declarations.run().member("terminal_binding").member("terminalEnvelope").text());
 		JsonNode association = JSON.readTree(match.binding.association());
@@ -132,7 +134,7 @@ public final class RecordingArchiveReader {
 		Path assembly = assemblyOverride != null ? Path.of(assemblyOverride)
 				: store.resolve("native-" + executionId).resolve("assembly-expectation.json");
 		verify(report, match.events, sources, assembly);
-		export(report, match.pkg);
+		export(report, match.pkg, exportTarget);
 	}
 
 	/**
@@ -167,9 +169,14 @@ public final class RecordingArchiveReader {
 	 * Every native usage object the canonical export carries, and every member name that
 	 * mentions cost.
 	 */
-	private static void export(ObjectNode report, OcsfPackage pkg) throws IOException {
+	private static void export(ObjectNode report, OcsfPackage pkg, String target) throws IOException {
 		var writer = new StringWriter();
 		CanonicalExport.write(pkg, writer);
+		if (target != null) {
+			Files.writeString(Path.of(target), writer.toString(), StandardCharsets.UTF_8,
+					java.nio.file.StandardOpenOption.CREATE_NEW);
+			report.put("export", target);
+		}
 		var usage = new LinkedHashSet<JsonNode>();
 		var cost = new LinkedHashSet<String>();
 		var rows = writer.toString().lines().filter(line -> !line.isBlank()).toList();
