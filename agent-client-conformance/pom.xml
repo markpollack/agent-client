@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+ <modelVersion>4.0.0</modelVersion><parent><groupId>io.github.markpollack</groupId><artifactId>agent-client-parent</artifactId><version>0.32.1-SNAPSHOT</version></parent>
+ <artifactId>agent-client-conformance</artifactId><name>Agent Client Recording Conformance</name>
+ <description>Recording conformance: fixture providers run through the shipped JournalExecutionRecorder, and a
+  separate JVM with Journal's capture TCK only reads the archive. Tests only; not published.</description>
+ <properties>
+  <!-- Test-only module: no main classes to measure. -->
+  <jacoco.skip>true</jacoco.skip>
+ </properties>
+ <dependencies>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-journal</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-codex</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-claude</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <!-- Build order only: the reader runs in its own JVM and is kept off this classpath below. -->
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-conformance-reader</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>org.zeroturnaround</groupId><artifactId>zt-exec</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
+ </dependencies>
+ <build>
+  <testResources>
+   <testResource><directory>src/test/resources</directory></testResource>
+   <testResource><directory>../agent-client-codex/src/test/resources</directory><includes><include>codex-child.py</include><include>codex-native-template.jsonl</include></includes></testResource>
+  </testResources>
+  <plugins>
+   <plugin>
+    <groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId>
+    <configuration>
+     <classpathDependencyExcludes><classpathDependencyExclude>io.github.markpollack:agent-client-conformance-reader</classpathDependencyExclude></classpathDependencyExcludes>
+     <systemPropertyVariables>
+      <!-- One-shot Claude capture reads native transcripts under user.home; keep the fixture's out of the real home. -->
+      <user.home>${project.build.directory}/fixture-home</user.home>
+      <conformance.reader.classes>${project.basedir}/../agent-client-conformance-reader/target/classes</conformance.reader.classes>
+      <conformance.reader.classpath>${project.basedir}/../agent-client-conformance-reader/target/reader-classpath.txt</conformance.reader.classpath>
+     </systemPropertyVariables>
+    </configuration>
+   </plugin>
+   <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-deploy-plugin</artifactId><configuration><skip>true</skip></configuration></plugin>
+   <plugin><groupId>org.sonatype.central</groupId><artifactId>central-publishing-maven-plugin</artifactId><configuration><skipPublishing>true</skipPublishing></configuration></plugin>
+  </plugins>
+ </build>
+</project>
