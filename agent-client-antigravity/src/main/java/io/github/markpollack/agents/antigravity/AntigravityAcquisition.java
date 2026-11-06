@@ -13,6 +13,12 @@ import io.github.markpollack.agents.client.ExecutionDecision;
 public record AntigravityAcquisition(String executionId, String connectionId, Optional<String> nativeId, Path directory,
 		String expectedCliVersion, List<Source> sources, boolean complete, String detail) {
 
+	/**
+	 * The manifest format, used as the acquisition profile. No Journal qualifier exists
+	 * for it.
+	 */
+	public static final String PROFILE = "antigravity-acquisition-v0.1";
+
 	public AntigravityAcquisition {
 		sources = List.copyOf(sources);
 	}
@@ -26,7 +32,7 @@ public record AntigravityAcquisition(String executionId, String connectionId, Op
 				|| !decision.connectionId().equals(Optional.of(this.connectionId)))
 			throw new IllegalArgumentException("Decision does not own acquisition");
 		var manifest = new LinkedHashMap<String, Object>();
-		manifest.put("format", "antigravity-acquisition-v0.1");
+		manifest.put("format", PROFILE);
 		manifest.put("executionId", this.executionId);
 		manifest.put("connectionId", this.connectionId);
 		manifest.put("sessionId", decision.sessionId());

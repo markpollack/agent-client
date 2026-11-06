@@ -52,13 +52,22 @@ final class DecisionEncoding {
 	}
 
 	static String association(ExecutionDecision d, String revision, String parent) {
-		return json(object("codec", "journal-association/1", "executionId", d.executionId(), "decisionId",
-				d.decisionId(), "revisionId", revision, "priorRevisionId", parent, "clientSessionId", d.sessionId(),
-				"connectionIds", d.connectionId().stream().toList(), "providerObservation", provider(d.provider()),
-				"acquisition",
-				d.provider().kind() == ProviderObservation.Kind.NOT_DISPATCHED ? "NOT_DISPATCHED" : "UNAVAILABLE",
-				"continuation", null, "sources", List.of(), "missing", List.of(object("origin", "native", "reason",
-						"Native acquisition is not qualified for the evidence-only route"))));
+		return association(d, revision, parent, "Native acquisition is not qualified for the evidence-only route");
+	}
+
+	/**
+	 * Evidence-only: no sources, and one native {@code missing} entry with the reason.
+	 */
+	static String association(ExecutionDecision d, String revision, String parent, String reason) {
+		return json(
+				object("codec", "journal-association/1", "executionId", d.executionId(), "decisionId", d.decisionId(),
+						"revisionId", revision, "priorRevisionId", parent, "clientSessionId", d.sessionId(),
+						"connectionIds", d.connectionId().stream().toList(), "providerObservation",
+						provider(d.provider()), "acquisition",
+						d.provider().kind() == ProviderObservation.Kind.NOT_DISPATCHED ? "NOT_DISPATCHED"
+								: "UNAVAILABLE",
+						"continuation", null, "sources", List.of(), "missing",
+						List.of(object("origin", "native", "reason", reason))));
 	}
 
 	static Map<String, Object> object(Object... pairs) {

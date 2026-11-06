@@ -117,6 +117,35 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 				: this.acquisition;
 	}
 
+	/**
+	 * The one-shot generation: the provider's sealed manifest and its digest at sealing,
+	 * unchanged. A retained turn is not a one-shot generation.
+	 */
+	@Override
+	public java.util.Optional<io.github.markpollack.agents.client.NativeGeneration> generation(
+			io.github.markpollack.agents.client.ExecutionDecision decision) {
+		if (this.generation.retainedCapture != null || this.generation.sources == null)
+			return java.util.Optional.empty();
+		var observed = this.result;
+		if (observed == null) {
+			this.acquisition = io.github.markpollack.agents.client.CaptureAcquisition.INCOMPLETE;
+			return java.util.Optional.empty();
+		}
+		try {
+			var sealed = this.generation.sources.seal(this.generation, observed, this.executionId, this.prompt);
+			this.acquisition = sealed.complete() ? io.github.markpollack.agents.client.CaptureAcquisition.COMPLETED
+					: io.github.markpollack.agents.client.CaptureAcquisition.INCOMPLETE;
+			return java.util.Optional.of(io.github.markpollack.agents.client.NativeGeneration.oneShot(
+					"claude-code-" + this.generation.config.cliVersion() + "-sdk-stdio-session-file", decision,
+					sealed.manifest(), sealed.sha256(), sealed.complete(),
+					sealed.complete() ? "" : "Claude capture incomplete; see the manifest's capture_errors"));
+		}
+		catch (RuntimeException ex) {
+			this.acquisition = io.github.markpollack.agents.client.CaptureAcquisition.FAILED;
+			throw ex;
+		}
+	}
+
 	@Override
 	public Map<String, Object> recordingEvidence() {
 		if (this.generation.retainedCapture != null)

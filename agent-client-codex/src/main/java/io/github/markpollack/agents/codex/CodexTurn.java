@@ -24,10 +24,17 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 
 	private volatile CodexCapture capture;
 
+	private final boolean retained;
+
 	CodexTurn(CodexGeneration connection, String executionId, CodexThread owner) {
+		this(connection, executionId, owner, false);
+	}
+
+	CodexTurn(CodexGeneration connection, String executionId, CodexThread owner, boolean retained) {
 		this.connection = connection;
 		this.executionId = executionId;
 		this.owner = owner;
+		this.retained = retained;
 	}
 
 	@Override
@@ -100,6 +107,37 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 	@Override
 	public CaptureAcquisition captureAcquisition() {
 		return this.connection.configuration.capture() == null ? CaptureAcquisition.UNAVAILABLE : this.acquisition;
+	}
+
+	/**
+	 * The one-shot generation: the sealed sources and the decision-bound manifest. A
+	 * retained turn is sealed for its acquisition state but is not a one-shot generation;
+	 * Journal's one-shot qualifier refuses resumed history.
+	 */
+	@Override
+	public java.util.Optional<io.github.markpollack.agents.client.NativeGeneration> generation(
+			io.github.markpollack.agents.client.ExecutionDecision decision) {
+		if (this.capture == null)
+			return java.util.Optional.empty();
+		try {
+			var sealed = this.capture.seal();
+			this.acquisition = sealed.complete() ? CaptureAcquisition.COMPLETED : CaptureAcquisition.INCOMPLETE;
+			if (this.retained)
+				return java.util.Optional.empty();
+			var manifest = sealed.writeManifest(decision);
+			return java.util.Optional
+				.of(io.github.markpollack.agents.client.NativeGeneration.oneShot(CodexManifest.PROFILE, decision,
+						manifest, io.github.markpollack.agents.client.NativeGeneration.sha256(manifest),
+						sealed.complete(), sealed.detail() == null ? "" : sealed.detail()));
+		}
+		catch (java.io.IOException ex) {
+			this.acquisition = CaptureAcquisition.FAILED;
+			throw new java.io.UncheckedIOException(ex);
+		}
+		catch (RuntimeException ex) {
+			this.acquisition = CaptureAcquisition.FAILED;
+			throw ex;
+		}
 	}
 
 	@Override

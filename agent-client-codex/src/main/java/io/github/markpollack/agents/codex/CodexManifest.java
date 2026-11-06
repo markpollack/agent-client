@@ -15,6 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 final class CodexManifest {
 
+	/** The acquisition profile every one-shot manifest declares. */
+	static final String PROFILE = "codex-cli-0.166.0-exec-stdio-rollout";
+
 	private CodexManifest() {
 	}
 
@@ -25,10 +28,9 @@ final class CodexManifest {
 			CodexNativeSource.Observed nativeSource, boolean complete, String detail) throws IOException {
 		var connection = context.connection();
 		String execution = context.execution();
-		var root = object("kind", "agent-journal/acquired-execution", "version", "0.1", "profile",
-				"codex-cli-0.166.0-exec-stdio-rollout", "profile_id", "codex-cli/0.166.0/exec-stdio+rollout",
-				"acquisition_uid", execution, "complete", complete, "capture_errors",
-				complete ? List.of() : List.of(detail));
+		var root = object("kind", "agent-journal/acquired-execution", "version", "0.1", "profile", PROFILE,
+				"profile_id", "codex-cli/0.166.0/exec-stdio+rollout", "acquisition_uid", execution, "complete",
+				complete, "capture_errors", complete ? List.of() : List.of(detail));
 		root.put("process", process(connection, sources, nativeSource));
 		root.put("run",
 				object("run_uid", execution, "session_uid", connection.nativeId, "capture_start",

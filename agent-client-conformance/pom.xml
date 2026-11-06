@@ -12,6 +12,7 @@
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-journal</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-codex</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-claude</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-antigravity</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <!-- Build order only: the reader runs in its own JVM and is kept off this classpath below. -->
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-conformance-reader</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>org.zeroturnaround</groupId><artifactId>zt-exec</artifactId><scope>test</scope></dependency>
@@ -22,6 +23,7 @@
  <build>
   <testResources>
    <testResource><directory>src/test/resources</directory></testResource>
+   <testResource><directory>../agent-client-antigravity/src/test/resources</directory><includes><include>antigravity-child.py</include></includes></testResource>
    <testResource><directory>../agent-client-codex/src/test/resources</directory><includes><include>codex-child.py</include><include>codex-native-template.jsonl</include></includes></testResource>
   </testResources>
   <plugins>

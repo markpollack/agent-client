@@ -27,6 +27,8 @@ class NativeRecorderTest {
 
 	private final ObjectMapper json = new ObjectMapper();
 
+	static final String CLAUDE = "claude-code-2.1.316-sdk-stdio-session-file";
+
 	@Test
 	void acceptedOneShotDecisionAndNativeSourcesReachActualReader() throws Exception {
 		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
@@ -34,29 +36,155 @@ class NativeRecorderTest {
 			execution.result();
 			var decision = execution.decision().orElseThrow();
 			var source = source(decision);
+			byte[] sealedBytes = Files.readAllBytes(source.manifest());
 			var store = root.resolve("store");
 			var recorder = JournalExecutionRecorder.claude(store, "native-client");
-			var prepared = recorder.prepare(decision, Map.of("claudeAcquisition", source));
-			String ack = prepared.get();
-			assertThat(prepared.get()).isEqualTo(ack);
-			Path events;
-			try (var files = Files.walk(store.resolve("prepared"))) {
-				events = files.filter(p -> p.getFileName().toString().equals("events.jsonl")).findFirst().orElseThrow();
-			}
+			var prepared = recorder.prepareRecording(decision, Optional.of(generation(decision, source, true)));
+			assertThat(prepared.nativeRecording().outcome()).isEqualTo(NativeRecording.Outcome.ATTACHED);
+			assertThat(prepared.nativeRecording().terminalProfile()).isEqualTo(TerminalReceiver.CLAUDE_PROFILE);
+			String ack = prepared.delivery().get();
+			assertThat(prepared.delivery().get()).isEqualTo(ack);
+			Path events = events(store);
 			var pkg = PackageReader.open(events);
 			assertThat(pkg.diagnostics).noneMatch(d -> Set.of("DEFECT", "REFUSED").contains(d.severity().name()));
 			assertThat(TerminalBindingReader.read(pkg.declarations).decision())
 				.isEqualTo(DecisionEncoding.decision(decision));
 			assertThat(Files.readString(events)).contains("client-terminal-claude-2.1.316/1", "native-1");
-			assertThat(source.manifest()).exists();
-			var partial = new ClaudeAcquisition(source.manifest(), source.sha256(), false, source.invocationId(),
-					source.sessionId());
-			assertThatThrownBy(() -> JournalExecutionRecorder.claude(root.resolve("partial"), "p")
-				.prepare(decision, Map.of("claudeAcquisition", partial)))
-				.isInstanceOf(RecordingDeliveryException.class);
+			// Review F04: the sealed manifest is never rewritten.
+			assertThat(Files.readAllBytes(source.manifest())).isEqualTo(sealedBytes);
+		}
+	}
+
+	@Test
+	void incompleteOrChangedSourcesAreRejectedButStillArchiveTheDecision() throws Exception {
+		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+			var execution = client.goal("hello").runAsync();
+			execution.result();
+			var decision = execution.decision().orElseThrow();
+			var source = source(decision);
+			var partial = JournalExecutionRecorder.claude(root.resolve("partial"), "p")
+				.prepareRecording(decision, Optional.of(generation(decision, source, false)));
+			assertRejected(partial, root.resolve("partial"), decision, "Native acquisition is incomplete");
 			Files.writeString(source.manifest(), "changed");
-			assertThatThrownBy(() -> JournalExecutionRecorder.claude(root.resolve("changed"), "c")
-				.prepare(decision, Map.of("claudeAcquisition", source))).isInstanceOf(RecordingDeliveryException.class);
+			var changed = new JournalExecutionRecorder(root.resolve("changed"), "c").prepareRecording(decision,
+					Optional.of(generation(decision, source, true)));
+			assertRejected(changed, root.resolve("changed"), decision, "Acquisition manifest changed after sealing");
+		}
+	}
+
+	@Test
+	void qualifierVerdictIsRejectedNotUnqualified() throws Exception {
+		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+			var execution = client.goal("hello").runAsync();
+			execution.result();
+			var decision = execution.decision().orElseThrow();
+			Path manifest = Files.writeString(root.resolve("bad.json"), "{\"profile\":\"" + CLAUDE + "\"}");
+			var bad = NativeGeneration.oneShot(CLAUDE, decision, manifest, NativeGeneration.sha256(manifest), true, "");
+			var prepared = new JournalExecutionRecorder(root.resolve("bad"), "b").prepareRecording(decision,
+					Optional.of(bad));
+			assertRejected(prepared, root.resolve("bad"), decision, "qualifier refused");
+		}
+	}
+
+	@Test
+	void unknownProfileIsUnqualifiedWithTheProfileInMissing() throws Exception {
+		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+			var execution = client.goal("hello").runAsync();
+			execution.result();
+			var decision = execution.decision().orElseThrow();
+			Path manifest = Files.writeString(root.resolve("other.json"), "{}");
+			var other = NativeGeneration.oneShot("antigravity-acquisition-v0.1", decision, manifest,
+					NativeGeneration.sha256(manifest), true, "");
+			var store = root.resolve("unqualified");
+			var prepared = new JournalExecutionRecorder(store, "u").prepareRecording(decision, Optional.of(other));
+			assertThat(prepared.nativeRecording().outcome()).isEqualTo(NativeRecording.Outcome.UNQUALIFIED);
+			assertThat(prepared.nativeRecording().detail()).contains("antigravity-acquisition-v0.1");
+			assertThat(prepared.delivery().get()).isNotBlank();
+			var association = json
+				.readTree(TerminalBindingReader.read(PackageReader.open(events(store)).declarations).association());
+			assertThat(association.path("acquisition").asText()).isEqualTo("UNAVAILABLE");
+			assertThat(association.path("sources")).isEmpty();
+			assertThat(association.path("missing").get(0).path("reason").asText())
+				.isEqualTo("UNQUALIFIED: No Journal qualifier for acquisition profile antigravity-acquisition-v0.1");
+			assertThat(Files.readString(events(store))).doesNotContain("input_tokens");
+		}
+	}
+
+	@Test
+	void foreignGenerationIsRejected() throws Exception {
+		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+			var first = client.goal("one").runAsync();
+			first.result();
+			var second = client.goal("two").runAsync();
+			second.result();
+			var source = source(first.decision().orElseThrow());
+			var decision = second.decision().orElseThrow();
+			var prepared = new JournalExecutionRecorder(root.resolve("foreign"), "f").prepareRecording(decision,
+					Optional.of(generation(first.decision().orElseThrow(), source, true)));
+			assertRejected(prepared, root.resolve("foreign"), decision, "does not belong");
+		}
+	}
+
+	@Test
+	void outcomeIsVisibleThroughRecordingAndNeverGatesTheResult() throws Exception {
+		var store = root.resolve("visible");
+		var recorder = new JournalExecutionRecorder(store, "visible");
+		AgentExecutionProvider provider = options -> new AgentExecutionProvider.Connection() {
+			@Override
+			public AgentExecutionProvider.Turn prepare(String id) {
+				return new AgentExecutionProvider.Turn() {
+					@Override
+					public io.github.markpollack.agents.model.AgentResponse call(
+							io.github.markpollack.agents.model.AgentTaskRequest request) {
+						return JournalExecutionRecorderTest.provider("SUCCESS").open(options).prepare(id).call(request);
+					}
+
+					@Override
+					public Optional<NativeGeneration> generation(ExecutionDecision decision) {
+						throw new IllegalStateException("sealing broke");
+					}
+
+					@Override
+					public void stop(boolean interrupt) {
+					}
+				};
+			}
+
+			@Override
+			public void close() {
+			}
+		};
+		try (var client = AgentClient.builder(provider).executionRecorder(recorder).build()) {
+			var execution = client.goal("hello").runAsync();
+			assertThat(execution.result().isSuccessful()).isTrue();
+			JournalExecutionRecorderTest.awaitRecording(execution);
+			assertThat(execution.recording().delivery()).isInstanceOf(TerminalDelivery.Completed.class);
+			var observed = execution.recording().nativeRecording().orElseThrow();
+			assertThat(observed.outcome()).isEqualTo(NativeRecording.Outcome.NOT_CAPTURED);
+			assertThat(observed.detail()).isEqualTo("Native sealing failed: sealing broke");
+			assertThat(execution.result().isSuccessful()).isTrue();
+		}
+	}
+
+	private void assertRejected(ExecutionRecorder.Prepared prepared, Path store, ExecutionDecision decision,
+			String verdict) throws Exception {
+		assertThat(prepared.nativeRecording().outcome()).isEqualTo(NativeRecording.Outcome.REJECTED);
+		assertThat(prepared.nativeRecording().detail()).contains(verdict);
+		assertThat(prepared.nativeRecording().terminalProfile()).isEqualTo(TerminalReceiver.PROFILE);
+		assertThat(prepared.delivery().get()).isNotBlank();
+		var binding = TerminalBindingReader.read(PackageReader.open(events(store)).declarations);
+		assertThat(binding.decision()).isEqualTo(DecisionEncoding.decision(decision));
+		var reason = json.readTree(binding.association()).path("missing").get(0).path("reason").asText();
+		assertThat(reason).startsWith("REJECTED: ").contains(verdict);
+	}
+
+	private static NativeGeneration generation(ExecutionDecision decision, ClaudeAcquisition source, boolean complete) {
+		return NativeGeneration.oneShot(CLAUDE, decision, source.manifest(), source.sha256(), complete, "");
+	}
+
+	private static Path events(Path store) throws Exception {
+		try (var files = Files.walk(store.resolve("prepared"))) {
+			return files.filter(p -> p.getFileName().toString().equals("events.jsonl")).findFirst().orElseThrow();
 		}
 	}
 
@@ -82,7 +210,7 @@ class NativeRecorderTest {
 	}
 
 	private ClaudeAcquisition source(ExecutionDecision decision) throws Exception {
-		Path raw = Files.createDirectory(root.resolve("raw"));
+		Path raw = Files.createDirectory(root.resolve("raw-" + decision.executionId()));
 		Files.writeString(raw.resolve("stdin.bin"),
 				"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n");
 		Files.writeString(raw.resolve("stdout.bin"), """

@@ -82,8 +82,19 @@ public interface AgentExecutionProvider extends AgentApi {
 		}
 
 		/**
+		 * Seal this one-shot turn's native sources for the accepted decision, as a
+		 * generation with one member. Invoked at most once, on Client's recording lane
+		 * after acceptance, and only for a recorder that takes generations. Empty when
+		 * the provider captured nothing; a retained turn's sources are not a one-shot
+		 * generation.
+		 */
+		default java.util.Optional<NativeGeneration> generation(ExecutionDecision decision) {
+			return java.util.Optional.empty();
+		}
+
+		/**
 		 * Optional bounded source preparation, invoked only on Client's recording lane
-		 * after acceptance.
+		 * after acceptance, for a recorder that does not take generations.
 		 */
 		default java.util.Map<String, Object> recordingEvidence() {
 			return java.util.Map.of();

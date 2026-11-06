@@ -10,25 +10,14 @@ import java.security.*;
 import java.util.*;
 import com.fasterxml.jackson.databind.*;
 import io.github.markpollack.agents.client.ExecutionDecision;
-import io.github.markpollack.agents.claude.ClaudeAcquisition;
+import io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier;
 
 /**
  * Uses the owning qualifier; this adapter binds sources, never interprets vendor events.
  */
 record NativeAssociation(Path root, String json) {
-	static NativeAssociation prepare(Path output, ExecutionDecision decision, String revision, ClaudeAcquisition source)
-			throws IOException {
-		if (!source.complete())
-			throw new IllegalArgumentException("Native acquisition is incomplete");
-		if (!hash(source.manifest()).equals(source.sha256()))
-			throw new IllegalArgumentException("Acquisition manifest changed");
-		var qualified = io.github.markpollack.journal.tck.ocsf.inventory.ClaudeAcquisition.qualify(source.manifest(),
-				output);
-		return qualified(output, decision, revision, null, qualified);
-	}
-
 	static NativeAssociation qualified(Path output, ExecutionDecision decision, String revision, String parent,
-			io.github.markpollack.journal.tck.ocsf.inventory.ClaudeAcquisition.Qualified qualified) throws IOException {
+			AcquisitionQualifier.Qualified qualified) throws IOException {
 		var manifest = new ObjectMapper().readTree(Files.readAllBytes(qualified.manifest()));
 		String nativeId = manifest.required("run").required("session_uid").asText();
 		String connection = decision.connectionId().orElseThrow();

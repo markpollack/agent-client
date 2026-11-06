@@ -46,7 +46,7 @@ final class CodexConnection implements AgentExecutionProvider.Connection {
 		checkReady();
 		var generation = this.current.prepared ? replacement(this.current) : this.current;
 		generation.prepared = true;
-		return new CodexTurn(generation, executionId, this.thread);
+		return new CodexTurn(generation, executionId, this.thread, this.retained);
 	}
 
 	private void checkReady() {

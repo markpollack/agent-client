@@ -33,6 +33,8 @@ final class ExecutionRecording {
 
 	private java.util.function.Supplier<String> prepared;
 
+	private volatile NativeRecording nativeRecording;
+
 	private volatile boolean deliveryPossible;
 
 	private volatile long started;
@@ -125,9 +127,39 @@ final class ExecutionRecording {
 	private java.util.function.Supplier<String> prepare(ExecutionDecision decision) {
 		if (this.recorder instanceof ExecutionRecorder typed) {
 			var turn = this.execution.store.turn;
+			if (typed.takesNativeGeneration())
+				return prepareGeneration(typed, turn, decision);
 			return typed.prepare(decision, turn == null ? Map.of() : turn.recordingEvidence());
 		}
 		return () -> this.recorder.apply(decision);
+	}
+
+	/**
+	 * A provider that cannot seal still lets the decision be archived: the recorder gets
+	 * no generation, and the observation names the sealing failure.
+	 */
+	private java.util.function.Supplier<String> prepareGeneration(ExecutionRecorder typed,
+			AgentExecutionProvider.Turn turn, ExecutionDecision decision) {
+		Optional<NativeGeneration> generation;
+		String sealing = null;
+		try {
+			generation = turn == null ? Optional.empty() : turn.generation(decision);
+		}
+		catch (RuntimeException ex) {
+			generation = Optional.empty();
+			sealing = "Native sealing failed: " + ex.getMessage();
+		}
+		var result = typed.prepareRecording(decision, generation);
+		var observed = result.nativeRecording();
+		if (sealing != null)
+			observed = new NativeRecording(observed.outcome(), observed.acquisitionProfile(),
+					observed.terminalProfile(), sealing);
+		synchronized (this.lock) {
+			this.nativeRecording = observed;
+			this.snapshot = snapshot(decision, this.snapshot.delivery(), this.snapshot.attempts(),
+					this.snapshot.revision() + 1);
+		}
+		return result.delivery();
 	}
 
 	private boolean beginDelivery(ExecutionDecision decision) {
@@ -214,7 +246,7 @@ final class ExecutionRecording {
 			List<DeliveryAttempt> attempts, long revision) {
 		return new RecordingSnapshot(this.execution.executionId(), revision, this.runtime.wall.get(),
 				Optional.ofNullable(decision).map(ExecutionDecision::decisionId), evidence(decision), delivery,
-				attempts);
+				attempts, Optional.ofNullable(this.nativeRecording));
 	}
 
 	private CaptureReceipt evidence(ExecutionDecision decision) {

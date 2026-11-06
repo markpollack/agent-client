@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.markpollack.agents.antigravity.AntigravityClientProvider;
 import io.github.markpollack.agents.claude.ClaudeClientProvider;
 import io.github.markpollack.agents.client.AgentClient;
 import io.github.markpollack.agents.client.AgentExecution;
@@ -28,6 +29,7 @@ import io.github.markpollack.agents.client.ApplicationCorrelation;
 import io.github.markpollack.agents.client.DefaultAgentOptions;
 import io.github.markpollack.agents.client.ExecutionDecision;
 import io.github.markpollack.agents.client.ExecutionRecorder;
+import io.github.markpollack.agents.client.NativeRecording;
 import io.github.markpollack.agents.client.TerminalDelivery;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
 import io.github.markpollack.agents.codex.CodexClientProvider;
@@ -72,20 +74,29 @@ class OneShotRecordingConformanceTest {
 
 	enum Case {
 
-		CODEX_ONE_SHOT("client-terminal-codex-0.166.0/1", CODEX_USAGE),
+		CODEX_ONE_SHOT("client-terminal-codex-0.166.0/1", CODEX_USAGE, NativeRecording.Outcome.ATTACHED),
 
-		CLAUDE_ONE_SHOT("client-terminal-claude-2.1.316/1", CLAUDE_USAGE),
+		CLAUDE_ONE_SHOT("client-terminal-claude-2.1.316/1", CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
 
 		/** The retained public factory must reach the same archive. */
-		CLAUDE_ONE_SHOT_FACTORY("client-terminal-claude-2.1.316/1", CLAUDE_USAGE);
+		CLAUDE_ONE_SHOT_FACTORY("client-terminal-claude-2.1.316/1", CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
+
+		/**
+		 * Declared: Journal has no Antigravity qualifier. The call is still archived and
+		 * linked, evidence-only, with no invented sources or usage.
+		 */
+		ANTIGRAVITY_ONE_SHOT("client-terminal-evidence-only/1", Map.of(), NativeRecording.Outcome.UNQUALIFIED);
 
 		final String profile;
 
 		final Map<String, Integer> usage;
 
-		Case(String profile, Map<String, Integer> usage) {
+		final NativeRecording.Outcome outcome;
+
+		Case(String profile, Map<String, Integer> usage, NativeRecording.Outcome outcome) {
 			this.profile = profile;
 			this.usage = usage;
+			this.outcome = outcome;
 		}
 
 	}
@@ -96,7 +107,7 @@ class OneShotRecordingConformanceTest {
 	@Test
 	void matrixIsFixed() {
 		assertThat(Arrays.stream(Case.values()).map(Enum::name)).containsExactly("CODEX_ONE_SHOT", "CLAUDE_ONE_SHOT",
-				"CLAUDE_ONE_SHOT_FACTORY");
+				"CLAUDE_ONE_SHOT_FACTORY", "ANTIGRAVITY_ONE_SHOT");
 	}
 
 	@ParameterizedTest
@@ -106,7 +117,11 @@ class OneShotRecordingConformanceTest {
 		ExecutionRecorder recorder = c == Case.CLAUDE_ONE_SHOT_FACTORY
 				? JournalExecutionRecorder.claude(store, "conformance")
 				: new JournalExecutionRecorder(store, "conformance");
-		var provider = c == Case.CODEX_ONE_SHOT ? codex() : claude();
+		var provider = switch (c) {
+			case CODEX_ONE_SHOT -> codex();
+			case ANTIGRAVITY_ONE_SHOT -> antigravity();
+			default -> claude();
+		};
 		var options = DefaultAgentOptions.builder()
 			.workingDirectory(this.root.toString())
 			.model("synthetic-model")
@@ -123,24 +138,46 @@ class OneShotRecordingConformanceTest {
 			awaitDelivery(execution);
 			assertThat(execution.awaitTermination(Duration.ofSeconds(10)).cleanupConfirmed()).isTrue();
 			decision = execution.decision().orElseThrow();
+			var observed = execution.recording().nativeRecording().orElseThrow();
+			assertThat(observed.outcome()).as(observed.detail()).isEqualTo(c.outcome);
+			assertThat(observed.terminalProfile()).isEqualTo(c.profile);
 		}
 		JsonNode report = read(store, "executionId=" + decision.executionId());
 
 		assertThat(report.path("matches").asInt()).as("archives for the execution").isEqualTo(1);
 		assertThat(report.path("seriousDiagnostics")).as("reader defects").isEmpty();
 		assertThat(report.path("profile").asText()).as("terminal profile").isEqualTo(c.profile);
-		assertThat(report.path("acquisition").asText()).isEqualTo("COMPLETED");
-		assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
-			.isEqualTo("ACCEPTED");
+		if (c.outcome == NativeRecording.Outcome.ATTACHED) {
+			assertThat(report.path("acquisition").asText()).isEqualTo("COMPLETED");
+			assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
+				.isEqualTo("ACCEPTED");
+		}
+		else {
+			assertThat(report.path("acquisition").asText()).isEqualTo("UNAVAILABLE");
+			assertThat(report.path("sources").asInt()).isZero();
+			assertThat(report.path("missing").get(0).path("reason").asText())
+				.isEqualTo("UNQUALIFIED: No Journal qualifier for acquisition profile antigravity-acquisition-v0.1");
+			assertThat(report.path("usage")).as("no invented usage").isEmpty();
+		}
 		assertThat(report.path("decisionId").asText()).isEqualTo(decision.decisionId());
 		assertThat(report.path("sessionId").asText()).isEqualTo(decision.sessionId());
 		assertThat(report.path("connectionId").asText()).isEqualTo(decision.connectionId().orElseThrow());
 		assertThat(correlation(report.path("correlation"))).isEqualTo(expectedCorrelation());
-		assertThat(report.path("usage")).as("native usage in the canonical export")
-			.anySatisfy(usage -> c.usage
-				.forEach((key, value) -> assertThat(usage.path(key).isInt() ? usage.path(key).asInt() : null).as(key)
-					.isEqualTo(value)));
+		if (!c.usage.isEmpty())
+			assertThat(report.path("usage")).as("native usage in the canonical export")
+				.anySatisfy(usage -> c.usage.forEach(
+						(key, value) -> assertThat(usage.path(key).isInt() ? usage.path(key).asInt() : null).as(key)
+							.isEqualTo(value)));
 		assertThat(report.path("costMembers")).as("cost members in the canonical export").isEmpty();
+	}
+
+	private AgentExecutionProvider antigravity() throws IOException {
+		Path child = copy("antigravity-child.py", "antigravity-child.py");
+		return AntigravityClientProvider.builder()
+			.executable(child.toString())
+			.workingDirectory(this.root)
+			.acquisitionDirectory(this.root.resolve("captures"), "1.4.6")
+			.build();
 	}
 
 	private AgentExecutionProvider codex() throws IOException {

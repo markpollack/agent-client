@@ -71,6 +71,35 @@ final class AntigravityTurn implements AgentExecutionProvider.Turn {
 		return this.connection.configuration.capture() == null ? CaptureAcquisition.UNAVAILABLE : this.acquisition;
 	}
 
+	/**
+	 * The one-shot generation. Journal has no Antigravity qualifier, so a recorder
+	 * reports it {@code UNQUALIFIED}: declared, with the sealed manifest kept beside the
+	 * evidence-only archive and no invented sources or usage.
+	 */
+	@Override
+	public java.util.Optional<io.github.markpollack.agents.client.NativeGeneration> generation(
+			io.github.markpollack.agents.client.ExecutionDecision decision) {
+		if (this.capture == null)
+			return java.util.Optional.empty();
+		try {
+			var sealed = this.capture.seal();
+			this.acquisition = sealed.complete() ? CaptureAcquisition.COMPLETED : CaptureAcquisition.INCOMPLETE;
+			var manifest = sealed.writeManifest(decision);
+			return java.util.Optional
+				.of(io.github.markpollack.agents.client.NativeGeneration.oneShot(AntigravityAcquisition.PROFILE,
+						decision, manifest, io.github.markpollack.agents.client.NativeGeneration.sha256(manifest),
+						sealed.complete(), sealed.detail() == null ? "" : sealed.detail()));
+		}
+		catch (java.io.IOException ex) {
+			this.acquisition = CaptureAcquisition.FAILED;
+			throw new java.io.UncheckedIOException(ex);
+		}
+		catch (RuntimeException ex) {
+			this.acquisition = CaptureAcquisition.FAILED;
+			throw ex;
+		}
+	}
+
 	@Override
 	public Map<String, Object> recordingEvidence() {
 		if (this.capture == null)

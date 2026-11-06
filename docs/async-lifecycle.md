@@ -69,9 +69,16 @@ unchanged. An `ExecutionRecorder` prepares a frozen delivery job once. Explicitl
 failures permit at most three serial attempts, with 100ms and 1s backoffs inside the original
 30-second window. Close prevents further retries. A plain function remains a single-attempt sink.
 The optional `agent-client-journal` module supplies `JournalExecutionRecorder` using the actual
-Journal receiver. Its default profile records decisions with unavailable native evidence. The explicit
-`JournalExecutionRecorder.claude(directory, namespace)` factory qualifies complete one-shot
-Claude source acquisition through Journal's native profile. Retained turns remain evidence-only.
+Journal receiver, with one generic one-shot path for every provider. A provider turn seals its
+native sources as a typed `NativeGeneration` (one member for a one-shot). The recorder re-checks the
+manifest digest, selects Journal's `AcquisitionQualifier` by the acquisition profile, qualifies,
+and delivers one initial binding under the qualifier's terminal profile. Claude and Codex one-shot
+qualify. Antigravity has no Journal qualifier and is recorded `UNQUALIFIED`. `recording()` reports
+one of four outcomes in `nativeRecording()`: `ATTACHED`, `UNQUALIFIED`, `REJECTED` or `NOT_CAPTURED`.
+Every outcome delivers one initial binding, so the call is archived and linked by its decision and
+correlation; the last three are evidence-only, with a `missing` entry naming the profile or verdict.
+No outcome changes the execution result. `JournalExecutionRecorder.claude(directory, namespace)`
+is the same recorder. Retained turns are not one-shot generations and remain evidence-only here.
 A native receiver ACK still needs independent complete-archive reader acceptance. Unclassified Journal I/O failures retain
 acceptance uncertainty and do not retry automatically. An explicit retry of the same prepared job
 can recover the original ACK without replaying provider work.
