@@ -12,6 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,32 +84,57 @@ public final class RecordingArchiveReader {
 				java.nio.file.StandardOpenOption.CREATE_NEW);
 	}
 
+	/**
+	 * A candidate is one recording: a root core together with the child cores it links (a
+	 * sub-agent's, for example), which Journal's reader opens with it. A child core is
+	 * never a candidate of its own; one that no root core in the store links is reported.
+	 * A root core whose binding cannot be read is reported as unreadable, not thrown.
+	 */
 	static ObjectNode read(Path store, Map<String, String> selector) throws IOException {
 		var assemblyOverride = selector.remove("assembly");
 		var exportTarget = selector.remove("export");
+		var scan = Scan.of(store);
 		var matches = new ArrayList<Match>();
-		List<Path> candidates;
-		try (Stream<Path> files = Files.walk(store)) {
-			candidates = files.filter(p -> p.getFileName().toString().equals("events.jsonl")).sorted().toList();
-		}
-		for (Path events : candidates) {
-			var pkg = PackageReader.open(events);
-			if (pkg.declarations == null)
-				continue;
-			var binding = TerminalBindingReader.read(pkg.declarations);
-			JsonNode decision = JSON.readTree(binding.decision());
-			if (matches(decision, selector))
-				matches.add(new Match(events, pkg, binding, decision));
+		ArrayNode unreadable = JSON.createArrayNode();
+		for (var root : scan.roots().entrySet()) {
+			Match match = match(root.getKey(), root.getValue(), unreadable);
+			if (match != null && matches(match.decision, selector))
+				matches.add(match);
 		}
 		ObjectNode report = JSON.createObjectNode();
 		report.put("forbiddenClassesAbsent", true);
-		report.put("candidates", candidates.size());
+		report.put("candidates", scan.roots().size());
 		report.put("matches", matches.size());
+		report.set("unreadable", unreadable);
+		ArrayNode unlinked = report.putArray("unlinkedChildCores");
+		scan.unlinked().forEach(path -> unlinked.add(path.toString()));
 		if (matches.size() != 1)
 			return report;
 		var match = matches.get(0);
 		describe(report, store, match, assemblyOverride, exportTarget);
 		return report;
+	}
+
+	/** The recording's decision, or null when its binding cannot be read. */
+	private static Match match(Path events, OcsfPackage pkg, ArrayNode unreadable) throws IOException {
+		String reason;
+		if (pkg.declarations == null)
+			reason = "not a standalone declared event file";
+		else {
+			try {
+				var binding = TerminalBindingReader.read(pkg.declarations);
+				if (binding != null)
+					return new Match(events, pkg, binding, JSON.readTree(binding.decision()));
+				reason = "no terminal binding";
+			}
+			catch (IllegalArgumentException | ArithmeticException | java.time.DateTimeException ex) {
+				reason = "terminal binding unreadable: " + ex.getMessage();
+			}
+		}
+		ObjectNode entry = unreadable.addObject();
+		entry.put("events", events.toString());
+		entry.put("reason", reason);
+		return null;
 	}
 
 	private static void describe(ObjectNode report, Path store, Match match, String assemblyOverride,
@@ -126,10 +153,15 @@ public final class RecordingArchiveReader {
 		report.put("acquisition", association.path("acquisition").asText());
 		report.set("missing", association.path("missing"));
 		report.put("sources", association.path("sources").size());
+		ArrayNode cores = report.putArray("cores");
 		ArrayNode serious = report.putArray("seriousDiagnostics");
-		match.pkg.diagnostics.stream()
-			.filter(d -> d.severity() == Diagnostic.Severity.DEFECT || d.severity() == Diagnostic.Severity.REFUSED)
-			.forEach(d -> serious.add(d.toString()));
+		for (OcsfPackage core : match.pkg.all()) {
+			cores.add(core.label());
+			String prefix = core == match.pkg ? "" : core.label() + ": ";
+			core.diagnostics.stream()
+				.filter(d -> d.severity() == Diagnostic.Severity.DEFECT || d.severity() == Diagnostic.Severity.REFUSED)
+				.forEach(d -> serious.add(prefix + d));
+		}
 		Path sources = match.events.getParent().resolve("sources");
 		Path assembly = assemblyOverride != null ? Path.of(assemblyOverride)
 				: store.resolve("native-" + executionId).resolve("assembly-expectation.json");
@@ -167,11 +199,18 @@ public final class RecordingArchiveReader {
 
 	/**
 	 * Every native usage object the canonical export carries, and every member name that
-	 * mentions cost.
+	 * mentions cost. Journal refuses to export a recording with a refused or unvalidated
+	 * core, a child's included; the report then says so and nothing is written.
 	 */
 	private static void export(ObjectNode report, OcsfPackage pkg, String target) throws IOException {
 		var writer = new StringWriter();
-		CanonicalExport.write(pkg, writer);
+		try {
+			CanonicalExport.write(pkg, writer);
+		}
+		catch (IllegalArgumentException refused) {
+			report.put("exportRefused", refused.getMessage());
+			return;
+		}
 		if (target != null) {
 			Files.writeString(Path.of(target), writer.toString(), StandardCharsets.UTF_8,
 					java.nio.file.StandardOpenOption.CREATE_NEW);
@@ -219,6 +258,48 @@ public final class RecordingArchiveReader {
 		catch (ClassNotFoundException expected) {
 			return false;
 		}
+	}
+
+	/**
+	 * The store's recordings: every root core, opened with the child cores it links, and
+	 * the child cores no root core links.
+	 */
+	private record Scan(Map<Path, OcsfPackage> roots, List<Path> unlinked) {
+
+		static Scan of(Path store) throws IOException {
+			List<Path> files;
+			try (Stream<Path> walk = Files.walk(store)) {
+				// Shallower first, so a root core is opened before the child cores it
+				// links.
+				files = walk.filter(p -> p.getFileName().toString().equals("events.jsonl"))
+					.map(Scan::normal)
+					.sorted(Comparator.comparingInt(Path::getNameCount).thenComparing(Comparator.naturalOrder()))
+					.toList();
+			}
+			var roots = new LinkedHashMap<Path, OcsfPackage>();
+			var linked = new HashSet<Path>();
+			var children = new ArrayList<Path>();
+			for (Path events : files) {
+				if (linked.contains(events))
+					continue;
+				var pkg = PackageReader.open(events);
+				pkg.all()
+					.stream()
+					.filter(core -> core != pkg)
+					.forEach(core -> linked.add(normal(core.dir.resolve("events.jsonl"))));
+				if (pkg.manifest != null && pkg.manifest.parent() != null)
+					children.add(events);
+				else
+					roots.put(events, pkg);
+			}
+			children.removeIf(linked::contains);
+			return new Scan(roots, children);
+		}
+
+		private static Path normal(Path path) {
+			return path.toAbsolutePath().normalize();
+		}
+
 	}
 
 	private record Match(Path events, OcsfPackage pkg, TerminalBindingReader.Binding binding, JsonNode decision) {

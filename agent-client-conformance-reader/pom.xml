@@ -5,12 +5,15 @@
  <description>Independent archive reader for the recording conformance suite. Its only dependency is Journal's
   capture TCK, so it runs in a separate JVM with no Client, provider SDK or Journal writer class. Not published.</description>
  <properties>
-  <!-- Runs only in the separate JVM the conformance module forks; this module has no own tests to measure. -->
+  <!-- Its entry point runs only in the separate JVM the conformance module forks, so in-module tests cannot cover
+       it; coverage is not measured here. -->
   <jacoco.skip>true</jacoco.skip>
  </properties>
  <dependencies>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>journal-capture-tck</artifactId><version>2.0.0-SNAPSHOT</version></dependency>
   <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+  <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
  </dependencies>
  <build>
   <plugins>

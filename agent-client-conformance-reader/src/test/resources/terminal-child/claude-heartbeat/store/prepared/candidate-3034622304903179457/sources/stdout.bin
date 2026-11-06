@@ -1,0 +1,5 @@
+{"type":"system","subtype":"init","session_id":"native-1","claude_code_version":"2.1.316"}
+{"type":"assistant","message":{"id":"msg_a1","type":"message","role":"assistant","model":"claude-opus-5-5","content":[{"type":"tool_use","id":"toolu_MCP","name":"mcp__slow__wait","input":{}}],"stop_reason":"tool_use"},"parent_tool_use_id":null,"session_id":"native-1","uuid":"a1"}
+{"type":"tool_progress","tool_use_id":"toolu_MCP-heartbeat-0","tool_name":"mcp__slow__wait","parent_tool_use_id":"toolu_MCP","elapsed_time_seconds":30,"heartbeat":true,"session_id":"native-1","uuid":"p1"}
+{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_MCP","type":"tool_result","content":"done"}]},"parent_tool_use_id":null,"session_id":"native-1","uuid":"u1"}
+{"type":"result","subtype":"success","session_id":"native-1","result":"done","is_error":false,"usage":{"input_tokens":11,"cache_creation_input_tokens":0,"cache_read_input_tokens":3,"output_tokens":4}}
