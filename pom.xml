@@ -859,8 +859,12 @@
             <releases>
                 <enabled>false</enabled>
             </releases>
+            <!-- Re-check snapshots on every build. Journal publishes a snapshot on every push to its main, and CI and
+                 the publish workflow restore a cached ~/.m2: with the default daily policy they kept an older
+                 journal-ocsf-writer / journal-capture-tck SNAPSHOT for up to a day. -->
             <snapshots>
                 <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
             </snapshots>
         </repository>
     </repositories>
