@@ -196,6 +196,94 @@ class ClaudeClientLifecycleTest {
 		assertDead();
 	}
 
+	/**
+	 * A run stopped mid-stream, by a cancel or by a timeout, still seals what it
+	 * captured: an incomplete acquisition that names the missing terminal and keeps the
+	 * stream bytes received before the stop.
+	 */
+	@Test
+	void aRunStoppedMidStreamSealsWhatItCapturedAsIncomplete() throws Exception {
+		for (String stop : List.of("cancel", "timeout")) {
+			Files.deleteIfExists(directory.resolve("waiting"));
+			var sources = new CompletableFuture<Map<String, Object>>();
+			var builder = AgentClient.builder(capturingProvider(stop)).executionRecorder(recorder(sources));
+			if (stop.equals("timeout"))
+				builder.defaultTimeout(Duration.ofSeconds(2));
+			try (var client = builder.build()) {
+				var execution = client.goal("partial").runAsync();
+				awaitFile("waiting");
+				if (stop.equals("cancel"))
+					assertThat(execution.cancel(true)).isTrue();
+				assertThatThrownBy(execution::result).as(stop).isInstanceOf(Exception.class);
+				var evidence = sources.get(15, TimeUnit.SECONDS);
+				assertThat(evidence).as(stop).containsKey("claudeAcquisition");
+				var acquired = (ClaudeAcquisition) evidence.get("claudeAcquisition");
+				assertThat(acquired.complete()).as(stop).isFalse();
+				var manifest = CaptureFiles.JSON.readTree(acquired.manifest().toFile());
+				assertThat(manifest.path("process").path("terminal_received").asBoolean()).as(stop).isFalse();
+				assertThat(manifest.path("capture_errors").toString()).as(stop)
+					.contains("No terminal SDK result observed");
+				assertThat(Files.readString(acquired.manifest().getParent().resolve("stdout.bin"))).as(stop)
+					.contains("partial-progress");
+				awaitDelivery(execution);
+				assertThat(execution.recording().evidence().acquisition()).as(stop)
+					.isEqualTo(CaptureAcquisition.INCOMPLETE);
+			}
+			assertDead();
+		}
+	}
+
+	/** More than 4 MiB of stream output is captured whole, not truncated. */
+	@Test
+	void largeStreamOutputIsCapturedWithoutDroppingBytes() throws Exception {
+		var sources = new CompletableFuture<Map<String, Object>>();
+		try (var client = AgentClient.builder(capturingProvider("large"))
+			.executionRecorder(recorder(sources))
+			.defaultTimeout(Duration.ofSeconds(20))
+			.build()) {
+			var execution = client.goal("large").runAsync();
+			assertThat(execution.result().isSuccessful()).isTrue();
+			var acquired = (ClaudeAcquisition) sources.get(15, TimeUnit.SECONDS).get("claudeAcquisition");
+			var manifest = CaptureFiles.JSON.readTree(acquired.manifest().toFile());
+			assertThat(manifest.path("capture_errors").toString()).doesNotContain("dropped");
+			String stdout = Files.readString(acquired.manifest().getParent().resolve("stdout.bin"));
+			assertThat(stdout.length()).isGreaterThan(5 * 1024 * 1024);
+			assertThat(stdout).contains("large-0 ", "large-63 ");
+		}
+		assertDead();
+	}
+
+	private ClaudeClientProvider capturingProvider(String name) throws Exception {
+		provider();
+		return ClaudeClientProvider.builder()
+			.workingDirectory(directory)
+			.claudePath(directory.resolve("child.py").toString())
+			.acquisitionDirectory(directory.resolve("captures-" + name), "2.1.316")
+			.build();
+	}
+
+	private static ExecutionRecorder recorder(CompletableFuture<Map<String, Object>> sources) {
+		return new ExecutionRecorder() {
+			@Override
+			public java.util.function.Supplier<String> prepare(ExecutionDecision decision) {
+				throw new AssertionError();
+			}
+
+			@Override
+			public java.util.function.Supplier<String> prepare(ExecutionDecision decision,
+					Map<String, Object> evidence) {
+				sources.complete(evidence);
+				return () -> "test-ack";
+			}
+		};
+	}
+
+	private static void awaitDelivery(AgentExecution execution) throws InterruptedException {
+		long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+		while (!(execution.recording().delivery() instanceof TerminalDelivery.Completed) && System.nanoTime() < until)
+			Thread.sleep(5);
+	}
+
 	@Test
 	void stoppedUnsentTurnCannotDispatchAndNoHistoryIsInvented() throws Exception {
 		var connection = provider().open(DefaultAgentOptions.builder().build());

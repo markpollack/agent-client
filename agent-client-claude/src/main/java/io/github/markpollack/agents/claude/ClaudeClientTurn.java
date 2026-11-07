@@ -32,6 +32,20 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 
 	private volatile ClaudeExecutionResult result;
 
+	/** What the read has accepted so far; the terminal result once one arrives. */
+	private volatile ClaudeExecutionResult partial;
+
+	/**
+	 * Released when a dispatched call returns or throws, so its partial result is stable.
+	 */
+	private final java.util.concurrent.CountDownLatch readEnded = new java.util.concurrent.CountDownLatch(1);
+
+	/**
+	 * How long sealing waits for a stopped read to end. A stop kills the process, so the
+	 * read normally ends at once; this stays well inside the recorder's 30 s stale bound.
+	 */
+	private static final long READ_END_WAIT_SECONDS = 10;
+
 	private volatile String prompt;
 
 	private volatile io.github.markpollack.agents.client.CaptureAcquisition acquisition = io.github.markpollack.agents.client.CaptureAcquisition.PENDING;
@@ -66,12 +80,7 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 			synchronized (this) {
 				this.finished = true;
 			}
-			var response = this.result.response(this.generation.cli.getModel(), Duration.between(start, Instant.now()),
-					null, null);
-			response.getMetadata().put("connectionId", this.generation.id);
-			response.getMetadata().put("sessionReconnected", this.generation.reconnected);
-			response.getMetadata().put("launchPath", "sdk-observed-process-inventory");
-			return response;
+			return response(start);
 		}
 		catch (RuntimeException failure) {
 			try {
@@ -82,6 +91,18 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 			}
 			throw failure;
 		}
+		finally {
+			this.readEnded.countDown();
+		}
+	}
+
+	private AgentResponse response(Instant start) {
+		var response = this.result.response(this.generation.cli.getModel(), Duration.between(start, Instant.now()),
+				null, null);
+		response.getMetadata().put("connectionId", this.generation.id);
+		response.getMetadata().put("sessionReconnected", this.generation.reconnected);
+		response.getMetadata().put("launchPath", "sdk-observed-process-inventory");
+		return response;
 	}
 
 	private synchronized void startDispatch(String prompt) {
@@ -95,6 +116,7 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 
 	private ClaudeExecutionResult read() {
 		var result = new ClaudeExecutionResult();
+		this.partial = result;
 		var messages = this.generation.client.receiveResponse();
 		while (messages.hasNext()) {
 			var parsed = messages.next();
@@ -126,7 +148,7 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 			io.github.markpollack.agents.client.ExecutionDecision decision) {
 		if (this.generation.retainedCapture != null || this.generation.sources == null)
 			return java.util.Optional.empty();
-		var observed = this.result;
+		var observed = observedForSealing();
 		if (observed == null) {
 			this.acquisition = io.github.markpollack.agents.client.CaptureAcquisition.INCOMPLETE;
 			return java.util.Optional.empty();
@@ -150,9 +172,9 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 	public Map<String, Object> recordingEvidence() {
 		if (this.generation.retainedCapture != null)
 			return Map.of("claudeRetainedCapture", this.generation.retainedCapture);
-		var observed = this.result;
 		if (this.generation.sources == null)
 			return Map.of();
+		var observed = observedForSealing();
 		if (observed == null) {
 			this.acquisition = io.github.markpollack.agents.client.CaptureAcquisition.INCOMPLETE;
 			return Map.of();
@@ -167,6 +189,30 @@ final class ClaudeClientTurn implements AgentExecutionProvider.Turn {
 			this.acquisition = io.github.markpollack.agents.client.CaptureAcquisition.FAILED;
 			throw ex;
 		}
+	}
+
+	/**
+	 * The result to seal: the terminal one or, for a turn that was dispatched but
+	 * stopped, timed out or failed before its terminal result, what the read had
+	 * accepted. Sealing waits for that read to end so the partial result is no longer
+	 * changing; the capture then records the missing terminal and cannot claim to be
+	 * complete. A turn that was never dispatched has nothing to seal.
+	 */
+	private ClaudeExecutionResult observedForSealing() {
+		var terminal = this.result;
+		if (terminal != null)
+			return terminal;
+		synchronized (this) {
+			if (!this.started)
+				return null;
+		}
+		try {
+			this.readEnded.await(READ_END_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+		}
+		catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+		}
+		return this.result != null ? this.result : this.partial;
 	}
 
 	@Override

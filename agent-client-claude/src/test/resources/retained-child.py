@@ -121,6 +121,17 @@ for line in sys.stdin:
     if prompt == 'wait':
         (root / 'waiting').touch()
         while True: time.sleep(.05)
+    if prompt == 'partial':
+        # Work in progress that a stop or timeout interrupts: an assistant message, then no terminal result.
+        send({'type': 'assistant', 'session_id': sid, 'message': {'id': 'm-partial', 'role': 'assistant',
+              'model': 'fixture', 'content': [{'type': 'text', 'text': 'partial-progress'}]}})
+        (root / 'waiting').touch()
+        while True: time.sleep(.05)
+    if prompt == 'large':
+        # More than 4 MiB of stream output before the terminal result, in messages of about 80 KiB.
+        for i in range(64):
+            send({'type': 'assistant', 'session_id': sid, 'message': {'id': 'm-large-' + str(i), 'role': 'assistant',
+                  'model': 'fixture', 'content': [{'type': 'text', 'text': ('large-' + str(i) + ' ') + 'x' * 81920}]}})
     if prompt == 'eof':
         sys.exit(0)
     if prompt == 'wrong-history': sid = 'different-history'

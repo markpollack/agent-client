@@ -13,16 +13,18 @@ import java.util.*;
 /** A bounded observation of an exact file, never a prefix inferred after the session. */
 final class NativePrefixObservation {
 
-	private static final int LIMIT = 4 * 1024 * 1024;
-
 	private NativePrefixObservation() {
 	}
 
 	static Map<String, Object> observe(Path file) {
+		return observe(file, ClaudeCaptureLimit.DEFAULT);
+	}
+
+	static Map<String, Object> observe(Path file, ClaudeCaptureLimit limit) {
 		if (file == null)
 			return Map.of("unavailable", "No exact retained transcript configured");
 		try {
-			byte[] bytes = read(file);
+			byte[] bytes = readWithIdentity(file, limit).bytes();
 			return Map.of("bytes", bytes.length, "sha256", hash(bytes));
 		}
 		catch (IOException | RuntimeException failure) {
@@ -60,12 +62,19 @@ final class NativePrefixObservation {
 	}
 
 	static Read readWithIdentity(Path file) throws IOException {
+		return readWithIdentity(file, ClaudeCaptureLimit.DEFAULT);
+	}
+
+	static Read readWithIdentity(Path file, ClaudeCaptureLimit limit) throws IOException {
 		var before = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-		if (!before.isRegularFile() || before.size() > LIMIT)
-			throw new IOException("Native prefix is not a bounded regular file");
+		if (!before.isRegularFile())
+			throw new IOException("Native prefix is not a regular file");
+		if (before.size() > limit.bytes())
+			throw new IOException("Native prefix of " + before.size() + " bytes exceeds the capture limit of "
+					+ limit.bytes() + " bytes");
 		byte[] bytes;
 		try (var input = Files.newInputStream(file)) {
-			bytes = input.readNBytes(LIMIT + 1);
+			bytes = input.readNBytes(limit.bytes() + 1);
 		}
 		var after = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
 		if (!stable(before, after, bytes.length))

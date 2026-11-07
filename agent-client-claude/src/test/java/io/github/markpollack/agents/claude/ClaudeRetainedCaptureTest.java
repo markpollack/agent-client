@@ -108,12 +108,22 @@ class ClaudeRetainedCaptureTest {
 	}
 
 	@Test
-	void overflowPreservesOnlyOriginalPrefixAndCannotClaimComplete() throws Exception {
+	void outputBeyondFourMebibytesIsCapturedWhole() throws Exception {
 		var capture = capture();
+		capture.observe(Stream.STDOUT, new byte[5 * 1024 * 1024]);
+		capture.seal(true, true, true);
+		var node = CaptureFiles.JSON.readTree(capture.write(root.resolve("missing")).toFile());
+		assertThat(node.path("overflow").asBoolean()).isFalse();
+		assertThat(Files.size(root.resolve("G/stdout.bin"))).isEqualTo(5 * 1024 * 1024);
+	}
+
+	@Test
+	void overflowPreservesOnlyOriginalPrefixAndCannotClaimComplete() throws Exception {
+		var capture = capture(new ClaudeCaptureLimit(16, ClaudeCaptureLimit.DEFAULT.observations()));
 		byte[] prefix = "original".getBytes(StandardCharsets.UTF_8);
 		capture.observe(Stream.STDOUT, prefix);
 		prefix[0] = 'X';
-		capture.observe(Stream.STDOUT, new byte[4 * 1024 * 1024]);
+		capture.observe(Stream.STDOUT, new byte[64]);
 		capture.observe(Stream.STDOUT, "tail".getBytes(StandardCharsets.UTF_8));
 		capture.seal(true, true, true);
 		var node = CaptureFiles.JSON.readTree(capture.write(root.resolve("missing")).toFile());
@@ -121,12 +131,12 @@ class ClaudeRetainedCaptureTest {
 		assertThat(node.path("transportComplete").asBoolean()).isFalse();
 		assertThat(Files.readString(root.resolve("G/stdout.bin"))).isEqualTo("original");
 		var source = node.path("sources").get(1);
-		assertThat(source.path("dropped").asLong()).isEqualTo(4 * 1024 * 1024 + 4);
+		assertThat(source.path("dropped").asLong()).isEqualTo(64 + 4);
 	}
 
 	@Test
 	void metadataIsBoundedAndOpenOrUnterminatedStreamsCannotClaimComplete() throws Exception {
-		var capture = capture();
+		var capture = capture(new ClaudeCaptureLimit(ClaudeCaptureLimit.DEFAULT.bytes(), 16384));
 		for (int i = 0; i < 16385; i++)
 			capture.observe(Stream.STDERR, new byte[0]);
 		for (int i = 0; i < 257; i++)
@@ -191,6 +201,10 @@ class ClaudeRetainedCaptureTest {
 
 	private ClaudeRetainedCapture capture() {
 		return new ClaudeRetainedCapture("G", root, "fixture");
+	}
+
+	private ClaudeRetainedCapture capture(ClaudeCaptureLimit limit) {
+		return new ClaudeRetainedCapture("G", root, "fixture", null, null, limit);
 	}
 
 	private static void await(java.util.function.BooleanSupplier condition) throws Exception {

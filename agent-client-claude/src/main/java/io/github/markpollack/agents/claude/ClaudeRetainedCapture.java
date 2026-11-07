@@ -19,8 +19,6 @@ import io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver;
  */
 public final class ClaudeRetainedCapture {
 
-	private static final int LIMIT = 4 * 1024 * 1024;
-
 	private final String connectionId;
 
 	private final Path directory;
@@ -61,6 +59,8 @@ public final class ClaudeRetainedCapture {
 
 	private final FreshStartObserver fresh;
 
+	private final ClaudeCaptureLimit limit;
+
 	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion) {
 		this(connectionId, directory, cliVersion, null);
 	}
@@ -71,6 +71,12 @@ public final class ClaudeRetainedCapture {
 
 	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion, Path nativeTranscript,
 			FreshStartObserver fresh) {
+		this(connectionId, directory, cliVersion, nativeTranscript, fresh, ClaudeCaptureLimit.DEFAULT);
+	}
+
+	ClaudeRetainedCapture(String connectionId, Path directory, String cliVersion, Path nativeTranscript,
+			FreshStartObserver fresh, ClaudeCaptureLimit limit) {
+		this.limit = java.util.Objects.requireNonNull(limit);
 		this.fresh = fresh;
 		this.nativeTranscript = nativeTranscript;
 		this.connectionId = connectionId;
@@ -101,7 +107,8 @@ public final class ClaudeRetainedCapture {
 				return;
 			long start = this.observed.get(stream);
 			this.observed.put(stream, start + bytes.length);
-			if (this.overflow || bytes.length > LIMIT - this.captured || this.observations.size() >= 16384) {
+			if (this.overflow || bytes.length > this.limit.bytes() - this.captured
+					|| this.observations.size() >= this.limit.observations()) {
 				this.overflow = true;
 				return;
 			}

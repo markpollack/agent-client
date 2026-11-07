@@ -9,7 +9,8 @@ import java.util.*;
 import io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver;
 
 /**
- * Bounded memory acquisition. All filesystem/Journal work occurs on the recording lane.
+ * Bounded memory acquisition ({@link ClaudeCaptureLimit}). All filesystem/Journal work
+ * occurs on the recording lane.
  */
 final class ClaudeClientSources {
 
@@ -17,7 +18,9 @@ final class ClaudeClientSources {
 
 	private final List<Chunk> chunks = new ArrayList<>();
 
-	private int bytes;
+	private final ClaudeCaptureLimit limit;
+
+	private long bytes;
 
 	private long dropped;
 
@@ -40,6 +43,14 @@ final class ClaudeClientSources {
 	}
 
 	private Map<String, Object> process = Map.of();
+
+	ClaudeClientSources() {
+		this(ClaudeCaptureLimit.DEFAULT);
+	}
+
+	ClaudeClientSources(ClaudeCaptureLimit limit) {
+		this.limit = Objects.requireNonNull(limit);
+	}
 
 	void observeProcess(io.github.markpollack.claude.agent.sdk.ClaudeSyncClient client) {
 		if (!this.process.isEmpty())
@@ -65,13 +76,18 @@ final class ClaudeClientSources {
 	void observe(TransportByteObserver.Stream stream, byte[] data) {
 		Instant observedAt = Instant.now();
 		synchronized (this) {
-			if (this.sealed || data.length > 4 * 1024 * 1024 - this.bytes) {
+			if (this.sealed || data.length > this.limit.bytes() - this.bytes) {
 				this.dropped += data.length;
 				return;
 			}
 			this.chunks.add(new Chunk(stream, data.clone(), observedAt));
 			this.bytes += data.length;
 		}
+	}
+
+	/** The capture error for output dropped past the limit so far; null when none was. */
+	synchronized String droppedFailure() {
+		return this.dropped == 0 ? null : this.limit.dropped(this.dropped);
 	}
 
 	ClaudeAcquisition seal(ClaudeClientGeneration generation, ClaudeExecutionResult result, String executionId,
@@ -90,7 +106,7 @@ final class ClaudeClientSources {
 				generation.config.cliVersion());
 		var capture = new ClaudeCaptureSession(options, generation.id, this.started);
 		capture.observeProcess(this.process);
-		String failure = missing == 0 ? null : "Bounded source buffer dropped " + missing + " bytes";
+		String failure = missing == 0 ? null : this.limit.dropped(missing);
 		var resources = generation.client.transportResources().orElseThrow();
 		if (!resources.stdout().eof() || !resources.stderr().eof())
 			failure = "Natural source EOF not observed";

@@ -137,13 +137,22 @@ class RetainedGenerationTest {
 	}
 
 	@Test
+	void nativePrefixBeyondFourMebibytesIsObserved() throws Exception {
+		Path large = Files.write(root.resolve("large-transcript.jsonl"), new byte[5 * 1024 * 1024]);
+		assertThat(NativePrefixObservation.observe(large)).containsEntry("bytes", 5 * 1024 * 1024);
+	}
+
+	@Test
 	void nativePrefixObservationIsBoundedAndReportsUnavailableFiles() throws Exception {
 		assertThat(NativePrefixObservation.observe(null)).containsKey("unavailable");
 		assertThat(NativePrefixObservation.observe(root.resolve("absent"))).containsKey("unavailable");
 		assertThat(NativePrefixObservation.observe(root)).containsKey("unavailable");
 		Path large = root.resolve("large");
 		Files.write(large, new byte[4 * 1024 * 1024 + 1]);
-		assertThat(NativePrefixObservation.observe(large)).containsKey("unavailable");
+		assertThat(NativePrefixObservation.observe(large, new ClaudeCaptureLimit(4 * 1024 * 1024, 1)))
+			.extractingByKey("unavailable")
+			.asString()
+			.contains("exceeds the capture limit of 4194304 bytes");
 		Path original = Files.writeString(root.resolve("N.jsonl"), "original");
 		Files.createDirectory(root.resolve("N"));
 		Files.writeString(root.resolve("N/sidecar"), "owned");
