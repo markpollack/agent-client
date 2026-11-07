@@ -58,10 +58,23 @@ class RecordingArchiveReaderTest {
 		assertThat(report.path("candidates").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(texts(report.path("cores"))).containsExactly("main", "child:toolu_AGENT");
-		assertThat(report.path("acceptance").asText()).startsWith("INCOMPLETE");
+		assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
+			.isEqualTo("ACCEPTED");
 		assertThat(report.path("seriousDiagnostics")).isEmpty();
 		assertThat(report.path("unlinkedChildCores")).isEmpty();
 		assertThat(contextRows(Path.of(report.path("export").asText()))).containsExactly("main", "child:toolu_AGENT");
+	}
+
+	@Test
+	void aNestedSubAgentIsReadWithBothChildCores() throws IOException {
+		ObjectNode report = readCase("claude-sub-agent-nested");
+		assertThat(report.path("candidates").asInt()).as(report.toString()).isEqualTo(1);
+		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
+		assertThat(texts(report.path("cores"))).containsExactlyInAnyOrder("main", "child:toolu_AGENT",
+				"child:toolu_INNER");
+		assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
+			.isEqualTo("ACCEPTED");
+		assertThat(contextRows(Path.of(report.path("export").asText()))).hasSize(3);
 	}
 
 	@Test
@@ -85,7 +98,7 @@ class RecordingArchiveReaderTest {
 	@Test
 	void aChildCoreNoRecordingLinksIsReportedAndIsNoCandidate() throws IOException {
 		Path store = this.temp.resolve("orphan");
-		copy(CASES.resolve("claude-sub-agent/store/prepared/candidate-4620413014898954983/children/toolu_AGENT"),
+		copy(rootEvents(CASES.resolve("claude-sub-agent/store")).getParent().resolve("children/toolu_AGENT"),
 				store.resolve("prepared/stray"));
 		ObjectNode report = read(store, CASES.resolve("claude-sub-agent/assembly-expectation.json"));
 		assertThat(report.path("candidates").asInt()).isZero();
@@ -99,7 +112,7 @@ class RecordingArchiveReaderTest {
 	void aRecordingWhoseBindingCannotBeReadIsReportedNotThrown() throws IOException {
 		Path store = this.temp.resolve("unreadable");
 		copy(CASES.resolve("claude-heartbeat/store"), store);
-		Path events = store.resolve("prepared/candidate-3034622304903179457/events.jsonl");
+		Path events = rootEvents(store);
 		List<String> lines = new ArrayList<>(Files.readAllLines(events));
 		for (int i = 0; i < lines.size(); i++) {
 			JsonNode line = JSON.readTree(lines.get(i));
@@ -121,7 +134,7 @@ class RecordingArchiveReaderTest {
 	void aRecordingWhoseExportJournalRefusesIsReportedNotThrown() throws IOException {
 		Path store = this.temp.resolve("refused-child");
 		copy(CASES.resolve("claude-sub-agent/store"), store);
-		Path child = store.resolve("prepared/candidate-4620413014898954983/children/toolu_AGENT/events.jsonl");
+		Path child = rootEvents(store).getParent().resolve("children/toolu_AGENT/events.jsonl");
 		List<String> lines = new ArrayList<>(Files.readAllLines(child));
 		ObjectNode format = (ObjectNode) JSON.readTree(lines.get(0));
 		format.with("format").put("package_version", "9.9.9-unsupported");
@@ -132,6 +145,19 @@ class RecordingArchiveReaderTest {
 		assertThat(report.path("acceptance").asText()).isNotBlank();
 		assertThat(report.path("exportRefused").asText()).as(report.toString()).contains("child:toolu_AGENT");
 		assertThat(report.has("export")).isFalse();
+	}
+
+	/**
+	 * The root core's event file in a store: the one not under a {@code children}
+	 * directory.
+	 */
+	private static Path rootEvents(Path store) throws IOException {
+		try (Stream<Path> files = Files.walk(store)) {
+			return files
+				.filter(p -> p.getFileName().toString().equals("events.jsonl") && !p.toString().contains("/children/"))
+				.findFirst()
+				.orElseThrow();
+		}
 	}
 
 	/** The core label of every canonical-core context row in an export. */

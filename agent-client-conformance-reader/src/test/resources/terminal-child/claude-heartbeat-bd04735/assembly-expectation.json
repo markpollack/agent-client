@@ -1,1 +1,265 @@
-{"kind":"agent-journal/assembly-expectation","version":"0.1","written":{"basis":"Independent native locators: same UUID assistant records; tool_use id and tool_result tool_use_id; source-reported session identity and final output token scopes. Validated on 2.1.316 original SDK bytes and native session file."},"profile_id":"claude-code/2.1.316/sdk-stdio+session-file","precedence":["stream","transcript","sidecar"],"sources":[{"role":"stream","requirement":"required","session":[{"pointer":"/session_id"}]},{"role":"transcript","requirement":"optional","session":[{"pointer":"/sessionId"}]},{"role":"sidecar","requirement":"optional","companion":"transcript"}],"entities":[{"name":"assistant record","class":"model_response","locators":{"stream":{"select":{"/type":"assistant"},"pointer":"/uuid","stage":{"pointer":"/message/stop_reason","null":"streamed (stop_reason null)","otherwise":"final (stop_reason reported)"}},"transcript":{"select":{"/type":"assistant"},"pointer":"/uuid","stage":{"pointer":"/message/stop_reason","null":"streamed (stop_reason null)","otherwise":"final (stop_reason reported)"}}},"basis":"both sources write each assistant record under its uuid; the lifecycle stage of each record is read from its own stop_reason (streamed or final), never from the candidate (ACCT-1)"},{"name":"tool request","class":"tool_call","activities":[1],"locators":{"stream":{"select":{"/type":"assistant"},"each":"/message/content","element_select":{"/type":"tool_use"},"pointer":"/id"},"transcript":{"select":{"/type":"assistant"},"each":"/message/content","element_select":{"/type":"tool_use"},"pointer":"/id"}},"basis":"a tool_use block's id"},{"name":"tool result","class":"tool_call","activities":[2],"locators":{"stream":{"select":{"/type":"user"},"each":"/message/content","element_select":{"/type":"tool_result"},"pointer":"/tool_use_id"},"transcript":{"select":{"/type":"user"},"each":"/message/content","element_select":{"/type":"tool_result"},"pointer":"/tool_use_id"}},"basis":"a tool_result block names its call by tool_use_id"}],"totals":[{"name":"response_final_output_tokens","basis":"each API message's output tokens once, from the session file's assistant records (stop_reason set); the stream's are provisional","native":{"transcript":{"locator":{"select":{"/type":"assistant"},"pointer":"/message/id"},"value":"/message/usage/output_tokens"}},"canonical":{"class":"model_response","key":"/response_uid","array":"usage_observations","where":{"scope_id":2,"usage_status_id":2},"member":"output_tokens"}},{"name":"run_output_tokens","basis":"the result record's run usage, once: the scope 4 observation that states no aggregation (the run's last response, at the same scope with aggregation 3 Single response, is not part of it)","native":{"stream":{"locator":{"select":{"/type":"result"},"pointer":"/session_id"},"value":"/usage/output_tokens"}},"canonical":{"class":"prompt_turn","key":"/session_uid","array":"usage_observations","where":{"scope_id":4,"aggregation_id":null},"member":"output_tokens"}}],"authorities":[{"class":"tool_call","pointer":"/tool_result/structured_result","role":"stream","native_pointer":"/tool_use_result","basis":"The stream reports the CLI structured result object. The session file toolUseResult can be rendered text; that distinct representation stays on its source observation."}]}
+{
+  "kind": "agent-journal/assembly-expectation",
+  "version": "0.1",
+  "written": {
+    "basis": "Independent native locators: same UUID assistant records; tool_use id and tool_result tool_use_id; source-reported session identity and final output token scopes. Validated on 2.1.316 original SDK bytes and native session file."
+  },
+  "profile_id": "claude-code/2.1.316/sdk-stdio+session-file",
+  "precedence": [
+    "stream",
+    "transcript",
+    "child_transcript",
+    "sidecar"
+  ],
+  "sources": [
+    {
+      "role": "stream",
+      "requirement": "required",
+      "session": [
+        {
+          "pointer": "/session_id"
+        }
+      ]
+    },
+    {
+      "role": "transcript",
+      "requirement": "optional",
+      "session": [
+        {
+          "pointer": "/sessionId"
+        }
+      ]
+    },
+    {
+      "role": "child_transcript",
+      "requirement": "optional",
+      "session": [
+        {
+          "pointer": "/sessionId"
+        }
+      ]
+    },
+    {
+      "role": "sidecar",
+      "requirement": "optional",
+      "companion": "transcript"
+    }
+  ],
+  "entities": [
+    {
+      "name": "assistant record",
+      "class": "model_response",
+      "locators": {
+        "stream": {
+          "select": {
+            "/type": "assistant"
+          },
+          "pointer": "/uuid",
+          "stage": {
+            "pointer": "/message/stop_reason",
+            "null": "streamed (stop_reason null)",
+            "otherwise": "final (stop_reason reported)"
+          }
+        },
+        "transcript": {
+          "select": {
+            "/type": "assistant"
+          },
+          "pointer": "/uuid",
+          "stage": {
+            "pointer": "/message/stop_reason",
+            "null": "streamed (stop_reason null)",
+            "otherwise": "final (stop_reason reported)"
+          }
+        },
+        "child_transcript": {
+          "select": {
+            "/type": "assistant"
+          },
+          "pointer": "/uuid",
+          "stage": {
+            "pointer": "/message/stop_reason",
+            "null": "streamed (stop_reason null)",
+            "otherwise": "final (stop_reason reported)"
+          }
+        }
+      },
+      "basis": "both sources write each assistant record under its uuid; the lifecycle stage of each record is read from its own stop_reason (streamed or final), never from the candidate (ACCT-1)"
+    },
+    {
+      "name": "tool request",
+      "class": "tool_call",
+      "activities": [
+        1
+      ],
+      "locators": {
+        "stream": {
+          "select": {
+            "/type": "assistant"
+          },
+          "each": "/message/content",
+          "element_select": {
+            "/type": "tool_use"
+          },
+          "pointer": "/id"
+        },
+        "transcript": {
+          "select": {
+            "/type": "assistant"
+          },
+          "each": "/message/content",
+          "element_select": {
+            "/type": "tool_use"
+          },
+          "pointer": "/id"
+        },
+        "child_transcript": {
+          "select": {
+            "/type": "assistant"
+          },
+          "each": "/message/content",
+          "element_select": {
+            "/type": "tool_use"
+          },
+          "pointer": "/id"
+        }
+      },
+      "basis": "a tool_use block's id"
+    },
+    {
+      "name": "tool result",
+      "class": "tool_call",
+      "activities": [
+        2
+      ],
+      "locators": {
+        "stream": {
+          "select": {
+            "/type": "user"
+          },
+          "each": "/message/content",
+          "element_select": {
+            "/type": "tool_result"
+          },
+          "pointer": "/tool_use_id"
+        },
+        "transcript": {
+          "select": {
+            "/type": "user"
+          },
+          "each": "/message/content",
+          "element_select": {
+            "/type": "tool_result"
+          },
+          "pointer": "/tool_use_id"
+        },
+        "child_transcript": {
+          "select": {
+            "/type": "user"
+          },
+          "each": "/message/content",
+          "element_select": {
+            "/type": "tool_result"
+          },
+          "pointer": "/tool_use_id"
+        }
+      },
+      "basis": "a tool_result block names its call by tool_use_id"
+    },
+    {
+      "name": "user prompt record",
+      "class": "prompt_turn",
+      "activities": [
+        1
+      ],
+      "locators": {
+        "stream": {
+          "select": {
+            "/type": "user"
+          },
+          "pointer": "/uuid"
+        },
+        "transcript": {
+          "select": {
+            "/type": "user"
+          },
+          "pointer": "/uuid"
+        },
+        "child_transcript": {
+          "select": {
+            "/type": "user"
+          },
+          "pointer": "/uuid"
+        }
+      }
+    }
+  ],
+  "totals": [
+    {
+      "name": "response_final_output_tokens",
+      "basis": "each API message's output tokens once, from the session file's assistant records (stop_reason set); the stream's are provisional",
+      "native": {
+        "transcript": {
+          "locator": {
+            "select": {
+              "/type": "assistant"
+            },
+            "pointer": "/message/id"
+          },
+          "value": "/message/usage/output_tokens"
+        }
+      },
+      "canonical": {
+        "class": "model_response",
+        "key": "/response_uid",
+        "array": "usage_observations",
+        "where": {
+          "scope_id": 2,
+          "usage_status_id": 2
+        },
+        "member": "output_tokens"
+      }
+    },
+    {
+      "name": "run_output_tokens",
+      "basis": "the result record's run usage, once: the scope 4 observation that states no aggregation (the run's last response, at the same scope with aggregation 3 Single response, is not part of it)",
+      "native": {
+        "stream": {
+          "locator": {
+            "select": {
+              "/type": "result"
+            },
+            "pointer": "/session_id"
+          },
+          "value": "/usage/output_tokens"
+        }
+      },
+      "canonical": {
+        "class": "prompt_turn",
+        "key": "/session_uid",
+        "array": "usage_observations",
+        "where": {
+          "scope_id": 4,
+          "aggregation_id": null
+        },
+        "member": "output_tokens"
+      }
+    }
+  ],
+  "authorities": [
+    {
+      "class": "tool_call",
+      "pointer": "/tool_result/structured_result",
+      "role": "stream",
+      "native_pointer": "/tool_use_result",
+      "basis": "The stream reports the CLI structured result object. The session file toolUseResult can be rendered text; that distinct representation stays on its source observation."
+    },
+    {
+      "class": "prompt_turn",
+      "pointer": "/content_blocks/0/block_type",
+      "role": "stream",
+      "native_pointer": "/message/content/0/type",
+      "basis": "A sub-agent's prompt is a content block array in the stream and a plain string in its session file; a string has no native block type, so the stream's is kept and the session file's representation stays on its observation."
+    }
+  ]
+}
