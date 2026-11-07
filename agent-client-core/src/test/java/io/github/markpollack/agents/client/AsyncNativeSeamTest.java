@@ -171,7 +171,7 @@ class AsyncNativeSeamTest {
 	}
 
 	@Test
-	void partialAcquisitionIsTransferredAndClosedWithOriginalCause() {
+	void partialAcquisitionIsTransferredAndClosedWithOriginalCause() throws Exception {
 		var closes = new AtomicInteger();
 		var cause = new IllegalStateException("launch failed");
 		AgentExecutionProvider provider = options -> {
@@ -194,6 +194,9 @@ class AsyncNativeSeamTest {
 			assertThat(closes).hasValue(1);
 			var execution = client.goal("one shot").runAsync();
 			assertThatThrownBy(execution::result).isInstanceOf(AgentExecutionException.class).hasRootCause(cause);
+			// Closing the partial connection is cleanup: it is confirmed by termination,
+			// which can follow the failed result.
+			assertThat(execution.awaitTermination(Duration.ofSeconds(5)).cleanupConfirmed()).isTrue();
 			assertThat(closes).hasValue(2);
 		}
 	}
