@@ -149,11 +149,17 @@ class CodexFailedExecutionRecordTest {
 
 	@Test
 	void launchFailureNamesACaptureWithNoProcess() throws Exception {
-		try (var client = client(this.root.resolve("absent/codex").toString(), new Probe(false))) {
+		String absent = this.root.resolve("absent/codex").toString();
+		try (var client = client(absent, new Probe(false))) {
 			var execution = client.goal("launch").runAsync();
 			var settled = settle(execution);
-			assertThat(settled.failure().failure().causes())
-				.anySatisfy(cause -> assertThat(cause).startsWith("org.zeroturnaround.exec.ProcessInitException"));
+			// By JDK, zt-exec throws ProcessInitException or a plain IOException.
+			// Either is an IOException naming the executable.
+			var causes = new java.util.ArrayList<Throwable>();
+			for (Throwable t = settled.failure().getCause(); t != null && causes.size() < 16; t = t.getCause())
+				causes.add(t);
+			assertThat(causes).anySatisfy(cause -> assertThat(cause).isInstanceOf(java.io.IOException.class)
+				.hasMessageContaining("Could not execute [" + absent + ","));
 			var manifest = settled.manifest(execution.executionId());
 			assertThat(manifest.path("process").path("exit_code").isNull()).isTrue();
 			assertThat(manifest.path("process").path("observed_pids")).isEmpty();
