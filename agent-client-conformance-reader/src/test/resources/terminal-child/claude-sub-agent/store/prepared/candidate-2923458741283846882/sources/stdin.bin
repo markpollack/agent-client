@@ -1,0 +1,2 @@
+{"type":"control_request","request_id":"ec3e4a5a-0","request":{"subtype":"initialize","hooks":{"PreToolUse":[{"matcher":"scrubbed:8360f5aec430","hookCallbackIds":["scrubbed:2d9219b3ab62"],"timeout":60}]}}}
+{"type":"user","message":{"role":"user","content":"scrubbed:af7de5376e17"},"parent_tool_use_id":null,"session_id":"default"}

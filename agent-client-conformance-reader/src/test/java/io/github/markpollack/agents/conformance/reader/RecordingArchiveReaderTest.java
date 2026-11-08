@@ -23,7 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * A Journal archive whose recording has a child core: the child is read as part of its
  * recording, never as a candidate of its own, and the reader reports instead of throwing.
- * The archives are Journal's sealed {@code terminal-child} cases.
+ * The archives are Journal's sealed cases: a real Claude sub-agent recording, accepted,
+ * and synthetic cases, including a nested sub-agent without acquired session files that
+ * Journal's child-session rule reads as INCOMPLETE.
  */
 class RecordingArchiveReaderTest {
 
@@ -31,19 +33,33 @@ class RecordingArchiveReaderTest {
 
 	private static final ObjectMapper JSON = new ObjectMapper();
 
+	/** The real sub-agent recording's decision and its one {@code Agent} spawn. */
+	private static final String REAL_EXECUTION = "e52ccb3f-a65a-41b5-aaee-b8ca926d0452";
+
+	private static final String SPAWN = "toolu_01KQMhaSZMrxp98fqQBkmHCC";
+
 	@TempDir
 	Path temp;
 
 	private ObjectNode read(Path store, Path assembly) throws IOException {
+		return read(store, assembly, "execution-1");
+	}
+
+	private ObjectNode read(Path store, Path assembly, String executionId) throws IOException {
 		var selector = new LinkedHashMap<String, String>();
-		selector.put("executionId", "execution-1");
+		selector.put("executionId", executionId);
 		selector.put("assembly", assembly.toString());
 		selector.put("export", this.temp.resolve("export-" + System.nanoTime() + ".jsonl").toString());
 		return RecordingArchiveReader.read(store.toAbsolutePath(), selector);
 	}
 
 	private ObjectNode readCase(String name) throws IOException {
-		return read(CASES.resolve(name).resolve("store"), CASES.resolve(name).resolve("assembly-expectation.json"));
+		return readCase(name, "execution-1");
+	}
+
+	private ObjectNode readCase(String name, String executionId) throws IOException {
+		return read(CASES.resolve(name).resolve("store"), CASES.resolve(name).resolve("assembly-expectation.json"),
+				executionId);
 	}
 
 	private static List<String> texts(JsonNode array) {
@@ -54,27 +70,35 @@ class RecordingArchiveReaderTest {
 
 	@Test
 	void aSubAgentChildIsReadAsPartOfItsRecording() throws IOException {
-		ObjectNode report = readCase("claude-sub-agent");
+		ObjectNode report = readCase("claude-sub-agent", REAL_EXECUTION);
 		assertThat(report.path("candidates").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
-		assertThat(texts(report.path("cores"))).containsExactly("main", "child:toolu_AGENT");
+		assertThat(texts(report.path("cores"))).containsExactly("main", "child:" + SPAWN);
 		assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
 			.isEqualTo("ACCEPTED");
 		assertThat(report.path("seriousDiagnostics")).isEmpty();
 		assertThat(report.path("unlinkedChildCores")).isEmpty();
-		assertThat(contextRows(Path.of(report.path("export").asText()))).containsExactly("main", "child:toolu_AGENT");
+		assertThat(report.has("export")).as(report.toString()).isTrue();
+		assertThat(contextRows(Path.of(report.path("export").asText()))).containsExactly("main", "child:" + SPAWN);
 	}
 
+	/**
+	 * Negative control: the synthetic nested case acquires no session file for either
+	 * sub-agent, so Journal's child-session rule leaves it INCOMPLETE. The reader still
+	 * reads both child cores into the one recording and reports the verdict.
+	 */
 	@Test
-	void aNestedSubAgentIsReadWithBothChildCores() throws IOException {
+	void aNestedSubAgentWithoutAcquiredSessionFilesIsIncomplete() throws IOException {
 		ObjectNode report = readCase("claude-sub-agent-nested");
 		assertThat(report.path("candidates").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(texts(report.path("cores"))).containsExactlyInAnyOrder("main", "child:toolu_AGENT",
 				"child:toolu_INNER");
 		assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
-			.isEqualTo("ACCEPTED");
-		assertThat(contextRows(Path.of(report.path("export").asText()))).hasSize(3);
+			.startsWith("INCOMPLETE");
+		assertThat(report.path("acceptanceDetail").asText())
+			.contains("COMPLETENESS acquisition.child_session [child:toolu_AGENT] UNRESOLVED")
+			.contains("COMPLETENESS acquisition.child_session [child:toolu_INNER] UNRESOLVED");
 	}
 
 	@Test
@@ -98,9 +122,9 @@ class RecordingArchiveReaderTest {
 	@Test
 	void aChildCoreNoRecordingLinksIsReportedAndIsNoCandidate() throws IOException {
 		Path store = this.temp.resolve("orphan");
-		copy(rootEvents(CASES.resolve("claude-sub-agent/store")).getParent().resolve("children/toolu_AGENT"),
+		copy(rootEvents(CASES.resolve("claude-sub-agent/store")).getParent().resolve("children/" + SPAWN),
 				store.resolve("prepared/stray"));
-		ObjectNode report = read(store, CASES.resolve("claude-sub-agent/assembly-expectation.json"));
+		ObjectNode report = read(store, CASES.resolve("claude-sub-agent/assembly-expectation.json"), REAL_EXECUTION);
 		assertThat(report.path("candidates").asInt()).isZero();
 		assertThat(report.path("matches").asInt()).isZero();
 		assertThat(texts(report.path("unlinkedChildCores"))).singleElement()
@@ -134,16 +158,16 @@ class RecordingArchiveReaderTest {
 	void aRecordingWhoseExportJournalRefusesIsReportedNotThrown() throws IOException {
 		Path store = this.temp.resolve("refused-child");
 		copy(CASES.resolve("claude-sub-agent/store"), store);
-		Path child = rootEvents(store).getParent().resolve("children/toolu_AGENT/events.jsonl");
+		Path child = rootEvents(store).getParent().resolve("children/" + SPAWN + "/events.jsonl");
 		List<String> lines = new ArrayList<>(Files.readAllLines(child));
 		ObjectNode format = (ObjectNode) JSON.readTree(lines.get(0));
 		format.with("format").put("package_version", "9.9.9-unsupported");
 		lines.set(0, JSON.writeValueAsString(format));
 		Files.write(child, lines);
-		ObjectNode report = read(store, CASES.resolve("claude-sub-agent/assembly-expectation.json"));
+		ObjectNode report = read(store, CASES.resolve("claude-sub-agent/assembly-expectation.json"), REAL_EXECUTION);
 		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(report.path("acceptance").asText()).isNotBlank();
-		assertThat(report.path("exportRefused").asText()).as(report.toString()).contains("child:toolu_AGENT");
+		assertThat(report.path("exportRefused").asText()).as(report.toString()).contains("child:" + SPAWN);
 		assertThat(report.has("export")).isFalse();
 	}
 

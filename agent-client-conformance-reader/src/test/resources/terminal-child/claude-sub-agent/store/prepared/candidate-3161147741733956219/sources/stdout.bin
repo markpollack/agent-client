@@ -1,7 +1,0 @@
-{"type":"system","subtype":"init","session_id":"native-1","claude_code_version":"2.1.316"}
-{"type":"assistant","message":{"id":"msg_a1","type":"message","role":"assistant","model":"claude-opus-5-5","content":[{"type":"tool_use","id":"toolu_AGENT","name":"Agent","input":{}}],"stop_reason":"tool_use"},"parent_tool_use_id":null,"session_id":"native-1","uuid":"a1"}
-{"type":"user","message":{"role":"user","content":[{"type":"text","text":"read beta"}]},"parent_tool_use_id":"toolu_AGENT","agent_id":"a1","session_id":"native-1","uuid":"c1","subagent_type":"general-purpose"}
-{"type":"assistant","message":{"id":"msg_c2","type":"message","role":"assistant","model":"claude-opus-5-5","content":[{"type":"tool_use","id":"toolu_READ","name":"Read","input":{}}],"stop_reason":"tool_use"},"parent_tool_use_id":"toolu_AGENT","session_id":"native-1","uuid":"c2"}
-{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_READ","type":"tool_result","content":"done"}]},"parent_tool_use_id":"toolu_AGENT","session_id":"native-1","uuid":"c3"}
-{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_AGENT","type":"tool_result","content":"done"}]},"parent_tool_use_id":null,"session_id":"native-1","uuid":"u1"}
-{"type":"result","subtype":"success","session_id":"native-1","result":"done","is_error":false,"usage":{"input_tokens":11,"cache_creation_input_tokens":0,"cache_read_input_tokens":3,"output_tokens":4}}
