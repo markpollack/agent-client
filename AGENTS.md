@@ -62,3 +62,14 @@ active-turn cancellation, close, event streaming and translation of session-scop
 
 - Documentation: https://lab.pollack.ai/projects/agent-client (architecture, provider guides,
   configuration reference, tutorials, migration notes).
+
+## When the preferred path hits a separate defect
+
+If the preferred path in a work order runs into a defect outside its scope, aim for the smallest change that can ship
+with the full gate green:
+
+1. Where a quick check can establish it, check whether the defect also occurs on the baseline.
+2. If a smaller change still meets the work order's acceptance criteria and passes the full gate, continue within the
+   existing authorization, and record the separate defect with its owning repository.
+3. Bring the Owner a decision instead if proceeding would change the acceptance criteria, weaken the gate, or expand
+   the work into another repository.
