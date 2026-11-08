@@ -15,10 +15,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 final class CodexManifest {
 
-	/** The acquisition profile every one-shot manifest declares. */
-	static final String PROFILE = "codex-cli-0.166.0-exec-stdio-rollout";
-
 	private CodexManifest() {
+	}
+
+	/**
+	 * The acquisition profile a one-shot manifest declares, named by the caller-observed
+	 * CLI version. The version is recorded here, not gated: Journal decides which
+	 * versions it qualifies.
+	 */
+	static String profile(String version) {
+		return "codex-cli-" + version + "-exec-stdio-rollout";
+	}
+
+	static String profileId(String version) {
+		return "codex-cli/" + version + "/exec-stdio+rollout";
 	}
 
 	record Context(CodexGeneration connection, String execution, Instant start, CodexNativeSource.Prefix previous) {
@@ -28,16 +38,16 @@ final class CodexManifest {
 			CodexNativeSource.Observed nativeSource, boolean complete, String detail) throws IOException {
 		var connection = context.connection();
 		String execution = context.execution();
-		var root = object("kind", "agent-journal/acquired-execution", "version", "0.1", "profile", PROFILE,
-				"profile_id", "codex-cli/0.166.0/exec-stdio+rollout", "acquisition_uid", execution, "complete",
-				complete, "capture_errors", complete ? List.of() : List.of(detail));
+		String version = connection.configuration.version();
+		var root = object("kind", "agent-journal/acquired-execution", "version", "0.1", "profile", profile(version),
+				"profile_id", profileId(version), "acquisition_uid", execution, "complete", complete, "capture_errors",
+				complete ? List.of() : List.of(detail));
 		root.put("process", process(connection, sources, nativeSource));
 		root.put("run",
 				object("run_uid", execution, "session_uid", connection.nativeId, "capture_start",
 						context.start().toString(), "invocation_index", connection.turnIndex, "cli",
-						object("name", "Codex CLI", "vendor_name", "OpenAI", "version",
-								connection.configuration.version()),
-						"launch_settings", object("route", "exec_stdio", "working_directory",
+						object("name", "Codex CLI", "vendor_name", "OpenAI", "version", version), "launch_settings",
+						object("route", "exec_stdio", "working_directory",
 								connection.options.getWorkingDirectory().toString())));
 		var entries = new ArrayList<Map<String, Object>>();
 		for (var source : sources)

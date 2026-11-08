@@ -67,6 +67,13 @@ class OneShotRecordingConformanceTest {
 			"output_tokens", 4, "reasoning_output_tokens", 0);
 
 	/**
+	 * Codex: the terminal profile Journal assigns a qualified one-shot. Earlier Journal
+	 * snapshots name the CLI version; later ones use the version-neutral exec profile.
+	 */
+	private static final Set<String> CODEX_TERMINAL = Set.of("client-terminal-codex-0.166.0/1",
+			"client-terminal-codex-exec/1");
+
+	/**
 	 * Claude: the same quantities in Anthropic's shape. Claude reports no reasoning
 	 * member; zero reasoning is the absence of a thinking count, never an invented zero.
 	 */
@@ -82,7 +89,7 @@ class OneShotRecordingConformanceTest {
 
 	enum Case {
 
-		CODEX_ONE_SHOT(Set.of("client-terminal-codex-0.166.0/1"), CODEX_USAGE, NativeRecording.Outcome.ATTACHED),
+		CODEX_ONE_SHOT(CODEX_TERMINAL, CODEX_USAGE, NativeRecording.Outcome.ATTACHED),
 
 		CLAUDE_ONE_SHOT(CLAUDE_TERMINAL, CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
 

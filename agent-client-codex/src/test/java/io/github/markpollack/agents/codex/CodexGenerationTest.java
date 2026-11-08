@@ -43,17 +43,22 @@ class CodexGenerationTest {
 	}
 
 	private AgentClient.Builder client(Path captures, GenerationProbe probe) {
+		return client(captures, probe, "0.166.0");
+	}
+
+	private AgentClient.Builder client(Path captures, GenerationProbe probe, String version) {
 		var provider = CodexClientProvider.builder()
 			.codexPath(this.root.resolve("codex-child.py").toString())
 			.workingDirectory(this.root)
 			.nativeSessionsDirectory(this.root.resolve("sessions"))
-			.acquisitionDirectory(captures, "0.166.0")
+			.acquisitionDirectory(captures, version)
 			.skipGitCheck(true)
 			.build();
 		var options = DefaultAgentOptions.builder()
 			.workingDirectory(this.root.toString())
 			.timeout(Duration.ofSeconds(8))
-			.environmentVariables(Map.of("FIXTURE_SESSIONS", this.root.resolve("sessions").toString()))
+			.environmentVariables(Map.of("FIXTURE_SESSIONS", this.root.resolve("sessions").toString(),
+					"FIXTURE_CLI_VERSION", version))
 			.model("fixture-model")
 			.build();
 		return AgentClient.builder(provider)
@@ -81,6 +86,23 @@ class CodexGenerationTest {
 			assertThat(manifest.path("profile").asText()).isEqualTo(generation.acquisitionProfile());
 			assertThat(manifest.path("turns").get(0).path("decision_uid").asText()).isEqualTo(decision.decisionId());
 			assertThat(execution.recording().evidence().acquisition()).isEqualTo(CaptureAcquisition.COMPLETED);
+		}
+	}
+
+	/** The CLI version is recorded, not gated: the profile names the version observed. */
+	@Test
+	void anotherCliVersionIsNamedInTheProfileNotRefused() throws Exception {
+		var probe = new GenerationProbe();
+		try (var client = client(this.root.resolve("captures"), probe, "0.170.0").build()) {
+			var execution = client.goal("success").runAsync();
+			assertThat(execution.result().getResult()).isEqualTo("answer:success");
+			var generation = probe.sealed.get(5, TimeUnit.SECONDS).orElseThrow();
+			assertThat(generation.acquisitionProfile()).isEqualTo("codex-cli-0.170.0-exec-stdio-rollout");
+			assertThat(generation.complete()).as(generation.detail()).isTrue();
+			var manifest = new ObjectMapper().readTree(generation.manifest().toFile());
+			assertThat(manifest.path("profile").asText()).isEqualTo("codex-cli-0.170.0-exec-stdio-rollout");
+			assertThat(manifest.path("profile_id").asText()).isEqualTo("codex-cli/0.170.0/exec-stdio+rollout");
+			assertThat(manifest.path("run").path("cli").path("version").asText()).isEqualTo("0.170.0");
 		}
 	}
 

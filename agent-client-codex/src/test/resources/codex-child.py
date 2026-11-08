@@ -26,6 +26,8 @@ emit({'type':'item.completed','item':{'id':'item_0','type':'agent_message','text
 root = pathlib.Path(os.environ['FIXTURE_SESSIONS']); root.mkdir(parents=True,exist_ok=True)
 source = root/('rollout-fixture-'+n+'.jsonl')
 template = pathlib.Path(__file__).with_name('codex-native-template.jsonl').read_text()
+# The CLI version the rollout states; FIXTURE_CLI_VERSION stands in for another installed CLI.
+template = template.replace('"cli_version":"0.166.0"', '"cli_version":' + json.dumps(os.environ.get('FIXTURE_CLI_VERSION', '0.166.0')))
 t = str(uuid.uuid4())
 template = template.replace('11111111-1111-4111-8111-111111111111', 'wrong' if (mode=='wrong' and not resume) else n).replace('22222222-2222-4222-8222-222222222222',t).replace('/synthetic/codex-workspace',str(cwd))
 records = [json.loads(line) for line in template.splitlines()]

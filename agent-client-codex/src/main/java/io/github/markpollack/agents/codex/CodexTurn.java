@@ -125,10 +125,10 @@ final class CodexTurn implements AgentExecutionProvider.Turn {
 			if (this.retained)
 				return java.util.Optional.empty();
 			var manifest = sealed.writeManifest(decision);
-			return java.util.Optional
-				.of(io.github.markpollack.agents.client.NativeGeneration.oneShot(CodexManifest.PROFILE, decision,
-						manifest, io.github.markpollack.agents.client.NativeGeneration.sha256(manifest),
-						sealed.complete(), sealed.detail() == null ? "" : sealed.detail()));
+			return java.util.Optional.of(io.github.markpollack.agents.client.NativeGeneration.oneShot(
+					CodexManifest.profile(this.connection.configuration.version()), decision, manifest,
+					io.github.markpollack.agents.client.NativeGeneration.sha256(manifest), sealed.complete(),
+					sealed.detail() == null ? "" : sealed.detail()));
 		}
 		catch (java.io.IOException ex) {
 			this.acquisition = CaptureAcquisition.FAILED;
