@@ -35,6 +35,12 @@ final class ExecutionRecording {
 
 	private volatile NativeRecording nativeRecording;
 
+	/**
+	 * The provider's sealed capture manifest, kept for the caller whatever the recorder
+	 * then decides; it is diagnostic and never a qualification.
+	 */
+	private volatile CaptureRecordReference sealedRecord;
+
 	private volatile boolean deliveryPossible;
 
 	private volatile long started;
@@ -149,6 +155,8 @@ final class ExecutionRecording {
 			generation = Optional.empty();
 			sealing = "Native sealing failed: " + ex.getMessage();
 		}
+		generation.ifPresent(sealed -> this.sealedRecord = new CaptureRecordReference(sealed.manifest().toUri(),
+				sealed.acquisitionProfile(), Optional.of(sealed.manifestSha256())));
 		var result = typed.prepareRecording(decision, generation);
 		var observed = result.nativeRecording();
 		if (sealing != null)
@@ -261,7 +269,7 @@ final class ExecutionRecording {
 				new ReportedCost(Optional.empty(), MetricScope.UNKNOWN, "not-reported"),
 				new TokenCounts(count, count, count, count, count), provider, acquisition,
 				acquisition == CaptureAcquisition.UNAVAILABLE ? "decision-only" : "provider-acquired-sources",
-				"native archive qualification is separate", Optional.empty(),
+				"native archive qualification is separate", Optional.ofNullable(this.sealedRecord),
 				acquisition == CaptureAcquisition.UNAVAILABLE
 						? List.of("No native source acquisition for this execution") : List.of());
 	}
