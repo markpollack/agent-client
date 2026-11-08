@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -72,29 +73,37 @@ class OneShotRecordingConformanceTest {
 	private static final Map<String, Integer> CLAUDE_USAGE = Map.of("input_tokens", 11, "cache_read_input_tokens", 3,
 			"output_tokens", 4);
 
+	/**
+	 * Claude: the terminal profile Journal assigns a qualified one-shot. Earlier Journal
+	 * snapshots name the CLI version; later ones use the version-neutral SDK profile.
+	 */
+	private static final Set<String> CLAUDE_TERMINAL = Set.of("client-terminal-claude-2.1.316/1",
+			"client-terminal-claude-sdk/1");
+
 	enum Case {
 
-		CODEX_ONE_SHOT("client-terminal-codex-0.166.0/1", CODEX_USAGE, NativeRecording.Outcome.ATTACHED),
+		CODEX_ONE_SHOT(Set.of("client-terminal-codex-0.166.0/1"), CODEX_USAGE, NativeRecording.Outcome.ATTACHED),
 
-		CLAUDE_ONE_SHOT("client-terminal-claude-2.1.316/1", CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
+		CLAUDE_ONE_SHOT(CLAUDE_TERMINAL, CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
 
 		/** The retained public factory must reach the same archive. */
-		CLAUDE_ONE_SHOT_FACTORY("client-terminal-claude-2.1.316/1", CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
+		CLAUDE_ONE_SHOT_FACTORY(CLAUDE_TERMINAL, CLAUDE_USAGE, NativeRecording.Outcome.ATTACHED),
 
 		/**
 		 * Declared: Journal has no Antigravity qualifier. The call is still archived and
 		 * linked, evidence-only, with no invented sources or usage.
 		 */
-		ANTIGRAVITY_ONE_SHOT("client-terminal-evidence-only/1", Map.of(), NativeRecording.Outcome.UNQUALIFIED);
+		ANTIGRAVITY_ONE_SHOT(Set.of("client-terminal-evidence-only/1"), Map.of(), NativeRecording.Outcome.UNQUALIFIED);
 
-		final String profile;
+		/** Journal names the terminal profile; the CLI version is recorded, not gated. */
+		final Set<String> profiles;
 
 		final Map<String, Integer> usage;
 
 		final NativeRecording.Outcome outcome;
 
-		Case(String profile, Map<String, Integer> usage, NativeRecording.Outcome outcome) {
-			this.profile = profile;
+		Case(Set<String> profiles, Map<String, Integer> usage, NativeRecording.Outcome outcome) {
+			this.profiles = profiles;
 			this.usage = usage;
 			this.outcome = outcome;
 		}
@@ -128,6 +137,7 @@ class OneShotRecordingConformanceTest {
 			.timeout(Duration.ofSeconds(20))
 			.environmentVariables(Map.of("FIXTURE_SESSIONS", this.root.resolve("sessions").toString()));
 		ExecutionDecision decision;
+		String terminalProfile;
 		try (var client = AgentClient.builder(provider)
 			.defaultOptions(options.build())
 			.defaultWorkingDirectory(this.root)
@@ -140,13 +150,14 @@ class OneShotRecordingConformanceTest {
 			decision = execution.decision().orElseThrow();
 			var observed = execution.recording().nativeRecording().orElseThrow();
 			assertThat(observed.outcome()).as(observed.detail()).isEqualTo(c.outcome);
-			assertThat(observed.terminalProfile()).isEqualTo(c.profile);
+			assertThat(observed.terminalProfile()).isIn(c.profiles);
+			terminalProfile = observed.terminalProfile();
 		}
 		JsonNode report = read(store, "executionId=" + decision.executionId());
 
 		assertThat(report.path("matches").asInt()).as("archives for the execution").isEqualTo(1);
 		assertThat(report.path("seriousDiagnostics")).as("reader defects").isEmpty();
-		assertThat(report.path("profile").asText()).as("terminal profile").isEqualTo(c.profile);
+		assertThat(report.path("profile").asText()).as("terminal profile").isEqualTo(terminalProfile);
 		if (c.outcome == NativeRecording.Outcome.ATTACHED) {
 			assertThat(report.path("acquisition").asText()).isEqualTo("COMPLETED");
 			assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())

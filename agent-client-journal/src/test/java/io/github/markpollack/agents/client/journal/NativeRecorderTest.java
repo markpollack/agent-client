@@ -49,7 +49,8 @@ class NativeRecorderTest {
 			assertThat(pkg.diagnostics).noneMatch(d -> Set.of("DEFECT", "REFUSED").contains(d.severity().name()));
 			assertThat(TerminalBindingReader.read(pkg.declarations).decision())
 				.isEqualTo(DecisionEncoding.decision(decision));
-			assertThat(Files.readString(events)).contains("client-terminal-claude-2.1.316/1", "native-1");
+			// Journal names the terminal profile; the CLI version is recorded, not gated.
+			assertThat(Files.readString(events)).contains(prepared.nativeRecording().terminalProfile(), "native-1");
 			// Review F04: the sealed manifest is never rewritten.
 			assertThat(Files.readAllBytes(source.manifest())).isEqualTo(sealedBytes);
 		}
