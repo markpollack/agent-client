@@ -38,8 +38,12 @@ Recording is optional. Add `agent-client-journal`, set
 `providerBuilder.acquisitionDirectory(captures, observedCliVersion)`, and configure
 `AgentClient.Builder.executionRecorder(JournalExecutionRecorder.claude(records, namespace))`.
 Observe `execution.recording()` separately from `execution.result()`: recording can fail after a
-successful task. The current native profile admits one closed text-message execution on Claude
-Code2.1.316. Retained turns record decisions without claiming native archive completeness.
+successful task. The one-shot native profile admits one closed text-message execution on the Claude
+Code SDK route at any CLI version: pass the version you observed, which is recorded in the acquisition
+profile, and Journal delivers the qualified one-shot under `client-terminal-claude-sdk/1`. Once the
+capture is sealed, `execution.recording().evidence().fullRecord()` names its manifest, also after a
+failed execution; wait for termination and a terminal recording delivery before closing the client
+([async lifecycle](async-lifecycle.md#failed-executions-and-closing)). Retained turns record decisions without claiming native archive completeness.
 
 Callback invocation alone is not proof of native enforcement. Older SDK hook serialization emitted
 null controls and flattened permission fields that the native CLI could reject while continuing tool
@@ -51,9 +55,9 @@ these bytes. Independently verified one-shot readback uses Journal reader JAR SH
 `b166baa65b3c0b82d9f3394631ae915d7a8ff172b126c8edcd4b0db43c1c1cf9`
 at version `2.0.0-SNAPSHOT`. Archive verification and native permission enforcement remain separate.
 The repaired SDK has native evidence of blocked Bash and out-of-workspace Read decisions on this
-pinned route. Multiple denials in one final result currently expose a Journal normalization defect
-with the listed reader/writer selection; independent full archive acceptance for that case remains
-pending. Keep original sources and treat a failing reader result as a failure even after task success.
+route. Multiple denials in one final result exposed a Journal normalization defect with the listed
+reader/writer selection; the repaired Journal reader accepts that original archive
+([capabilities](async-capabilities.md)). Keep original sources and treat a failing reader result as a failure even after task success.
 
 [ClientHookContract.java](examples/ClientHookContract.java) exercises the production public Client
 path against the existing local subprocess fixture. Compile it strictly against installed runtime JARs
@@ -106,7 +110,7 @@ transport buffer for each retained connection. A typed `ExecutionRecorder` recei
 `ClaudeRetainedCapture` handle under `claudeRetainedCapture` for each turn in that generation.
 Record the immutable decision immediately. After session close, call `capture.write()` off the
 result path to export the original streams, hashes, observation windows and candidate prompt/result
-locators. A turn result never seals the stream. The buffer is limited to 4 MiB, 16,384 byte
+locators. A turn result never seals the stream. The buffer is limited to 256 MiB of output, 131,072 byte
 observations and 256 turn observations; overflow preserves a prefix and is explicitly incomplete.
 
 The exported `client-retained-capture/1` document is a Client diagnostic format. It is **not a
@@ -144,7 +148,7 @@ builder and provider fallback, plus retained-home preservation, using a real loc
 
 For the bounded, opt-in two-successful-text-turn profile, use
 `JournalExecutionRecorder.retainedClaude(directory, namespace)`. Configure the provider with
-`acquisitionDirectory(directory, "2.1.316")` and `retainedTranscript(exactNativeFile)`.
+`acquisitionDirectory(directory, observedCliVersion)` and `retainedTranscript(exactNativeFile)`.
 The latter must name an actually observable transcript before the first dispatch: absence is
 unknown, not an empty prefix. Client reads bounded prefixes before and after each turn;
 missing observations or unsupported source history cannot earn archive completeness.

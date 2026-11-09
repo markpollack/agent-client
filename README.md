@@ -16,9 +16,13 @@ provider guides, configuration reference, tutorials, and migration notes.
 <dependency>
     <groupId>io.github.markpollack</groupId>
     <artifactId>agent-claude</artifactId>
-    <version>0.27.0</version>
+    <version>0.32.0</version>
 </dependency>
 ```
+
+The asynchronous lifecycle and recording API (`agent-client-claude`, `agent-client-codex`, `agent-client-journal`;
+see [docs/async-lifecycle.md](docs/async-lifecycle.md)) is on `main` and not yet released. Use `0.32.1-SNAPSHOT` from the
+Central snapshot repository `https://central.sonatype.com/repository/maven-snapshots/` with snapshots enabled.
 
 > **Breaking in 0.32.1:** the legacy Claude derived-tracing surface (`traceDir`, `traceContentMode`, `archiveTranscript`,
 > `phaseCapture`, `tracePath`, `transcriptPath`, the `trace-*` properties) and `agent-claude`'s Journal 1.x dependencies

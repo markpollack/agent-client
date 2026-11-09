@@ -1,5 +1,8 @@
 # Async result lifecycle
 
+> **On main, not yet released.** The lifecycle and recording API described here is in the
+> `0.32.1-SNAPSHOT` development snapshots built from `main`; it is not part of 0.32.0.
+
 The initial lifecycle API is available to providers implementing `AgentExecutionProvider`.
 The `agent-client-claude` module supplies `ClaudeClientProvider` for Claude Code; see
 [the native caller](examples/NativeClaude.java). A legacy `AgentApi` still supports
@@ -73,7 +76,10 @@ Journal receiver, with one generic one-shot path for every provider. A provider 
 native sources as a typed `NativeGeneration` (one member for a one-shot). The recorder re-checks the
 manifest digest, selects Journal's `AcquisitionQualifier` by the acquisition profile, qualifies,
 and delivers one initial binding under the qualifier's terminal profile. Claude and Codex one-shot
-qualify. Antigravity has no Journal qualifier and is recorded `UNQUALIFIED`. `recording()` reports
+qualify at any CLI version on their routes: the observed version is recorded, not gated. It names the
+acquisition profile (`claude-code-<version>-sdk-stdio-session-file`, `codex-cli-<version>-exec-stdio-rollout`),
+and Journal delivers the qualified one-shot under `client-terminal-claude-sdk/1` or `client-terminal-codex-exec/1`.
+Earlier recordings under versioned terminal profile names stay readable. Antigravity has no Journal qualifier and is recorded `UNQUALIFIED`. `recording()` reports
 one of four outcomes in `nativeRecording()`: `ATTACHED`, `UNQUALIFIED`, `REJECTED` or `NOT_CAPTURED`.
 Every outcome delivers one initial binding, so the call is archived and linked by its decision and
 correlation; the last three are evidence-only, with a `missing` entry naming the profile or verdict.
@@ -82,6 +88,38 @@ is the same recorder. Retained turns are not one-shot generations and remain evi
 A native receiver ACK still needs independent complete-archive reader acceptance. Unclassified Journal I/O failures retain
 acceptance uncertainty and do not retry automatically. An explicit retry of the same prepared job
 can recover the original ACK without replaying provider work.
+
+## Failed executions and closing
+
+A failed `result()` throws `AgentExecutionException`; its cause chain and detached `failure()`
+(`FailureInfo`: code, exception class, message, causes) carry the original failure. Recording settles
+separately and never changes that failure. Once the recording lane has sealed the provider's native
+capture, `execution.recording().evidence().fullRecord()` returns a `CaptureRecordReference` naming the
+sealed manifest: its URI, acquisition profile and SHA-256. It is present also when the execution
+failed and when Journal did not qualify the sources. The manifest holds what the provider observed;
+for Codex that is argv, exit status, observed processes and the original stdin, stdout and stderr.
+It is diagnostic evidence, not Journal qualification: `nativeRecording()` reports qualification.
+
+The lane runs after the result, so close the client only after the recording has settled. A client
+that closes first rejects the pending recording work and nothing is sealed:
+
+```java
+AgentExecution execution = client.goal("task").runAsync();
+try {
+    execution.result();
+}
+catch (AgentExecutionException failed) {
+    FailureInfo failure = failed.failure();   // the original failure, unchanged by recording
+}
+execution.awaitTermination(Duration.ofSeconds(10));
+while (!(execution.recording().delivery() instanceof TerminalDelivery.Completed
+        || execution.recording().delivery() instanceof TerminalDelivery.Failed)) {
+    Thread.sleep(10);                          // bound this wait in real code
+}
+execution.recording().evidence().fullRecord()
+    .ifPresent(record -> System.out.println(record.uri() + " " + record.sha256()));
+client.close();
+```
 
 Claude retained sessions expose their native `providerReference()` after observing its identity.
 After confirmed teardown they reconnect to that exact history without replaying a prompt. Loading

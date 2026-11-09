@@ -77,7 +77,7 @@ public final class CodexArchive {
                 .put("role", "manifest").put("origin", "qualified-codex-manifest"), manifest, original));
             // This separate store receives its initial complete binding exactly once.
             // The original evidence-only package and its binding remain untouched.
-            envelope.put("profile", "client-terminal-codex-0.166.0/1");
+            envelope.put("profile", TerminalReceiver.CODEX_PROFILE);
             envelope.put("associationBytes", Base64.getEncoder().encodeToString(canonical(association)));
             byte[] frozen = canonical(envelope);
             Files.write(root.resolve("P.json"), frozen, StandardOpenOption.CREATE_NEW);

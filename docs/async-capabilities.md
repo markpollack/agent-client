@@ -4,12 +4,12 @@
 |---|---|---|
 | `AgentExecutionProvider` through `AgentClient` | One-shot and retained lifecycle, bounded acquisition, exact cancellation, independent result/termination waits and detached metadata | Each adapter proves its own transport contract |
 | `ClaudeClientProvider` | SDK-backed one-shot, retained follow-up, observed-resource teardown, exact-history reconnect, immutable binding refresh and bounded progress | Cross-handle/restart loading, broader process containment |
-| `CodexClientProvider` | One fresh `codex exec` per one-shot execution; retained sessions resume the exact emitted thread with a replacement `codex exec resume` process per turn; original byte capture, exact-thread rollout prefix continuity, cancellation, deadline and quarantine handling | Deterministic subprocess qualification for CLI 0.166.0 (two-turn retention, two independent sessions, stale stop isolation, quarantine after incomplete turns); live resume behavior and retained archive acceptance remain separate. Loading and progress are unsupported |
+| `CodexClientProvider` | One fresh `codex exec` per one-shot execution; retained sessions resume the exact emitted thread with a replacement `codex exec resume` process per turn; original byte capture, exact-thread rollout prefix continuity, cancellation, deadline and quarantine handling | Deterministic subprocess qualification, with fixtures following the shapes one native probe observed (two-turn retention, two independent sessions, stale stop isolation, quarantine after incomplete turns); live resume behavior and retained archive acceptance remain separate. Loading and progress are unsupported |
 | `AntigravityClientProvider` | One fresh `agy` print execution, original stdout/stderr and argv-prompt acquisition, cancellation/deadline and observed-resource cleanup | Deterministic installed proof; native and Journal SDK-route archive qualification pending. Retention, loading and progress unsupported; legacy Antigravity resume remains unchanged |
 | Other native providers | Existing synchronous APIs and provider-specific SDKs | New async/retained Client routes require separate qualification |
 | Journal default recorder | Frozen decisions, exact receiver ACK, conflict/uncertain delivery and independent reader | Native sources are unavailable |
-| Journal explicit Claude recorder | One-shot Claude Code 2.1.316 source qualification, exact execution/connection association and independently verified tool-bearing archive readback, including multiple permission denials with the repaired reader | A new native route needs its own qualification |
-| Installed Codex archive caller | Actual immutable Client decision, original synthetic capture, independent qualification, separate complete binding and packaged reader acceptance; mismatched capture rejected | Real CLI 0.166.0 execution and archive qualification remain separate |
+| Journal explicit Claude recorder | One-shot Claude Code SDK-route source qualification at any CLI version (the observed version is recorded), exact execution/connection association and independently verified tool-bearing archive readback, including multiple permission denials with the repaired reader | A new native route needs its own qualification |
+| Installed Codex archive caller | Actual immutable Client decision, original synthetic capture, independent qualification, separate complete binding and packaged reader acceptance; mismatched capture rejected | Real CLI execution and archive qualification remain separate |
 | Journal retained Claude recorder | Deterministic two-turn archive, original decisions, post-close attachments, replay and separate reader acceptance | Fresh live start is blocked: initialization provides no observed native identity/readable BEFORE prefix for the current profile. Reconnect and alternative fresh profiles remain unqualified |
 
 For Codex, start with the [one-shot guide](../agent-client-codex/README.md) and
@@ -35,9 +35,11 @@ root and observed descendant cessation against the repaired SDK. Process death i
 for source completeness: native capture additionally requires natural stdout/stderr EOF.
 
 `JournalExecutionRecorder` uses `journal-terminal-receiver/1` and `client-terminal-evidence/1`.
-The default profile is `client-terminal-evidence-only/1`; the explicit Claude factory can select
-`client-terminal-claude-2.1.316/1`. Acquisition copies at most4MiB of original transport bytes in
-memory, then seals sources on the recording lane after result acceptance. Overflow, missing EOF,
+The default profile is `client-terminal-evidence-only/1`. A qualified Claude one-shot is delivered
+under `client-terminal-claude-sdk/1` and a qualified Codex one-shot under `client-terminal-codex-exec/1`,
+at any CLI version; the observed version is recorded in the acquisition profile, the run and every event.
+Earlier recordings under versioned profile names stay readable. Claude acquisition holds at most 256 MiB
+of original transport bytes in memory (Codex: 4 MiB per stream), then seals sources on the recording lane after result acceptance. Overflow, missing EOF,
 missing native files and qualification errors are reported separately from the execution result.
 Executions without a terminal native result record decisions with incomplete acquisition; partial
 transport buffers are not a qualified archive. This profile admits one closed text-message
@@ -61,7 +63,7 @@ application and absence of a denied side effect. These tests do not qualify ever
 policy failure mode. Complete archive acceptance preserves what happened, including policy errors;
 it does not certify that a deny was enforced.
 
-On the pinned Claude Code2.1.316 route with the repaired hook serializer, a native case observed
+On the Claude Code SDK route with the repaired hook serializer, a native case observed
 three denied Bash calls and one denied out-of-workspace Read as explicit error results, with no
 successful results for those tool IDs. This is case-specific policy evidence. The same task's
 complete acquisition and receiver ACK initially failed independent archive normalization for multiple

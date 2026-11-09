@@ -5,7 +5,8 @@ The [Codex caller](examples/CodexArchive.java) runs a synthetic child through th
 and terminal receiver. It uses the actual immutable Client decision, encoded by the public Journal
 recorder and read through the public binding reader. The original evidence-only package remains
 unchanged; the completed Codex archive receives its own initial binding in a separate store.
-This example uses `client-terminal-codex-0.166.0/1` with initially `COMPLETED` acquisition.
+This example uses Journal's `TerminalReceiver.CODEX_PROFILE` (`client-terminal-codex-exec/1`) with
+initially `COMPLETED` acquisition.
 
 Select compatible, verified installed Client and Journal JARs, including Journal's Codex qualifier,
 writer and independent reader. Snapshot coordinates alone do not identify their bytes: keep the
