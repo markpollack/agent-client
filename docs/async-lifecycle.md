@@ -117,7 +117,7 @@ while (!(execution.recording().delivery() instanceof TerminalDelivery.Completed
     Thread.sleep(10);                          // bound this wait in real code
 }
 execution.recording().evidence().fullRecord()
-    .ifPresent(record -> System.out.println(record.uri() + " " + record.sha256()));
+    .ifPresent(record -> System.out.println(record.uri() + " " + record.sha256().orElse("")));
 client.close();
 ```
 
