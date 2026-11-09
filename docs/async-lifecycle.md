@@ -57,7 +57,10 @@ arrives before dispatch and must never direct a stale stop to a successor.
 Normal results follow required processing and safe session release. Failed/cancelled results may
 precede cessation. `awaitTermination` observes that separate bounded fact. Missing cessation at
 the original cleanup deadline freezes UNKNOWN and quarantines the session; later cessation cannot
-make it reusable. A caller's wait budget never restarts cleanup. `termination()` provides a protected
+make it reusable. A submit the session cannot admit dispatches nothing and throws
+`AgentOperationException` with `failure()`: `BUSY` while an execution still holds the session (including a
+cancelled or failed one whose work has not settled), `CLEANUP_UNKNOWN` once the session is quarantined,
+`CLOSED` once it is closing. A caller's wait budget never restarts cleanup. `termination()` provides a protected
 stage whose dependents run off the control/provider path; mutating a converted future cannot change
 the authoritative observation. Implicit dependent callbacks are isolated even when registered after
 completion; explicitly supplied executors retain the caller's scheduling policy.

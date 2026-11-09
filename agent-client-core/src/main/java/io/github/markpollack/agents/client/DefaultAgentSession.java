@@ -159,7 +159,8 @@ final class DefaultAgentSession implements AgentSession {
 		this.lock.lock();
 		try {
 			if (this.closing || this.snapshot.state() != SessionState.READY)
-				throw new IllegalStateException("Session is not ready: " + this.snapshot.state());
+				throw new AgentOperationException(refusal(this.closing, this.snapshot.state()),
+						"Session is not ready: " + this.snapshot.state(), null, Optional.empty());
 			if (work.replacement() != null) {
 				if (this.binding == null)
 					throw new IllegalArgumentException("No original connection binding");
@@ -177,6 +178,19 @@ final class DefaultAgentSession implements AgentSession {
 		}
 		execution.driver.submit();
 		return execution;
+	}
+
+	/**
+	 * Why a submit is refused without dispatch: an execution still holds the session
+	 * (BUSY), its cleanup is unknown and the session is quarantined (CLEANUP_UNKNOWN), or
+	 * the session is closing (CLOSED).
+	 */
+	static OperationFailure refusal(boolean closing, SessionState state) {
+		if (state == SessionState.UNKNOWN)
+			return OperationFailure.CLEANUP_UNKNOWN;
+		if (closing || state == SessionState.CLOSING || state == SessionState.CLOSED)
+			return OperationFailure.CLOSED;
+		return OperationFailure.BUSY;
 	}
 
 	// Called under the admission lock. UNKNOWN is permanently quarantined.

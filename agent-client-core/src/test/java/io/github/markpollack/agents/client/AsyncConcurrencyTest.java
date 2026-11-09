@@ -163,7 +163,7 @@ class AsyncConcurrencyTest {
 				m.stop();
 				assertThat(p.stops).containsExactly(execution.executionId() + ":" + flag);
 				assertThat(execution.inspect().settlement()).isEqualTo(SettlementState.PENDING);
-				assertThatThrownBy(() -> session.goal("overlap").runAsync()).isInstanceOf(IllegalStateException.class);
+				AsyncLifecycleTest.refused(() -> session.goal("overlap").runAsync(), OperationFailure.BUSY);
 				m.tick(5);
 				assertThat(execution.cancel(!flag)).isFalse();
 				assertThatThrownBy(session::close).isInstanceOf(CleanupUnconfirmedException.class);
@@ -178,7 +178,7 @@ class AsyncConcurrencyTest {
 				assertThat(execution.awaitTermination(Duration.ZERO)).isSameAs(frozen);
 				assertThat(execution.isCancelled()).isTrue();
 				assertThat(p.calls).hasValue(1);
-				assertThatThrownBy(() -> session.goal("later").runAsync()).isInstanceOf(IllegalStateException.class);
+				AsyncLifecycleTest.refused(() -> session.goal("later").runAsync(), OperationFailure.CLEANUP_UNKNOWN);
 			}
 			finally {
 				release.countDown();
@@ -222,7 +222,7 @@ class AsyncConcurrencyTest {
 			assertThat(execution.isDone()).isTrue();
 			assertThat(execution.isCancelled()).isFalse();
 			assertThat(execution.inspect().settlement()).isEqualTo(SettlementState.PENDING);
-			assertThatThrownBy(() -> session.goal("next").runAsync()).isInstanceOf(IllegalStateException.class);
+			AsyncLifecycleTest.refused(() -> session.goal("next").runAsync(), OperationFailure.BUSY);
 			release.countDown();
 			worker.join();
 			assertThat(execution.awaitTermination(Duration.ZERO).cleanupConfirmed()).isTrue();

@@ -143,8 +143,10 @@ class AsyncLifecycleTest {
 		});
 		var first = session.goal("first").runAsync();
 		var before = first.inspect();
-		assertThatThrownBy(() -> session.goal("overlap").runAsync()).isInstanceOf(IllegalStateException.class);
+		// AC-E02: an overlapping submit is refused BUSY and dispatches nothing.
+		refused(() -> session.goal("overlap").runAsync(), OperationFailure.BUSY);
 		manual.run();
+		assertThat(provider.calls).hasValue(1);
 		assertThat(first.result().getResult()).isEqualTo("first");
 		assertThat(before.resultState()).isEqualTo(Future.State.RUNNING);
 		assertThat(first.inspect().settlement()).isEqualTo(SettlementState.SETTLED);
@@ -156,6 +158,27 @@ class AsyncLifecycleTest {
 		assertThat(first.executionId()).isNotEqualTo(next.executionId());
 		assertThat(first.sessionId()).isEqualTo(next.sessionId());
 		assertThat(first.decision()).isPresent();
+	}
+
+	@Test
+	void aClosedSessionRefusesASubmitAsClosed() throws Exception {
+		var provider = new Provider();
+		try (var client = AgentClient.create(provider)) {
+			var session = client.sessions().create(spec -> {
+			});
+			assertThat(session.goal("only").runAsync().result().getResult()).isEqualTo("only");
+			session.close();
+			refused(() -> session.goal("after close").runAsync(), OperationFailure.CLOSED);
+			assertThat(provider.calls).hasValue(1);
+		}
+	}
+
+	/**
+	 * The submit is refused with this operation failure, still an IllegalStateException.
+	 */
+	static void refused(org.assertj.core.api.ThrowableAssert.ThrowingCallable submit, OperationFailure failure) {
+		assertThatThrownBy(submit).isInstanceOfSatisfying(AgentOperationException.class,
+				refusal -> assertThat(refusal.failure()).isEqualTo(failure));
 	}
 
 	@Test
