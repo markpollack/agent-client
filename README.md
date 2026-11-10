@@ -24,6 +24,8 @@ The asynchronous lifecycle and recording API (`agent-client-claude`, `agent-clie
 see [docs/async-lifecycle.md](docs/async-lifecycle.md)) is on `main` and not yet released. Use `0.32.1-SNAPSHOT` from the
 Central snapshot repository `https://central.sonatype.com/repository/maven-snapshots/` with snapshots enabled.
 
+How-to: [give an agent MCP servers](docs/howto/mcp-servers.md).
+
 > **Breaking in 0.32.1:** the legacy Claude derived-tracing surface (`traceDir`, `traceContentMode`, `archiveTranscript`,
 > `phaseCapture`, `tracePath`, `transcriptPath`, the `trace-*` properties) and `agent-claude`'s Journal 1.x dependencies
 > are removed. Use `capture(ClaudeCaptureOptions)` or the lifecycle acquisition surface; see

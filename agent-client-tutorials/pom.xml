@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
  <modelVersion>4.0.0</modelVersion><parent><groupId>io.github.markpollack</groupId><artifactId>agent-client-parent</artifactId><version>0.32.1-SNAPSHOT</version></parent>
- <artifactId>agent-client-tutorials</artifactId><name>Agent Client Async Tutorials</name>
- <description>Compiles the async tutorials under docs/examples/tutorials and runs each against an offline
-  provider, so the published pages stay true to main. Tests only; not published; no model calls.</description>
+ <artifactId>agent-client-tutorials</artifactId><name>Agent Client Tutorials and How-tos</name>
+ <description>Compiles the tutorials and how-tos under docs/examples/tutorials and docs/examples/howto and runs each
+  against an offline stand-in, so the published pages stay true to main. Tests only; not published; no model calls.</description>
  <properties>
   <!-- Test-only module: no main classes to measure. -->
   <jacoco.skip>true</jacoco.skip>
@@ -20,7 +20,7 @@
    <plugin>
     <groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId><version>3.6.0</version>
     <executions><execution><id>tutorial-sources</id><phase>generate-test-sources</phase><goals><goal>add-test-source</goal></goals>
-     <configuration><sources><source>${project.basedir}/../docs/examples/tutorials</source></sources></configuration></execution></executions>
+     <configuration><sources><source>${project.basedir}/../docs/examples/tutorials</source><source>${project.basedir}/../docs/examples/howto</source></sources></configuration></execution></executions>
    </plugin>
    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-deploy-plugin</artifactId><configuration><skip>true</skip></configuration></plugin>
    <plugin><groupId>org.sonatype.central</groupId><artifactId>central-publishing-maven-plugin</artifactId><configuration><skipPublishing>true</skipPublishing></configuration></plugin>
