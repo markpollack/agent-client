@@ -167,8 +167,10 @@ public class AcpAgentModel implements AgentApi {
 				client.authenticate(new AcpSchema.AuthenticateRequest(authMethodId));
 			}
 
+			List<AcpSchema.McpServer> mcpServers = AcpMcpServers.translate(options.getMcpServerDefinitions(),
+					initialize.agentCapabilities());
 			AcpSchema.NewSessionResponse session = client
-				.newSession(new AcpSchema.NewSessionRequest(workingDirectory.toString(), List.of(), null, null));
+				.newSession(new AcpSchema.NewSessionRequest(workingDirectory.toString(), mcpServers, null, null));
 			String sessionId = session.sessionId();
 			logger.info("{} ACP session {}", this.profile.providerKey(), sessionId);
 
