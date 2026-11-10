@@ -46,6 +46,7 @@
         <module>agent-client-antigravity</module>
         <module>agent-client-conformance-reader</module>
         <module>agent-client-conformance</module>
+        <module>agent-client-tutorials</module>
         <module>agent-client-spring-boot-autoconfigure</module>
 
         <!-- SDK modules -->
