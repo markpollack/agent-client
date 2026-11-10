@@ -22,7 +22,7 @@ import com.agentclientprotocol.sdk.client.AcpSyncClient;
 import com.agentclientprotocol.sdk.client.transport.AgentParameters;
 import com.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
 import com.agentclientprotocol.sdk.spec.AcpSchema;
-import reactor.core.publisher.Mono;
+import com.agentclientprotocol.sdk.json.AcpJsonMapper;
 
 import io.github.markpollack.agents.model.AgentApi;
 import io.github.markpollack.agents.model.AgentGeneration;
@@ -78,6 +78,15 @@ public class AcpAgentModel implements AgentApi {
 	private static final Logger logger = LoggerFactory.getLogger(AcpAgentModel.class);
 
 	private static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(10);
+
+	/**
+	 * Turns the SDK's typed session update back into its wire shape for
+	 * {@link AcpUpdateFold}, which reads maps so that a kind this SDK does not model is
+	 * still counted. Since 0.80 the SDK refuses a raw {@code session/update} handler, and
+	 * an unmodelled kind arrives as {@code UnknownSessionUpdate}, whose fields write back
+	 * unchanged.
+	 */
+	private static final AcpJsonMapper JSON = AcpJsonMapper.createDefault();
 
 	private final AcpAgentProfile profile;
 
@@ -170,7 +179,8 @@ public class AcpAgentModel implements AgentApi {
 			List<AcpSchema.McpServer> mcpServers = AcpMcpServers.translate(options.getMcpServerDefinitions(),
 					initialize.agentCapabilities());
 			AcpSchema.NewSessionResponse session = client
-				.newSession(new AcpSchema.NewSessionRequest(workingDirectory.toString(), mcpServers, null, null));
+				.newSession(new AcpSchema.NewSessionRequest(workingDirectory.toAbsolutePath().toString(), mcpServers,
+						null, null));
 			String sessionId = session.sessionId();
 			logger.info("{} ACP session {}", this.profile.providerKey(), sessionId);
 
@@ -200,6 +210,9 @@ public class AcpAgentModel implements AgentApi {
 	 * latent bug rather than a saving: Grok really does call {@code fs/read_text_file}
 	 * and {@code fs/write_text_file} during ordinary work, and an unserved request comes
 	 * back as JSON-RPC {@code -32601} to an agent that was told the client could do it.
+	 * For the same reason {@code terminal} is not advertised: this client serves no
+	 * {@code terminal/*} method, and ACP SDK 0.81 refuses to build a client that
+	 * advertises one without its handlers.
 	 */
 	private AcpSyncClient createClient(Path workingDirectory, AgentOptions options, AcpUpdateFold fold) {
 		AgentParameters.Builder params = AgentParameters.builder(this.command)
@@ -207,18 +220,19 @@ public class AcpAgentModel implements AgentApi {
 		params.env(this.profile.environment(options));
 
 		AcpSchema.ClientCapabilities capabilities = new AcpSchema.ClientCapabilities(
-				new AcpSchema.FileSystemCapability(true, true), true);
+				new AcpSchema.FileSystemCapability(true, true), false);
 
+		// Since ACP SDK 0.80 the request timeout no longer bounds a prompt turn, so the
+		// run's timeout is set on both.
+		Duration timeout = (options != null && options.getTimeout() != null) ? options.getTimeout() : DEFAULT_TIMEOUT;
 		return AcpClient.sync(new StdioAcpClientTransport(params.build()))
-			.requestTimeout((options != null && options.getTimeout() != null) ? options.getTimeout() : DEFAULT_TIMEOUT)
+			.requestTimeout(timeout)
+			.promptTimeout(timeout)
 			.clientCapabilities(capabilities)
 			.readTextFileHandler(AcpAgentModel::readTextFile)
 			.writeTextFileHandler(AcpAgentModel::writeTextFile)
 			.requestPermissionHandler(AcpAgentModel::approve)
-			.notificationHandler(AcpSchema.METHOD_SESSION_UPDATE, notificationParams -> {
-				acceptUpdate(fold, notificationParams);
-				return Mono.empty();
-			})
+			.sessionUpdateHandler(notification -> acceptUpdate(fold, JSON.convertValue(notification, Map.class)))
 			.build();
 	}
 
@@ -291,8 +305,8 @@ public class AcpAgentModel implements AgentApi {
 	private static AcpSchema.RequestPermissionResponse approve(AcpSchema.RequestPermissionRequest request) {
 		List<AcpSchema.PermissionOption> options = (request.options() != null) ? request.options() : List.of();
 		for (AcpSchema.PermissionOption option : options) {
-			if (option.kind() == AcpSchema.PermissionOptionKind.ALLOW_ALWAYS
-					|| option.kind() == AcpSchema.PermissionOptionKind.ALLOW_ONCE) {
+			if (AcpSchema.PermissionOptionKind.ALLOW_ALWAYS.equals(option.kind())
+					|| AcpSchema.PermissionOptionKind.ALLOW_ONCE.equals(option.kind())) {
 				// Null outcome for the same reason as textContent above: the SDK writes
 				// the `outcome` discriminator twice when the field is populated.
 				return new AcpSchema.RequestPermissionResponse(
