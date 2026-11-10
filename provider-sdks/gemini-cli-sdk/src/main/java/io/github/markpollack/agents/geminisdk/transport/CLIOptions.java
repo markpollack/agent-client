@@ -131,9 +131,10 @@ import java.util.Set;
  * @param mcpServers MCP server configurations to make available during this session.
  *
  * <p>
- * Each entry maps a server name to its configuration (a JSON-serializable map). The SDK
- * writes these to {@code .gemini/settings.json} in the working directory before CLI
- * invocation and cleans up afterward.
+ * Each entry maps a server name to its configuration (a JSON-serializable map). They are
+ * written to owner-only session settings outside the workspace (see
+ * {@link McpSessionSettings}); the workspace's own {@code .gemini/settings.json} is never
+ * touched.
  *
  * <p>
  * The server names are passed to {@code --allowed-mcp-server-names} to filter which

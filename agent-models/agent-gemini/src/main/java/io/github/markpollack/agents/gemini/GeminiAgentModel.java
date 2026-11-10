@@ -13,7 +13,7 @@ import io.github.markpollack.agents.geminisdk.types.QueryResult;
 import io.github.markpollack.agents.geminisdk.types.ResultStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.github.markpollack.agents.geminisdk.transport.CLITransport;
+import io.github.markpollack.agents.geminisdk.transport.McpSessionSettings;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
@@ -26,6 +26,7 @@ import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
 import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import io.github.markpollack.sandbox.ExecResult;
 import io.github.markpollack.sandbox.ExecSpec;
+import io.github.markpollack.sandbox.LocalSandbox;
 import io.github.markpollack.sandbox.Sandbox;
 
 import java.io.IOException;
@@ -83,7 +84,6 @@ public class GeminiAgentModel implements AgentModel {
 		logger.debug("Executing agent task: {}", request.goal());
 
 		Instant startTime = Instant.now();
-		Path mcpSettingsFile = null;
 
 		try {
 			// Connect if needed
@@ -92,14 +92,6 @@ public class GeminiAgentModel implements AgentModel {
 			// Build CLI options from request
 			GeminiAgentOptions effectiveOptions = getEffectiveOptions(request);
 			CLIOptions cliOptions = buildCLIOptions(request);
-
-			// Write MCP settings file if MCP servers are configured
-			if (!cliOptions.getMcpServers().isEmpty()) {
-				Path workDir = request.workingDirectory();
-				mcpSettingsFile = CLITransport.writeMcpSettings(workDir, cliOptions.getMcpServers());
-				logger.info("Wrote MCP settings for {} servers to {}", cliOptions.getMcpServers().size(),
-						mcpSettingsFile);
-			}
 
 			// Format the task as a prompt
 			String prompt = formatTaskPrompt(request);
@@ -118,6 +110,10 @@ public class GeminiAgentModel implements AgentModel {
 			return convertResult(result, startTime, effectiveOptions.getModel());
 
 		}
+		catch (UnsupportedOperationException | IllegalStateException e) {
+			// MCP servers Client cannot deliver: refused before the CLI starts
+			return createErrorResponse(e.getMessage(), Duration.between(startTime, Instant.now()));
+		}
 		catch (GeminiSDKException e) {
 			logger.error("Agent execution failed", e);
 			Duration duration = Duration.between(startTime, Instant.now());
@@ -127,9 +123,6 @@ public class GeminiAgentModel implements AgentModel {
 			logger.error("Unexpected error during agent execution", e);
 			Duration duration = Duration.between(startTime, Instant.now());
 			return createErrorResponse("Unexpected error: " + e.getMessage(), duration);
-		}
-		finally {
-			CLITransport.cleanupMcpSettings(mcpSettingsFile);
 		}
 	}
 
@@ -163,10 +156,25 @@ public class GeminiAgentModel implements AgentModel {
 
 		Map<String, String> environment = sandboxEnvironment(cliOptions);
 
-		ExecSpec spec = ExecSpec.builder().command(command).env(environment).timeout(cliOptions.getTimeout()).build();
+		// MCP servers travel in a host-side session settings file outside the workspace,
+		// which only a local sandbox can read.
+		if (!cliOptions.getMcpServers().isEmpty() && !(sandbox instanceof LocalSandbox)) {
+			throw new UnsupportedOperationException("MCP servers " + cliOptions.getMcpServers().keySet()
+					+ " were configured, but " + sandbox.getClass().getSimpleName()
+					+ " cannot read Client's session settings; the agent was not launched");
+		}
+		ExecResult execResult;
+		try (McpSessionSettings mcp = McpSessionSettings.open(cliOptions.getMcpServers())) {
+			environment.putAll(mcp.environment());
+			ExecSpec spec = ExecSpec.builder()
+				.command(command)
+				.env(environment)
+				.timeout(cliOptions.getTimeout())
+				.build();
 
-		// 3. Execute via sandbox
-		ExecResult execResult = sandbox.exec(spec);
+			// 3. Execute via sandbox
+			execResult = sandbox.exec(spec);
+		}
 		logger.info("Gemini CLI execution completed with exit code: {}", execResult.exitCode());
 		logger.info("Output length: {} characters", execResult.mergedLog().length());
 		logger.debug("Full Gemini CLI output: {}", execResult.mergedLog());

@@ -5,100 +5,108 @@
 
 package io.github.markpollack.agents.geminisdk.transport;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.markpollack.agents.geminisdk.util.GeminiCliDiscovery;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
 /**
- * Unit tests for MCP settings file writing and cleanup in CLITransport.
+ * MCP servers reach the Gemini CLI through owner-only session settings outside the
+ * workspace, never through the workspace's {@code .gemini/settings.json}.
  */
 class CLITransportMcpTest {
+
+	private static final Map<String, Object> SERVERS = Map.of("files",
+			Map.of("command", "npx", "args", List.of("-y", "files-server"), "env", Map.of("TOKEN", "s3cret")));
 
 	@TempDir
 	Path tempDir;
 
 	@Test
-	void writeMcpSettingsCreatesDirectoryAndFile() throws IOException {
-		Map<String, Object> mcpServers = Map.of("weather",
-				Map.of("command", "npx", "args", List.of("-y", "@mcp/weather-server")));
-
-		Path settingsFile = CLITransport.writeMcpSettings(this.tempDir, mcpServers);
-
-		assertThat(settingsFile).exists();
-		assertThat(settingsFile.getParent().getFileName().toString()).isEqualTo(".gemini");
-
-		ObjectMapper mapper = new ObjectMapper();
-		@SuppressWarnings("unchecked")
-		Map<String, Object> written = mapper.readValue(settingsFile.toFile(), Map.class);
-		assertThat(written).containsKey("mcpServers");
-
-		@SuppressWarnings("unchecked")
-		Map<String, Object> servers = (Map<String, Object>) written.get("mcpServers");
-		assertThat(servers).containsKey("weather");
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void sessionSettingsAreOwnerOnlyAllowOnlyTheseServersAndAreRemovedOnClose() throws Exception {
+		Path file;
+		try (McpSessionSettings settings = McpSessionSettings.open(SERVERS, this.tempDir.resolve("absent.json"),
+				null)) {
+			file = Path.of(settings.environment().get(McpSessionSettings.SYSTEM_SETTINGS_ENV));
+			assertThat(Files.getPosixFilePermissions(file)).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ,
+					PosixFilePermission.OWNER_WRITE);
+			assertThat(Files.getPosixFilePermissions(file.getParent())).containsExactlyInAnyOrder(
+					PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE);
+			JsonNode json = new ObjectMapper().readTree(file.toFile());
+			assertThat(json.path("mcpServers").path("files").path("command").asText()).isEqualTo("npx");
+			assertThat(json.path("mcp").path("allowed").toString()).isEqualTo("[\"files\"]");
+		}
+		assertThat(file).doesNotExist();
+		assertThat(file.getParent()).doesNotExist();
 	}
 
 	@Test
-	void writeMcpSettingsWithMultipleServers() throws IOException {
-		Map<String, Object> mcpServers = Map.of("server-a", Map.of("command", "echo", "args", List.of("hello")),
-				"server-b", Map.of("url", "http://localhost:8080/sse"));
-
-		Path settingsFile = CLITransport.writeMcpSettings(this.tempDir, mcpServers);
-
-		ObjectMapper mapper = new ObjectMapper();
-		@SuppressWarnings("unchecked")
-		Map<String, Object> written = mapper.readValue(settingsFile.toFile(), Map.class);
-
-		@SuppressWarnings("unchecked")
-		Map<String, Object> servers = (Map<String, Object>) written.get("mcpServers");
-		assertThat(servers).hasSize(2);
-		assertThat(servers).containsKeys("server-a", "server-b");
+	void noServersMeansNoFileAndNoEnvironment() throws Exception {
+		try (McpSessionSettings settings = McpSessionSettings.open(Map.of(), null, null)) {
+			assertThat(settings.environment()).isEmpty();
+		}
 	}
 
 	@Test
-	void cleanupMcpSettingsDeletesFileAndEmptyDirectory() throws IOException {
-		Map<String, Object> mcpServers = Map.of("test", Map.of("command", "echo"));
-
-		Path settingsFile = CLITransport.writeMcpSettings(this.tempDir, mcpServers);
-		assertThat(settingsFile).exists();
-
-		CLITransport.cleanupMcpSettings(settingsFile);
-
-		assertThat(settingsFile).doesNotExist();
-		assertThat(settingsFile.getParent()).doesNotExist();
+	void anAdministratorsSystemSettingsFileIsNotBypassed() throws Exception {
+		Path admin = Files.writeString(this.tempDir.resolve("admin-settings.json"), "{}");
+		assertThatThrownBy(() -> McpSessionSettings.open(SERVERS, admin, null))
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining(admin.toString())
+			.hasMessageContaining("files");
 	}
 
 	@Test
-	void cleanupMcpSettingsPreservesNonEmptyDirectory() throws IOException {
-		Map<String, Object> mcpServers = Map.of("test", Map.of("command", "echo"));
-
-		Path settingsFile = CLITransport.writeMcpSettings(this.tempDir, mcpServers);
-		// Create another file in .gemini/ so it's not empty after settings.json removal
-		Files.writeString(settingsFile.getParent().resolve("other.json"), "{}");
-
-		CLITransport.cleanupMcpSettings(settingsFile);
-
-		assertThat(settingsFile).doesNotExist();
-		assertThat(settingsFile.getParent()).exists();
+	void anExistingSystemSettingsOverrideIsNotReplaced() {
+		assertThatThrownBy(() -> McpSessionSettings.open(SERVERS, null, "/opt/policy/settings.json"))
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("/opt/policy/settings.json");
 	}
 
 	@Test
-	void cleanupMcpSettingsHandlesNullGracefully() {
-		CLITransport.cleanupMcpSettings(null);
-		// Should not throw
-	}
-
-	@Test
-	void cleanupMcpSettingsHandlesNonexistentFileGracefully() {
-		CLITransport.cleanupMcpSettings(this.tempDir.resolve(".gemini/settings.json"));
-		// Should not throw
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void theDirectQueryPassesSessionSettingsAndLeavesTheWorkspaceAlone() throws Exception {
+		Path workspace = Files.createDirectories(this.tempDir.resolve("workspace"));
+		Path theirs = Files.createDirectories(workspace.resolve(".gemini")).resolve("settings.json");
+		Files.writeString(theirs, "{\"general\":{\"vimMode\":true}}\n");
+		byte[] before = Files.readAllBytes(theirs);
+		Path seen = this.tempDir.resolve("seen.json");
+		Path script = this.tempDir.resolve("fake-gemini");
+		Files.writeString(script, """
+				#!/bin/sh
+				cat "$GEMINI_CLI_SYSTEM_SETTINGS_PATH" > "%s"
+				echo ok
+				""".formatted(seen));
+		assertThat(script.toFile().setExecutable(true)).isTrue();
+		CLITransport transport;
+		try (var discovery = mockStatic(GeminiCliDiscovery.class, CALLS_REAL_METHODS)) {
+			discovery.when(GeminiCliDiscovery::findGeminiCommand).thenReturn(script.toString());
+			transport = new CLITransport(workspace, Duration.ofSeconds(5));
+		}
+		CLIOptions options = CLIOptions.builder()
+			.yoloMode(false)
+			.timeout(Duration.ofSeconds(5))
+			.mcpServers(SERVERS)
+			.build();
+		assertThat(transport.executeQuery("hello", options)).isNotEmpty();
+		assertThat(Files.readString(seen)).contains("files-server");
+		assertThat(Files.readAllBytes(theirs)).isEqualTo(before);
 	}
 
 	@Test
