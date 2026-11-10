@@ -5,6 +5,10 @@
 
 package io.github.markpollack.agents.codex;
 
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
+import io.github.markpollack.agents.tck.PortableMcpAgentOptions;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -45,6 +49,21 @@ class CodexAgentModelTest {
 		assertThat(response.getResult().getOutput()).isEqualTo("done");
 		assertThat(capture).isNotNull();
 		assertThat(capture.toolUses()).hasSize(1);
+	}
+
+	private static final java.util.Map<String, McpServerDefinition> MCP_SERVERS = java.util.Map.of("files",
+			new McpServerDefinition.StdioDefinition("npx", java.util.List.of("-y", "files-server"), java.util.Map.of()));
+
+	@Test
+	void refusesConfiguredMcpServersWithoutLaunchingCodex() {
+		CodexClient client = mock(CodexClient.class);
+		AgentResponse response = new CodexAgentModel(client, CodexAgentOptions.builder().build(), null)
+			.call(AgentTaskRequest.builder("Use the files server", Path.of("/tmp"))
+				.options(new PortableMcpAgentOptions(MCP_SERVERS))
+				.build());
+		assertThat(response.isSuccessful()).isFalse();
+		assertThat(response.getText()).contains("files").contains("MCP");
+		verify(client, never()).execute(anyString(), any(ExecuteOptions.class));
 	}
 
 }

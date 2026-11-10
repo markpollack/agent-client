@@ -104,24 +104,39 @@ for Codex that is argv, exit status, observed processes and the original stdin, 
 It is diagnostic evidence, not Journal qualification: `nativeRecording()` reports qualification.
 
 The lane runs after the result, so close the client only after the recording has settled. A client
-that closes first rejects the pending recording work and nothing is sealed:
+that closes first rejects the pending recording work and nothing is sealed. Wait only while delivery is
+`Pending`, `Processing` or `Resubmitted`, and bound the wait: a client with no recording configured
+reports `NotConfigured`, which never changes. From [FailedExecutions.java](examples/howto/FailedExecutions.java),
+which the build compiles and runs offline:
 
 ```java
-AgentExecution execution = client.goal("task").runAsync();
-try {
-    execution.result();
+public static Outcome runThenClose(AgentClient client, String goal, Duration recordingBudget)
+        throws InterruptedException, TimeoutException {
+    AgentExecution execution = client.goal(goal).runAsync();
+    Optional<FailureInfo> failure = Optional.empty();
+    try {
+        execution.result();
+    }
+    catch (AgentExecutionException failed) {
+        failure = Optional.of(failed.failure()); // the original failure, unchanged by recording
+    }
+    execution.awaitTermination(Duration.ofSeconds(10));
+    long deadline = System.nanoTime() + recordingBudget.toNanos();
+    while (inFlight(execution.recording().delivery()) && System.nanoTime() < deadline) {
+        Thread.sleep(10);
+    }
+    RecordingSnapshot recording = execution.recording();
+    recording.evidence()
+        .fullRecord()
+        .ifPresent(record -> System.out.println(record.uri() + " " + record.sha256().orElse("")));
+    client.close();
+    return new Outcome(failure, recording.delivery(), recording.evidence().fullRecord());
 }
-catch (AgentExecutionException failed) {
-    FailureInfo failure = failed.failure();   // the original failure, unchanged by recording
+
+static boolean inFlight(TerminalDelivery delivery) {
+    return delivery instanceof TerminalDelivery.Pending || delivery instanceof TerminalDelivery.Processing
+            || delivery instanceof TerminalDelivery.Resubmitted;
 }
-execution.awaitTermination(Duration.ofSeconds(10));
-while (!(execution.recording().delivery() instanceof TerminalDelivery.Completed
-        || execution.recording().delivery() instanceof TerminalDelivery.Failed)) {
-    Thread.sleep(10);                          // bound this wait in real code
-}
-execution.recording().evidence().fullRecord()
-    .ifPresent(record -> System.out.println(record.uri() + " " + record.sha256().orElse("")));
-client.close();
 ```
 
 Claude retained sessions expose their native `providerReference()` after observing its identity.

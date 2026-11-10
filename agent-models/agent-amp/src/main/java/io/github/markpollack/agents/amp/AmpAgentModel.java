@@ -13,9 +13,11 @@ import io.github.markpollack.agents.ampsdk.types.ExecuteOptions;
 import io.github.markpollack.agents.ampsdk.types.ExecuteResult;
 import io.github.markpollack.agents.model.*;
 import io.github.markpollack.agents.model.StructuredOutputPromptHelper;
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import io.github.markpollack.sandbox.Sandbox;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -77,7 +79,7 @@ public class AmpAgentModel implements AgentModel {
 		AmpAgentOptions options = mergeOptions(request);
 
 		// Convert to ExecuteOptions
-		ExecuteOptions executeOptions = toExecuteOptions(options);
+		ExecuteOptions executeOptions = toExecuteOptions(options, request);
 
 		// Execute via SDK
 		ExecuteResult result = ampClient.execute(goal, executeOptions);
@@ -119,16 +121,54 @@ public class AmpAgentModel implements AgentModel {
 		return merged;
 	}
 
-	private ExecuteOptions toExecuteOptions(AmpAgentOptions options) {
+	private ExecuteOptions toExecuteOptions(AmpAgentOptions options, AgentTaskRequest request) {
 		ExecuteOptions.Builder builder = ExecuteOptions.builder()
 			.dangerouslyAllowAll(options.isDangerouslyAllowAll())
 			.timeout(options.getTimeout());
+
+		if (request.options() != null && request.options().getMcpServerDefinitions() != null) {
+			builder.mcpServers(toAmpMcpServers(request.options().getMcpServerDefinitions()));
+		}
 
 		if (options.getModel() != null) {
 			builder.model(options.getModel());
 		}
 
 		return builder.build();
+	}
+
+	/**
+	 * Translates portable definitions into {@code amp.mcpServers} entries. Amp detects a
+	 * remote server's transport from its URL, so SSE and HTTP servers share one shape.
+	 */
+	static Map<String, Object> toAmpMcpServers(Map<String, McpServerDefinition> definitions) {
+		Map<String, Object> servers = new LinkedHashMap<>();
+		definitions.forEach((name, definition) -> servers.put(name, toAmpMcpServer(definition)));
+		return servers;
+	}
+
+	private static Map<String, Object> toAmpMcpServer(McpServerDefinition definition) {
+		Map<String, Object> config = new LinkedHashMap<>();
+		if (definition instanceof McpServerDefinition.StdioDefinition stdio) {
+			config.put("command", stdio.command());
+			putIfPresent(config, "args", stdio.args().isEmpty() ? null : stdio.args());
+			putIfPresent(config, "env", stdio.env().isEmpty() ? null : stdio.env());
+		}
+		else if (definition instanceof McpServerDefinition.SseDefinition sse) {
+			config.put("url", sse.url());
+			putIfPresent(config, "headers", sse.headers().isEmpty() ? null : sse.headers());
+		}
+		else if (definition instanceof McpServerDefinition.HttpDefinition http) {
+			config.put("url", http.url());
+			putIfPresent(config, "headers", http.headers().isEmpty() ? null : http.headers());
+		}
+		return config;
+	}
+
+	private static void putIfPresent(Map<String, Object> config, String key, Object value) {
+		if (value != null) {
+			config.put(key, value);
+		}
 	}
 
 	private AgentResponse toAgentResponse(ExecuteResult result) {

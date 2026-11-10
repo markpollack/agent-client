@@ -29,7 +29,7 @@ import io.github.markpollack.agents.model.AgentTaskRequest;
  * <p>
  * A goal containing {@code [hold]} runs until {@link #release()}, so a tutorial can show
  * what happens while a turn is running. A stopped turn takes {@link #STOP_MILLIS} to exit,
- * like a process being torn down.
+ * like a process being torn down. A goal containing {@code [fail]} fails its turn.
  */
 public final class OfflineProvider implements AgentExecutionProvider {
 
@@ -127,6 +127,8 @@ public final class OfflineProvider implements AgentExecutionProvider {
 		public AgentResponse call(AgentTaskRequest request) {
 			String goal = request.goal();
 			OfflineProvider.this.dispatched.add(goal);
+			if (goal.contains("[fail]"))
+				throw new IllegalStateException("offline provider failed the turn");
 			if (goal.contains("[hold]"))
 				awaitReleaseOrStop();
 			if (this.stopped.getCount() == 0) {

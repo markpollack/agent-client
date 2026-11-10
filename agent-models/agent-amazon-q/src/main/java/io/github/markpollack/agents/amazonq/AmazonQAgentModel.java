@@ -57,6 +57,7 @@ public class AmazonQAgentModel implements AgentModel {
 
 	@Override
 	public AgentResponse call(AgentTaskRequest request) {
+		UnsupportedMcpServers.refuse("Amazon Q", request.options());
 		// Extract goal/prompt from request, with portable system prompt prepended
 		String goal = request.goal();
 		if (request.options() != null && request.options().getSystemInstructions() != null

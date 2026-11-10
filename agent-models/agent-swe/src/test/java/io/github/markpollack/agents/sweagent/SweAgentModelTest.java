@@ -5,6 +5,10 @@
 
 package io.github.markpollack.agents.sweagent;
 
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
+import io.github.markpollack.agents.tck.PortableMcpAgentOptions;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi;
 import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi.SweResult;
 import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi.SweResultStatus;
@@ -166,6 +170,19 @@ class SweAgentModelTest {
 		assertThat(options.getTimeout()).isEqualTo(Duration.ofMinutes(15));
 		assertThat(options.getMaxIterations()).isEqualTo(25);
 		assertThat(options.isVerbose()).isFalse();
+	}
+
+	private static final java.util.Map<String, McpServerDefinition> MCP_SERVERS = java.util.Map.of("files",
+			new McpServerDefinition.StdioDefinition("npx", java.util.List.of("-y", "files-server"), java.util.Map.of()));
+
+	@Test
+	void refusesConfiguredMcpServersWithoutLaunchingSweAgent() throws Exception {
+		AgentResponse response = agentModel.call(AgentTaskRequest.builder("Use the files server", testWorkingDirectory)
+			.options(new PortableMcpAgentOptions(MCP_SERVERS))
+			.build());
+		assertThat(response.isSuccessful()).isFalse();
+		assertThat(response.getText()).contains("files").contains("MCP").doesNotContain("Unexpected error");
+		verify(mockSweCliApi, never()).execute(anyString(), any(Path.class), any());
 	}
 
 }

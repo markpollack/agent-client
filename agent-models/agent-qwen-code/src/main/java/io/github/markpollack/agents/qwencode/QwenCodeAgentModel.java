@@ -16,6 +16,7 @@ import com.alibaba.qwen.code.cli.utils.Timeout;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.github.markpollack.agents.model.UnsupportedMcpServers;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
@@ -85,6 +86,7 @@ public class QwenCodeAgentModel implements AgentModel {
 		TransportOptions transportOptions = toTransportOptions(options, request);
 
 		try {
+			UnsupportedMcpServers.refuse("Qwen Code", request.options());
 			long startTime = System.currentTimeMillis();
 			List<String> results = queryFunction.query(goal, transportOptions);
 			long duration = System.currentTimeMillis() - startTime;

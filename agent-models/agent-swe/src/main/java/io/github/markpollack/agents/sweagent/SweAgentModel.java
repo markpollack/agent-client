@@ -11,6 +11,7 @@ import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi.SweResultSta
 import io.github.markpollack.agents.sweagentsdk.transport.SweCliApi.SweCliException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.github.markpollack.agents.model.UnsupportedMcpServers;
 import io.github.markpollack.agents.model.AgentResponse;
 import io.github.markpollack.agents.model.AgentResponseMetadata;
 import io.github.markpollack.agents.model.AgentGeneration;
@@ -106,6 +107,7 @@ public class SweAgentModel implements AgentModel {
 		Instant startTime = Instant.now();
 
 		try {
+			UnsupportedMcpServers.refuse("SWE-agent", request.options());
 			if (sandbox != null) {
 				// Use sandbox-based execution (new pattern)
 				return executeWithSandbox(request, startTime);
@@ -114,6 +116,9 @@ public class SweAgentModel implements AgentModel {
 				// Use legacy direct CLI execution (deprecated)
 				return executeLegacy(request, startTime);
 			}
+		}
+		catch (UnsupportedOperationException e) {
+			return createErrorResponse(e.getMessage(), Duration.between(startTime, Instant.now()));
 		}
 		catch (Exception e) {
 			logger.error("Unexpected error during agent execution", e);

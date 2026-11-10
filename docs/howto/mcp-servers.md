@@ -73,7 +73,8 @@ servers without registering a catalog fails with `IllegalStateException`.
 | Claude Code (`agent-claude`) | `AgentModel` | Translated to Claude's MCP configuration: stdio, SSE and HTTP. A Claude-specific `mcpServers` option overrides a portable server of the same name. |
 | Gemini CLI (`agent-gemini`) | `AgentModel` | Translated to Gemini's MCP configuration. |
 | Grok, Junie (ACP, `agent-acp`) | `AgentModel` | **0.32.0:** not sent; the servers are dropped. **On main, not yet released:** stdio servers are always sent in the ACP `session/new`. HTTP and SSE servers are sent when the agent advertises that transport; otherwise the call fails before a session opens. |
-| Codex, Antigravity, Amp, SWE-agent, Amazon Q, Qwen Code | `AgentModel` | Not translated: the portable definitions are not passed to the CLI. |
+| Amp (`agent-amp`) | `AgentModel` | **0.32.0:** not passed; the servers are dropped. **On main, not yet released:** passed with Amp's `--mcp-config` in an owner-only temporary file, deleted after the run, and merged with the user's Amp settings. Stdio, SSE and HTTP; Amp detects a remote server's transport from its URL. |
+| Codex, Antigravity, SWE-agent, Amazon Q, Qwen Code | `AgentModel` | **0.32.0:** not passed; the servers are dropped. **On main, not yet released:** Client has no translation for these CLIs, so the call is refused before the CLI starts. Codex, Antigravity, SWE-agent and Qwen Code return an unsuccessful response naming the servers; Amazon Q throws `UnsupportedOperationException`. |
 | Claude Code (`ClaudeClientProvider`) | Lifecycle, **on main, not yet released** | Translated, as for `agent-claude`. Also supports the scoped binding below. |
 | Codex (`CodexClientProvider`), Antigravity (`AntigravityClientProvider`) | Lifecycle, **on main, not yet released** | Refused before launch with `UnsupportedOperationException`. |
 

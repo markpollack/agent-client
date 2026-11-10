@@ -5,6 +5,10 @@
 
 package io.github.markpollack.agents.qwencode;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import io.github.markpollack.agents.model.AgentOptions;
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -110,6 +114,52 @@ class QwenCodeAgentModelTest {
 
 		assertThat(captured[0].getModel()).isEqualTo("qwen3-coder-flash");
 		assertThat(captured[0].getPermissionMode()).isEqualTo(PermissionMode.PLAN);
+	}
+
+	@Test
+	void refusesConfiguredMcpServersWithoutLaunchingQwenCode() {
+		AtomicBoolean launched = new AtomicBoolean();
+		QwenCodeAgentModel model = new QwenCodeAgentModel(QwenCodeAgentOptions.builder().build(), (prompt, options) -> {
+			launched.set(true);
+			return List.of("ran");
+		});
+		AgentOptions withServers = new AgentOptions() {
+			@Override
+			public String getWorkingDirectory() {
+				return null;
+			}
+
+			@Override
+			public Duration getTimeout() {
+				return null;
+			}
+
+			@Override
+			public Map<String, String> getEnvironmentVariables() {
+				return Map.of();
+			}
+
+			@Override
+			public String getModel() {
+				return null;
+			}
+
+			@Override
+			public Map<String, Object> getExtras() {
+				return Map.of();
+			}
+
+			@Override
+			public Map<String, McpServerDefinition> getMcpServerDefinitions() {
+				return Map.of("files", new McpServerDefinition.StdioDefinition("npx", List.of("-y", "files-server"),
+						Map.of()));
+			}
+		};
+		AgentResponse response = model
+			.call(AgentTaskRequest.builder("Use the files server", Path.of("/tmp")).options(withServers).build());
+		assertThat(response.isSuccessful()).isFalse();
+		assertThat(response.getText()).contains("files").contains("MCP");
+		assertThat(launched).as("Qwen Code was not launched").isFalse();
 	}
 
 }

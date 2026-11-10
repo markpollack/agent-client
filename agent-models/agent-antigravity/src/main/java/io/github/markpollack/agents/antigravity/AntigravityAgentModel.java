@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.markpollack.agents.antigravitysdk.AntigravityClient;
 import io.github.markpollack.agents.antigravitysdk.types.ExecuteOptions;
 import io.github.markpollack.agents.antigravitysdk.types.ExecuteResult;
+import io.github.markpollack.agents.model.UnsupportedMcpServers;
 import io.github.markpollack.agents.model.AgentGeneration;
 import io.github.markpollack.agents.model.AgentGenerationMetadata;
 import io.github.markpollack.agents.model.AgentModel;
@@ -74,6 +75,7 @@ public class AntigravityAgentModel implements AgentModel {
 		logger.info("Executing Antigravity agent with goal of {} characters", goal.length());
 
 		try {
+			UnsupportedMcpServers.refuse("Antigravity", request.options());
 			ExecuteResult result = this.antigravityClient.execute(goal,
 					toExecuteOptions(mergeOptions(request), request));
 			AntigravityPhaseCapture capture = parseCapture(result, goal);

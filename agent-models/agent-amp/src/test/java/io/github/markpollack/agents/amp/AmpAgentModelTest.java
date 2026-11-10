@@ -5,6 +5,11 @@
 
 package io.github.markpollack.agents.amp;
 
+import java.util.List;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
+import io.github.markpollack.agents.tck.PortableMcpAgentOptions;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -106,12 +111,46 @@ class AmpAgentModelTest {
 				  exit 0
 				fi
 				printf '%s\\n' "$@" > argv
+				prev=''
+				for arg in "$@"; do
+				  if [ "$prev" = "--mcp-config" ]; then cat "$arg" > mcp-config; ls -l "$arg" | cut -c1-10 > mcp-config-mode; fi
+				  prev="$arg"
+				done
 				cat > stdin
 				echo 'fixture response'
 				exit EXIT_CODE
 				""".replace("EXIT_CODE", Integer.toString(exitCode)));
 		assertThat(executable.toFile().setExecutable(true)).isTrue();
 		return AmpClient.create(ExecuteOptions.defaultOptions(), this.directory, executable.toString());
+	}
+
+	@Test
+	void passesConfiguredMcpServersInTheAmpMcpConfigShape() throws IOException {
+		try (AmpClient client = client(0)) {
+			var servers = new java.util.LinkedHashMap<String, McpServerDefinition>();
+			servers.put("files", new McpServerDefinition.StdioDefinition("npx", List.of("-y", "files-server"),
+					Map.of("ROOT", "/w")));
+			servers.put("search", new McpServerDefinition.HttpDefinition("https://mcp.example/search",
+					Map.of("Authorization", "Bearer t")));
+			servers.put("events", new McpServerDefinition.SseDefinition("https://mcp.example/sse", Map.of()));
+			new AmpAgentModel(client, null, null).call(AgentTaskRequest.builder("Use the files server", this.directory)
+				.options(new PortableMcpAgentOptions(servers))
+				.build());
+			List<String> argv = Files.readAllLines(this.directory.resolve("argv"));
+			assertThat(argv).hasSize(4);
+			assertThat(argv.get(0)).isEqualTo("--dangerously-allow-all");
+			assertThat(argv.get(1)).isEqualTo("--mcp-config");
+			assertThat(argv.get(3)).isEqualTo("-x");
+			assertThat(Path.of(argv.get(2))).as("config file removed after the run").doesNotExist();
+			assertThat(Files.readString(this.directory.resolve("mcp-config-mode")).trim()).isEqualTo("-rw-------");
+			JsonNode config = new ObjectMapper().readTree(this.directory.resolve("mcp-config").toFile());
+			assertThat(config.path("files").path("command").asText()).isEqualTo("npx");
+			assertThat(config.path("files").path("args").toString()).isEqualTo("[\"-y\",\"files-server\"]");
+			assertThat(config.path("files").path("env").path("ROOT").asText()).isEqualTo("/w");
+			assertThat(config.path("search").path("url").asText()).isEqualTo("https://mcp.example/search");
+			assertThat(config.path("search").path("headers").path("Authorization").asText()).isEqualTo("Bearer t");
+			assertThat(config.path("events").path("url").asText()).isEqualTo("https://mcp.example/sse");
+		}
 	}
 
 }

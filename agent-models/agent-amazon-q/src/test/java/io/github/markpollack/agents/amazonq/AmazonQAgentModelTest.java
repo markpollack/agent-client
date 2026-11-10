@@ -5,6 +5,8 @@
 
 package io.github.markpollack.agents.amazonq;
 
+import io.github.markpollack.agents.model.mcp.McpServerDefinition;
+import io.github.markpollack.agents.tck.PortableMcpAgentOptions;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -123,6 +125,18 @@ class AmazonQAgentModelTest {
 				""".replace("EXIT_CODE", Integer.toString(exitCode)));
 		assertThat(executable.toFile().setExecutable(true)).isTrue();
 		return AmazonQClient.create(this.directory, executable.toString());
+	}
+
+	private static final java.util.Map<String, McpServerDefinition> MCP_SERVERS = java.util.Map.of("files",
+			new McpServerDefinition.StdioDefinition("npx", java.util.List.of("-y", "files-server"), java.util.Map.of()));
+
+	@Test
+	void refusesConfiguredMcpServersWithoutLaunchingAmazonQ() throws IOException {
+		var model = new AmazonQAgentModel(client(0), null, null);
+		assertThatThrownBy(() -> model.call(AgentTaskRequest.builder("Use the files server", this.directory)
+			.options(new PortableMcpAgentOptions(MCP_SERVERS))
+			.build())).isInstanceOf(UnsupportedOperationException.class).hasMessageContaining("files");
+		assertThat(this.directory.resolve("argv")).as("Amazon Q was not launched").doesNotExist();
 	}
 
 }

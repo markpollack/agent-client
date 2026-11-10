@@ -80,6 +80,7 @@ public class CodexAgentModel implements AgentModel {
 		// Bridge portable jsonSchema → temp file for Codex --output-schema
 		Path jsonSchemaTempFile = null;
 		try {
+			UnsupportedMcpServers.refuse("Codex", request.options());
 			if (options.getOutputSchema() == null && request.options() != null
 					&& request.options().getJsonSchema() != null && !request.options().getJsonSchema().isEmpty()) {
 				jsonSchemaTempFile = writeJsonSchemaToTempFile(request.options().getJsonSchema());
