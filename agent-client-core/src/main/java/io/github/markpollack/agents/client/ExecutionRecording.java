@@ -14,6 +14,13 @@ import java.util.function.Function;
 /**
  * One bounded secondary delivery attempt. Native acquisition and receiver retries are
  * separate.
+ *
+ * <p>
+ * A decision made before or during close is still recorded (S9): close does not refuse
+ * it, and the Client's close drains it within the cleanup budget, which the session
+ * counts as optional work. A recording that outlasts that budget is reported by close as
+ * unconfirmed cleanup and still finishes afterwards, bounded by the stale limit. Only a
+ * retry is refused while closing, so the drain is a single attempt.
  */
 final class ExecutionRecording {
 
@@ -66,11 +73,6 @@ final class ExecutionRecording {
 			this.started = this.runtime.clock.getAsLong();
 			this.snapshot = snapshot(decision, new TerminalDelivery.Pending(this.runtime.wall.get()), List.of(), 1);
 		}
-		if (this.execution.store.session.isClosing()) {
-			finish(decision, failed(FailureCode.RECORDING_FAILED,
-					new IllegalStateException("Client/session is closing"), false));
-			return;
-		}
 		this.cancelTimer = this.runtime.timer.schedule(() -> stale(decision), STALE_NANOS);
 		this.execution.store.session.beginOptional();
 		try {
@@ -93,11 +95,6 @@ final class ExecutionRecording {
 		synchronized (this.lock) {
 			if (this.ended)
 				return false;
-			if (this.execution.store.session.isClosing()) {
-				finish(decision, failed(FailureCode.RECORDING_FAILED,
-						new IllegalStateException("Client/session is closing"), false));
-				return false;
-			}
 			if (staleNow()) {
 				stale(decision);
 				return false;
@@ -174,11 +171,6 @@ final class ExecutionRecording {
 		synchronized (this.lock) {
 			if (staleNow()) {
 				stale(decision);
-				return false;
-			}
-			if (this.execution.store.session.isClosing()) {
-				finish(decision, failed(FailureCode.RECORDING_FAILED,
-						new IllegalStateException("Client/session is closing"), this.deliveryPossible));
 				return false;
 			}
 			this.deliveryPossible = true;

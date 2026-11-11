@@ -102,8 +102,12 @@ public class DefaultAgentClient implements AgentClient {
 			sessions = java.util.List.copyOf(this.ownedSessions);
 		}
 		sessions.forEach(session -> session.requestClose(budget));
+		// Sessions settle first, so a decision made during close still reaches the
+		// recorder
+		// lane (S9); the lanes stop only after that, within the same budget.
+		awaitSessions(sessions);
 		this.runtime.stopOwnedLanes();
-		awaitSessions(sessions, budget);
+		awaitOwnedLanes(budget);
 		if (!this.ownedSessions.isEmpty() || !this.runtime.remainingLanes().isEmpty())
 			throw new CleanupUnconfirmedException("Client cleanup unconfirmed", new CleanupHandle() {
 				@Override
@@ -123,7 +127,7 @@ public class DefaultAgentClient implements AgentClient {
 			});
 	}
 
-	private void awaitSessions(java.util.List<DefaultAgentSession> sessions, CleanupBudget budget) {
+	private void awaitSessions(java.util.List<DefaultAgentSession> sessions) {
 		boolean interrupted = Thread.interrupted();
 		try {
 			for (var session : sessions) {
@@ -134,13 +138,15 @@ public class DefaultAgentClient implements AgentClient {
 					/* Continue every owned teardown. */ }
 				interrupted |= Thread.interrupted();
 			}
-			this.runtime.awaitOwnedLanes(budget);
-			interrupted |= Thread.interrupted();
 		}
 		finally {
 			if (interrupted)
 				Thread.currentThread().interrupt();
 		}
+	}
+
+	private void awaitOwnedLanes(CleanupBudget budget) {
+		this.runtime.awaitOwnedLanes(budget);
 	}
 
 	private final AgentOptions defaultOptions;
