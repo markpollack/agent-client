@@ -11,6 +11,9 @@ prompt = sys.stdin.buffer.read()
 mode = prompt.decode('utf-8').split(':')[0]
 sys.stderr.buffer.write(b'original-stderr-\xff-secret=fixture-token\n')
 sys.stderr.buffer.flush()
+if mode == 'delayed':
+    (cwd/'waiting').touch()
+    while not (cwd/'release').exists(): time.sleep(.01)
 if mode == 'wait':
     (cwd/'waiting').touch()
     time.sleep(60)

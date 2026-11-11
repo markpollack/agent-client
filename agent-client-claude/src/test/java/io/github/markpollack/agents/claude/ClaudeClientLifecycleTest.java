@@ -49,6 +49,39 @@ class ClaudeClientLifecycleTest {
 	}
 
 	@Test
+	void syncControlTimeoutDoesNotBoundTheActiveResponseWait() throws Exception {
+		var options = DefaultAgentOptions.builder().timeout(Duration.ofMillis(300)).build();
+		try (var client = AgentClient.builder(provider()).defaultTimeout(null).defaultOptions(options).build()) {
+			var execution = client.goal("delayed").runAsync();
+			awaitFile("waiting");
+			Thread.sleep(650);
+			assertThat(execution.isDone()).isFalse();
+			Files.createFile(directory.resolve("release"));
+			assertThat(execution.result().getResult()).isEqualTo("delayed");
+			assertThat(execution.awaitTermination(Duration.ofSeconds(5)).cleanupConfirmed()).isTrue();
+		}
+		assertDead();
+	}
+
+	@Test
+	void untimedResponseWaitStillCancelsWithEitherFlag() throws Exception {
+		for (boolean flag : new boolean[] { false, true }) {
+			Files.deleteIfExists(directory.resolve("waiting"));
+			var options = DefaultAgentOptions.builder().timeout(Duration.ofMillis(300)).build();
+			try (var client = AgentClient.builder(provider()).defaultTimeout(null).defaultOptions(options).build()) {
+				var execution = client.goal("wait").runAsync();
+				awaitFile("waiting");
+				Thread.sleep(650);
+				assertThat(execution.isDone()).isFalse();
+				assertThat(execution.cancel(flag)).isTrue();
+				assertThatThrownBy(execution::result).isInstanceOf(CancellationException.class);
+				assertThat(execution.awaitTermination(Duration.ofSeconds(9)).cleanupConfirmed()).isTrue();
+			}
+			assertDead();
+		}
+	}
+
+	@Test
 	void closedOneShotCannotLaunchAReplacementGeneration() throws Exception {
 		var connection = provider().open(DefaultAgentOptions.builder().build(), false);
 		try {

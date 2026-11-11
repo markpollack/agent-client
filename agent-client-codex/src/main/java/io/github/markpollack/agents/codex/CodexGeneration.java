@@ -50,7 +50,7 @@ final class CodexGeneration implements AutoCloseable {
 		this.options = configuration.options(options);
 		this.resumeId = resumeId;
 		this.turnIndex = turnIndex;
-		this.process = new CodexProcess(configuration.executable(), this.options, resumeId);
+		this.process = new CodexProcess(configuration.executable(), this.options, resumeId, configuration.untimed());
 	}
 
 	@Override

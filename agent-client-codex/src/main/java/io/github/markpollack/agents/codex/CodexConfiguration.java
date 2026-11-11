@@ -11,11 +11,12 @@ import io.github.markpollack.agents.model.AgentOptions;
 import io.github.markpollack.agents.codexsdk.types.*;
 
 record CodexConfiguration(String executable, Path directory, Path sessions, Path capture, String version,
-		SandboxMode sandbox, boolean skipGitCheck, java.util.function.Consumer<CodexWitness> captureObserver) {
+		SandboxMode sandbox, boolean skipGitCheck, java.util.function.Consumer<CodexWitness> captureObserver,
+		boolean untimed) {
 
 	CodexConfiguration(String executable, Path directory, Path sessions, Path capture, String version,
 			SandboxMode sandbox, boolean skipGitCheck) {
-		this(executable, directory, sessions, capture, version, sandbox, skipGitCheck, null);
+		this(executable, directory, sessions, capture, version, sandbox, skipGitCheck, null, false);
 	}
 
 	/** Controlled tests observe each turn's capture handle; production passes nothing. */

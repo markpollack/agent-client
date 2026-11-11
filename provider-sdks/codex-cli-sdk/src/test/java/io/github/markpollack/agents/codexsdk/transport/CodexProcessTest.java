@@ -19,6 +19,10 @@ class CodexProcessTest {
 	Path directory;
 
 	private CodexProcess process(String body, Duration timeout) throws Exception {
+		return process(body, timeout, false);
+	}
+
+	private CodexProcess process(String body, Duration timeout, boolean untimed) throws Exception {
 		var script = directory.resolve("child.py");
 		Files.writeString(script, "#!/usr/bin/python3\nimport os,sys,time,pathlib,signal,subprocess\n" + body);
 		Files.setPosixFilePermissions(script, java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
@@ -29,7 +33,8 @@ class CodexProcessTest {
 					.fullAuto(false)
 					.sandboxMode(SandboxMode.READ_ONLY)
 					.jsonOutput(true)
-					.build());
+					.build(),
+				null, untimed);
 	}
 
 	@Test
@@ -110,6 +115,28 @@ class CodexProcessTest {
 		for (long pid : p.observedPids())
 			assertThat(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)).isFalse();
 		p.close();
+	}
+
+	@Test
+	void untimedWaitCanBeStoppedWithPartialBytesAndObservedDescendantCleanup() throws Exception {
+		try (var p = process(
+				"child=subprocess.Popen(['/bin/sleep','60'])\nsignal.signal(signal.SIGTERM,lambda *_:(child.terminate(),child.wait(),sys.exit(0)))\nsys.stdin.buffer.read()\nprint('partial',flush=True)\npathlib.Path('waiting').touch()\ntime.sleep(60)\n",
+				Duration.ofMillis(300), true); var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			var result = executor.submit(() -> p.run(new byte[] { 1 }));
+			long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+			while (!Files.exists(directory.resolve("waiting")) && System.nanoTime() < until)
+				Thread.sleep(5);
+			assertThat(directory.resolve("waiting")).exists();
+			Thread.sleep(650);
+			assertThat(result.isDone()).isFalse();
+			assertThat(p.observedPids()).hasSize(2);
+			p.close();
+			result.get(5, TimeUnit.SECONDS);
+			assertThat(p.terminated()).isTrue();
+			assertThat(new String(p.stdout().bytes(), java.nio.charset.StandardCharsets.UTF_8)).contains("partial");
+			for (long pid : p.observedPids())
+				assertThat(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)).isFalse();
+		}
 	}
 
 	@Test

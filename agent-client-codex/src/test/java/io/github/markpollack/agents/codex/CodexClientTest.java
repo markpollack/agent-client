@@ -37,13 +37,19 @@ class CodexClientTest {
 	}
 
 	private CodexClientProvider provider() {
-		return CodexClientProvider.builder()
+		return provider(false);
+	}
+
+	private CodexClientProvider provider(boolean untimed) {
+		var builder = CodexClientProvider.builder()
 			.codexPath(script.toString())
 			.workingDirectory(root)
 			.nativeSessionsDirectory(root.resolve("sessions"))
 			.acquisitionDirectory(root.resolve("captures"), "0.166.0")
-			.skipGitCheck(true)
-			.build();
+			.skipGitCheck(true);
+		if (untimed)
+			builder.withoutExecutionTimeout();
+		return builder.build();
 	}
 
 	private DefaultAgentOptions options() {
@@ -135,9 +141,54 @@ class CodexClientTest {
 		assertDead(root);
 	}
 
-	@Test
-	void deadlineTerminatesChild() throws Exception {
-		try (var client = client().build()) {
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void providerDeadlineIsRemovedOnlyByExplicitOptIn(boolean untimed) throws Exception {
+		var shortOptions = DefaultAgentOptions.builder().from(options()).timeout(Duration.ofMillis(300)).build();
+		try (var client = AgentClient.builder(provider(untimed))
+			.defaultTimeout(null)
+			.defaultOptions(shortOptions)
+			.build()) {
+			var execution = client.goal("delayed").runAsync();
+			awaitFile(root.resolve("waiting"));
+			if (untimed) {
+				Thread.sleep(650);
+				assertThat(execution.isDone()).isFalse();
+				Files.createFile(root.resolve("release"));
+				assertThat(execution.result().getResult()).isEqualTo("answer:delayed");
+			}
+			else {
+				assertThatThrownBy(execution::result).isInstanceOf(AgentExecutionException.class)
+					.hasRootCauseInstanceOf(TimeoutException.class);
+			}
+			assertThat(execution.awaitTermination(Duration.ofSeconds(5)).cleanupConfirmed()).isTrue();
+		}
+		assertDead(root);
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void untimedTurnStillCancelsWithEitherFlag(boolean interrupt) throws Exception {
+		var shortOptions = DefaultAgentOptions.builder().from(options()).timeout(Duration.ofMillis(300)).build();
+		try (var client = AgentClient.builder(provider(true))
+			.defaultTimeout(null)
+			.defaultOptions(shortOptions)
+			.build()) {
+			var execution = client.goal("wait").runAsync();
+			awaitFile(root.resolve("waiting"));
+			Thread.sleep(650);
+			assertThat(execution.isDone()).isFalse();
+			assertThat(execution.cancel(interrupt)).isTrue();
+			assertThatThrownBy(execution::result).isInstanceOf(CancellationException.class);
+			assertThat(execution.awaitTermination(Duration.ofSeconds(5)).cleanupConfirmed()).isTrue();
+		}
+		assertDead(root);
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void deadlineTerminatesChild(boolean untimed) throws Exception {
+		try (var client = AgentClient.builder(provider(untimed)).defaultOptions(options()).build()) {
 			var execution = client.goal("wait").executionTimeout(Duration.ofMillis(300)).runAsync();
 			assertThatThrownBy(execution::result).isInstanceOf(AgentExecutionException.class);
 			assertThat(execution.awaitTermination(Duration.ofSeconds(5)).cleanupConfirmed()).isTrue();

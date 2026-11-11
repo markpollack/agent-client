@@ -23,6 +23,8 @@ public final class CodexProcess implements AutoCloseable {
 
 	private final String resumeThreadId;
 
+	private final boolean untimed;
+
 	private final Map<Long, ProcessHandle> owned = new ConcurrentHashMap<>();
 
 	private final ReentrantLock closing = new ReentrantLock();
@@ -46,19 +48,28 @@ public final class CodexProcess implements AutoCloseable {
 	 * thread. The prompt still arrives on stdin and no earlier prompt is replayed.
 	 */
 	public CodexProcess(String executable, ExecuteOptions options, String resumeThreadId) {
+		this(executable, options, resumeThreadId, false);
+	}
+
+	/**
+	 * Optionally omit the elapsed process-wait deadline. Existing constructors remain
+	 * timed; cancellation, resource ownership and bounded cleanup are unchanged.
+	 */
+	public CodexProcess(String executable, ExecuteOptions options, String resumeThreadId, boolean untimed) {
 		this.executable = Objects.requireNonNull(executable);
 		this.options = Objects.requireNonNull(options);
 		if (resumeThreadId != null && !resumeThreadId.matches("[A-Za-z0-9-]+"))
 			throw new IllegalArgumentException("Unsafe Codex thread identity");
 		this.resumeThreadId = resumeThreadId;
+		this.untimed = untimed;
 	}
 
 	/** Launch exactly once, with the prompt written to stdin rather than argv. */
 	public int run(byte[] prompt) throws IOException, InterruptedException, ExecutionException, TimeoutException {
 		try (var resource = this) {
-			return resource.launch(prompt)
-				.getFuture()
-				.get(this.options.getTimeout().toMillis(), TimeUnit.MILLISECONDS)
+			var completion = resource.launch(prompt).getFuture();
+			return (this.untimed ? completion.get()
+					: completion.get(this.options.getTimeout().toMillis(), TimeUnit.MILLISECONDS))
 				.getExitValue();
 		}
 	}

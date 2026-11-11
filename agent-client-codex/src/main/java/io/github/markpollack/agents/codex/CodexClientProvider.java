@@ -20,7 +20,8 @@ public final class CodexClientProvider implements AgentExecutionProvider {
 
 	private CodexClientProvider(Builder builder) {
 		this.configuration = new CodexConfiguration(builder.executable, builder.directory, builder.sessions,
-				builder.capture, builder.version, builder.sandbox, builder.skipGitCheck, builder.captureObserver);
+				builder.capture, builder.version, builder.sandbox, builder.skipGitCheck, builder.captureObserver,
+				builder.untimed);
 	}
 
 	public static Builder builder() {
@@ -59,6 +60,8 @@ public final class CodexClientProvider implements AgentExecutionProvider {
 		private SandboxMode sandbox = SandboxMode.READ_ONLY;
 
 		private boolean skipGitCheck;
+
+		private boolean untimed;
 
 		private java.util.function.Consumer<CodexWitness> captureObserver;
 
@@ -104,6 +107,19 @@ public final class CodexClientProvider implements AgentExecutionProvider {
 
 		public Builder skipGitCheck(boolean skip) {
 			this.skipGitCheck = skip;
+			return this;
+		}
+
+		/**
+		 * Wait for each Codex process without an execution deadline. Explicit Client
+		 * deadlines still apply; for an untimed call also use
+		 * {@code AgentClient.Builder.defaultTimeout(null)}, omit the request execution
+		 * timeout, and wait with {@code AgentExecution.result()}. Cancellation and
+		 * bounded cleanup are unchanged. Ordinary providers retain their configured
+		 * timeout.
+		 */
+		public Builder withoutExecutionTimeout() {
+			this.untimed = true;
 			return this;
 		}
 

@@ -118,6 +118,9 @@ for line in sys.stdin:
         continue
     if prompt.startswith('cwd-marker:'):
         (root / prompt.split(':', 1)[1]).write_text(str(root))
+    if prompt == 'delayed':
+        (root / 'waiting').touch()
+        while not (root / 'release').exists(): time.sleep(.01)
     if prompt == 'wait':
         (root / 'waiting').touch()
         while True: time.sleep(.05)
