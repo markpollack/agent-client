@@ -313,7 +313,6 @@
 
 
         <!-- Core dependency versions -->
-        <spring-ai.version>2.0.1</spring-ai.version>
         <spring-boot.version>4.1.1</spring-boot.version>
         <slf4j.version>2.0.18</slf4j.version>
 
@@ -386,43 +385,6 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-
-            <!-- Spring AI BOM -->
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-bom</artifactId>
-                <version>${spring-ai.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- Spring AI dependencies -->
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-client-chat</artifactId>
-                <version>${spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-model</artifactId>
-                <version>${spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-retry</artifactId>
-                <version>${spring-ai.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-test</artifactId>
-                <version>${spring-ai.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-template-st</artifactId>
-                <version>${spring-ai.version}</version>
             </dependency>
 
             <!-- Sandbox for process execution -->
@@ -667,6 +629,32 @@
         </pluginManagement>
 
         <plugins>
+            <!-- No Spring AI anywhere in Client (Owner, 2026-11-11). Every module, every scope, transitive included;
+                 Spring Boot in the autoconfigure module is a separate, allowed dependency. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>ban-spring-ai</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.springframework.ai:*</exclude>
+                                    </excludes>
+                                    <message>Agent Client must not depend on Spring AI (org.springframework.ai).</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Own-module LINE and BRANCH floors, measured minus two percentage points.
                  Every included executable module must have an execution file and report;
                  JaCoCo can otherwise skip its check despite the default floor of 1.00. -->

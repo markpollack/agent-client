@@ -7,11 +7,9 @@ package io.github.markpollack.agents.model;
 
 import java.util.Objects;
 
-import org.springframework.ai.model.ModelResult;
-
 /**
- * Individual result generation - equivalent to Generation following Spring AI
- * conventions. This class uses Spring AI's pattern with proper binary compatibility.
+ * One generation of an {@link AgentResponse}: the agent's output text and its
+ * {@link AgentGenerationMetadata}.
  *
  * <p>
  * Unlike records, this class ensures binary compatibility for future versions.
@@ -20,7 +18,7 @@ import org.springframework.ai.model.ModelResult;
  * @author Mark Pollack
  * @since 0.1.0
  */
-public class AgentGeneration implements ModelResult<String> {
+public class AgentGeneration {
 
 	private final String text;
 
@@ -44,12 +42,18 @@ public class AgentGeneration implements ModelResult<String> {
 		this.agentGenerationMetadata = metadata != null ? metadata : AgentGenerationMetadata.NULL;
 	}
 
-	@Override
+	/**
+	 * Get the agent's output text.
+	 * @return the output text, never {@code null}
+	 */
 	public String getOutput() {
 		return this.text;
 	}
 
-	@Override
+	/**
+	 * Get this generation's metadata.
+	 * @return the metadata, never {@code null}
+	 */
 	public AgentGenerationMetadata getMetadata() {
 		return this.agentGenerationMetadata;
 	}

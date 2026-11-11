@@ -6,20 +6,18 @@
 package io.github.markpollack.agents.model;
 
 import io.github.markpollack.agents.model.mcp.McpServerDefinition;
-import org.springframework.ai.model.ModelOptions;
 
 import java.time.Duration;
 import java.util.Map;
 
 /**
- * Configuration options for autonomous development agents. Extends ModelOptions to
- * provide agent-specific settings such as execution timeouts, working directories, and
- * environment variables.
+ * Configuration options for autonomous development agents: execution timeouts, working
+ * directories, environment variables and other agent-specific settings.
  *
  * @author Mark Pollack
  * @since 0.1.0
  */
-public interface AgentOptions extends ModelOptions {
+public interface AgentOptions {
 
 	/**
 	 * Get the working directory for agent execution.

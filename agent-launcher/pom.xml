@@ -32,18 +32,6 @@
             <version>2.6</version>
         </dependency>
 
-        <!-- Spring AI Template abstraction -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-model</artifactId>
-        </dependency>
-
-        <!-- Spring AI StringTemplate implementation -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-template-st</artifactId>
-        </dependency>
-
         <!-- SLF4J for logging -->
         <dependency>
             <groupId>org.slf4j</groupId>

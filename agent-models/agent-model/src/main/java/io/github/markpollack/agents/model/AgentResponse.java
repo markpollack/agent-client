@@ -8,11 +8,9 @@ package io.github.markpollack.agents.model;
 import java.util.List;
 import java.util.Objects;
 
-import org.springframework.ai.model.ModelResponse;
-
 /**
- * Model layer result - equivalent to ChatResponse following Spring AI conventions. This
- * class uses Spring AI's two-layer pattern with proper binary compatibility.
+ * The result of one agent task: its {@link AgentGeneration generations} and
+ * {@link AgentResponseMetadata response metadata}.
  *
  * <p>
  * Unlike records, this class ensures binary compatibility for future versions.
@@ -21,7 +19,7 @@ import org.springframework.ai.model.ModelResponse;
  * @author Mark Pollack
  * @since 0.1.0
  */
-public class AgentResponse implements ModelResponse<AgentGeneration> {
+public class AgentResponse {
 
 	private final AgentResponseMetadata agentResponseMetadata;
 
@@ -45,17 +43,26 @@ public class AgentResponse implements ModelResponse<AgentGeneration> {
 		this.results = List.copyOf(results);
 	}
 
-	@Override
+	/**
+	 * Get all generations.
+	 * @return the generations, unmodifiable
+	 */
 	public List<AgentGeneration> getResults() {
 		return this.results;
 	}
 
-	@Override
+	/**
+	 * Get the response metadata.
+	 * @return the metadata, never {@code null}
+	 */
 	public AgentResponseMetadata getMetadata() {
 		return this.agentResponseMetadata;
 	}
 
-	@Override
+	/**
+	 * Get the first generation.
+	 * @return the first generation, or {@code null} when there is none
+	 */
 	public AgentGeneration getResult() {
 		return this.results.isEmpty() ? null : this.results.get(0);
 	}

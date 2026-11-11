@@ -31,10 +31,11 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring AI Model (for consistency) -->
+        <!-- Spring Framework core: AgentAdvisor extends Ordered; the advisor chain uses OrderComparator and Assert.
+             Transitive via Spring AI until 2026-11-11, now declared. Not Spring AI. -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-model</artifactId>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
         </dependency>
 
         <!-- Agent model dependencies for testing -->

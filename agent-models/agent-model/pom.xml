@@ -24,10 +24,10 @@
     </properties>
 
     <dependencies>
-        <!-- Spring AI Model (for ModelOptions interface) -->
+        <!-- Reactor for StreamingAgentModel's Flux (was transitive via Spring AI until 2026-11-11) -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-model</artifactId>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
         </dependency>
 
         <!-- Sandbox for process execution (LocalSandbox) -->

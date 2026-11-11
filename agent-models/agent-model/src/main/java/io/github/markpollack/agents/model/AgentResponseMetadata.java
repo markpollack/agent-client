@@ -10,10 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.springframework.ai.model.ResponseMetadata;
-
 /**
- * Agent response metadata following Spring AI conventions.
+ * Execution metadata of one {@link AgentResponse}.
  *
  * <p>
  * Contains execution metadata for agent tasks including model information, duration,
@@ -23,7 +21,7 @@ import org.springframework.ai.model.ResponseMetadata;
  * @author Mark Pollack
  * @since 0.1.0
  */
-public class AgentResponseMetadata extends HashMap<String, Object> implements ResponseMetadata {
+public class AgentResponseMetadata extends HashMap<String, Object> {
 
 	private final String model;
 
@@ -90,12 +88,23 @@ public class AgentResponseMetadata extends HashMap<String, Object> implements Re
 		return super.getOrDefault(key, defaultValue);
 	}
 
-	@Override
+	/**
+	 * Get a value by key, cast to the caller's type.
+	 * @param key the key
+	 * @param <T> the expected type
+	 * @return the value, or {@code null} when absent
+	 */
 	public <T> T get(String key) {
 		return (T) super.get(key);
 	}
 
-	@Override
+	/**
+	 * Get a value that must be present, cast to the caller's type.
+	 * @param key the key
+	 * @param <T> the expected type
+	 * @return the value
+	 * @throws IllegalArgumentException when the key is absent
+	 */
 	public <T> T getRequired(Object key) {
 		Object value = get(key);
 		if (value == null) {

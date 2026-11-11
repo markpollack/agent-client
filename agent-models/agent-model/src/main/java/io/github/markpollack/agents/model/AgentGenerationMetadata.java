@@ -8,21 +8,18 @@ package io.github.markpollack.agents.model;
 import java.util.Map;
 import java.util.Objects;
 
-import org.springframework.ai.model.ResultMetadata;
-
 /**
- * Per-generation metadata - equivalent to ChatGenerationMetadata following Spring AI
- * conventions.
+ * Per-generation metadata: the finish reason and provider-specific fields of one
+ * {@link AgentGeneration}.
  *
  * <p>
- * Follows Spring AI pattern of deriving success from finishReason rather than storing
- * boolean status.
+ * Success is derived from the finish reason rather than stored as a boolean status.
  * </p>
  *
  * @author Mark Pollack
  * @since 0.1.0
  */
-public class AgentGenerationMetadata implements ResultMetadata {
+public class AgentGenerationMetadata {
 
 	/**
 	 * Null object pattern for default metadata.
