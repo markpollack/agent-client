@@ -100,7 +100,14 @@ class OneShotRecordingConformanceTest {
 		 * Declared: Journal has no Antigravity qualifier. The call is still archived and
 		 * linked, evidence-only, with no invented sources or usage.
 		 */
-		ANTIGRAVITY_ONE_SHOT(Set.of("client-terminal-evidence-only/1"), Map.of(), NativeRecording.Outcome.UNQUALIFIED);
+		ANTIGRAVITY_ONE_SHOT(Set.of("client-terminal-evidence-only/1"), Map.of(), NativeRecording.Outcome.UNQUALIFIED),
+
+		/**
+		 * Review F3: a Claude run whose native transcript never appears. The provider
+		 * seals an incomplete acquisition; the call is archived evidence-only and
+		 * REJECTED, end to end through {@code recording()} and the reader.
+		 */
+		CLAUDE_NO_TRANSCRIPT(Set.of("client-terminal-evidence-only/1"), Map.of(), NativeRecording.Outcome.REJECTED);
 
 		/** Journal names the terminal profile; the CLI version is recorded, not gated. */
 		final Set<String> profiles;
@@ -123,7 +130,7 @@ class OneShotRecordingConformanceTest {
 	@Test
 	void matrixIsFixed() {
 		assertThat(Arrays.stream(Case.values()).map(Enum::name)).containsExactly("CODEX_ONE_SHOT", "CLAUDE_ONE_SHOT",
-				"CLAUDE_ONE_SHOT_FACTORY", "ANTIGRAVITY_ONE_SHOT");
+				"CLAUDE_ONE_SHOT_FACTORY", "ANTIGRAVITY_ONE_SHOT", "CLAUDE_NO_TRANSCRIPT");
 	}
 
 	@ParameterizedTest
@@ -136,7 +143,8 @@ class OneShotRecordingConformanceTest {
 		var provider = switch (c) {
 			case CODEX_ONE_SHOT -> codex();
 			case ANTIGRAVITY_ONE_SHOT -> antigravity();
-			default -> claude();
+			case CLAUDE_NO_TRANSCRIPT -> claude(false);
+			default -> claude(true);
 		};
 		var options = DefaultAgentOptions.builder()
 			.workingDirectory(this.root.toString())
@@ -167,14 +175,33 @@ class OneShotRecordingConformanceTest {
 		assertThat(report.path("profile").asText()).as("terminal profile").isEqualTo(terminalProfile);
 		if (c.outcome == NativeRecording.Outcome.ATTACHED) {
 			assertThat(report.path("acquisition").asText()).isEqualTo("COMPLETED");
+			// Review F9: the expectation comes from Journal's TCK, not the recorder's
+			// copy.
+			assertThat(report.path("assemblySource").asText()).isEqualTo("tck");
+			assertThat(report.path("assemblyMatchesRecorder").asBoolean()).as("recorder copy").isTrue();
+			if (c == Case.CLAUDE_ONE_SHOT) {
+				// A recorder-side expectation that differs is reported, and the TCK's
+				// still decides.
+				Path copy = store.resolve("native-" + decision.executionId()).resolve("assembly-expectation.json");
+				Files.writeString(copy, "{\"tampered\":true}");
+				JsonNode tampered = read(store, "executionId=" + decision.executionId());
+				assertThat(tampered.path("assemblyMatchesRecorder").asBoolean()).isFalse();
+				assertThat(tampered.path("acceptance").asText()).isEqualTo("ACCEPTED");
+			}
 			assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
 				.isEqualTo("ACCEPTED");
 		}
 		else {
 			assertThat(report.path("acquisition").asText()).isEqualTo("UNAVAILABLE");
+			// Review F4: an evidence-only archive carries no acceptance verdict.
+			assertThat(report.path("acceptance").asText()).isEqualTo("NOT_VERIFIED");
 			assertThat(report.path("sources").asInt()).isZero();
-			assertThat(report.path("missing").get(0).path("reason").asText())
-				.isEqualTo("UNQUALIFIED: No Journal qualifier for acquisition profile antigravity-acquisition-v0.1");
+			String reason = report.path("missing").get(0).path("reason").asText();
+			if (c == Case.ANTIGRAVITY_ONE_SHOT)
+				assertThat(reason).isEqualTo(
+						"UNQUALIFIED: No Journal qualifier for acquisition profile antigravity-acquisition-v0.1");
+			else
+				assertThat(reason).startsWith("REJECTED: Native acquisition is incomplete");
 			assertThat(report.path("usage")).as("no invented usage").isEmpty();
 		}
 		assertThat(report.path("decisionId").asText()).isEqualTo(decision.decisionId());
@@ -215,13 +242,15 @@ class OneShotRecordingConformanceTest {
 	 * points at a fixture directory. The executable is a wrapper that tells the fixture
 	 * where that is.
 	 */
-	private AgentExecutionProvider claude() throws IOException {
+	private AgentExecutionProvider claude(boolean writesTranscript) throws IOException {
 		Path child = copy("claude-one-shot-child.py", "claude-one-shot-child.py");
 		Path projects = Path.of(System.getProperty("user.home"), ".claude", "projects");
 		Files.createDirectories(projects);
 		Path wrapper = this.root.resolve("claude");
 		Files.writeString(wrapper,
-				"#!/bin/sh\nexport FIXTURE_CLAUDE_PROJECTS='" + projects + "'\nexec python3 '" + child + "' \"$@\"\n",
+				"#!/bin/sh\nexport FIXTURE_CLAUDE_PROJECTS='" + projects + "'\n"
+						+ (writesTranscript ? "" : "export FIXTURE_NO_TRANSCRIPT=1\n") + "exec python3 '" + child
+						+ "' \"$@\"\n",
 				StandardCharsets.UTF_8);
 		Files.setPosixFilePermissions(wrapper, PosixFilePermissions.fromString("rwx------"));
 		return ClaudeClientProvider.builder()

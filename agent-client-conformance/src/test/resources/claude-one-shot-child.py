@@ -3,7 +3,7 @@
 
 It reports the same usage as the Codex fixture (input 11, cache read 3, output 4) and no cost,
 and writes its native transcript under FIXTURE_CLAUDE_PROJECTS, as the CLI does under
-~/.claude/projects."""
+~/.claude/projects, unless FIXTURE_NO_TRANSCRIPT is set."""
 import json, os, sys, uuid
 from pathlib import Path
 root = Path.cwd()
@@ -29,7 +29,8 @@ for line in sys.stdin:
           'claude_code_version': '2.1.316'})
     project = projects / ''.join(c if c.isalnum() else '-' for c in str(root))
     project.mkdir(parents=True, exist_ok=True)
-    with (project / (sid + '.jsonl')).open('w') as native:
+    # FIXTURE_NO_TRANSCRIPT: answer normally but never write the native transcript.
+    with (project / (sid + '.jsonl')).open('w') if not os.environ.get('FIXTURE_NO_TRANSCRIPT') else open(os.devnull, 'w') as native:
         native.write(json.dumps({'type': 'user', 'sessionId': sid, 'uuid': 'u1', 'parentUuid': None,
             'version': '2.1.316', 'cwd': str(root), 'message': {'role': 'user', 'content': prompt}}) + '\n')
         native.write(json.dumps({'type': 'assistant', 'sessionId': sid, 'uuid': 'a1', 'parentUuid': 'u1',

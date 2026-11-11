@@ -31,6 +31,7 @@ import io.github.markpollack.journal.tck.ocsf.OcsfPackage;
 import io.github.markpollack.journal.tck.ocsf.OcsfReaderTool;
 import io.github.markpollack.journal.tck.ocsf.PackageReader;
 import io.github.markpollack.journal.tck.ocsf.TerminalBindingReader;
+import io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier;
 
 /**
  * Independent reader of one Client recording archive. It runs in its own JVM whose
@@ -42,7 +43,9 @@ import io.github.markpollack.journal.tck.ocsf.TerminalBindingReader;
  * selector names a decision field ({@code executionId}, {@code decisionId}) or a
  * correlation field ({@code workflowRunId} and the other five); exactly one archived
  * decision must match all of them. {@code assembly=<path>} overrides the assembly
- * expectation, which otherwise is the recorder's {@code native-<executionId>} copy, and
+ * expectation. Otherwise Journal's qualifier re-derives it from the archived client
+ * manifest and the report says whether the recorder's {@code native-<executionId>} copy
+ * matches; the recorder's copy is used only when that cannot be done.
  * {@code export=<new path>} keeps the canonical export for a downstream consumer.
  *
  * <p>
@@ -163,10 +166,50 @@ public final class RecordingArchiveReader {
 				.forEach(d -> serious.add(prefix + d));
 		}
 		Path sources = match.events.getParent().resolve("sources");
-		Path assembly = assemblyOverride != null ? Path.of(assemblyOverride)
-				: store.resolve("native-" + executionId).resolve("assembly-expectation.json");
+		Path assembly = assembly(report, store.resolve("native-" + executionId), assemblyOverride);
 		verify(report, match.events, sources, assembly);
 		export(report, match.pkg, exportTarget);
+	}
+
+	/**
+	 * Review F9: the assembly expectation verification uses. When the archive keeps the
+	 * client's original manifest, Journal's own qualifier re-derives the expectation from
+	 * it, so the recorder's copy is checked rather than trusted. {@code assemblySource}
+	 * says where it came from, and {@code assemblyMatchesRecorder} whether the recorder's
+	 * copy has the same bytes.
+	 */
+	private static Path assembly(ObjectNode report, Path archived, String override) throws IOException {
+		if (override != null) {
+			report.put("assemblySource", "override");
+			return Path.of(override);
+		}
+		Path recorderCopy = archived.resolve("assembly-expectation.json");
+		Path original = archived.resolve("client-acquisition.json");
+		if (!Files.isRegularFile(original)) {
+			report.put("assemblySource", "recorder");
+			return recorderCopy;
+		}
+		String profile = JSON.readTree(original.toFile()).path("profile").asText();
+		var qualifier = AcquisitionQualifier.forProfile(profile);
+		if (qualifier.isEmpty()) {
+			report.put("assemblySource", "recorder");
+			report.put("assemblyTckDetail", "No Journal qualifier for acquisition profile " + profile);
+			return recorderCopy;
+		}
+		try {
+			Path derived = qualifier.get()
+				.qualify(original, Files.createTempDirectory("tck-assembly").resolve("qualified"))
+				.assemblyExpectation();
+			report.put("assemblySource", "tck");
+			report.put("assemblyMatchesRecorder", Files.isRegularFile(recorderCopy)
+					&& java.util.Arrays.equals(Files.readAllBytes(derived), Files.readAllBytes(recorderCopy)));
+			return derived;
+		}
+		catch (IOException | RuntimeException ex) {
+			report.put("assemblySource", "recorder");
+			report.put("assemblyTckDetail", "Journal's qualifier could not re-derive the expectation: " + ex);
+			return recorderCopy;
+		}
 	}
 
 	/**

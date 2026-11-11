@@ -86,7 +86,10 @@ Earlier recordings under versioned terminal profile names stay readable. Antigra
 one of four outcomes in `nativeRecording()`: `ATTACHED`, `UNQUALIFIED`, `REJECTED` or `NOT_CAPTURED`.
 Every outcome delivers one initial binding, so the call is archived and linked by its decision and
 correlation; the last three are evidence-only, with a `missing` entry naming the profile or verdict.
-No outcome changes the execution result. `JournalExecutionRecorder.claude(directory, namespace)`
+No outcome changes the execution result. The outcome is set when the binding is prepared, before
+delivery, so `ATTACHED` can sit beside a `Failed` delivery. A caller that needs native sources in the
+archive checks both an `ATTACHED` outcome and a `Completed` delivery: `Completed` alone also covers the
+three evidence-only outcomes. `JournalExecutionRecorder.claude(directory, namespace)`
 is the same recorder. Retained turns are not one-shot generations and remain evidence-only here.
 A native receiver ACK still needs independent complete-archive reader acceptance. Unclassified Journal I/O failures retain
 acceptance uncertainty and do not retry automatically. An explicit retry of the same prepared job

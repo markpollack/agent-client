@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.markpollack.agents.client.*;
@@ -40,6 +41,8 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 
 	private final String namespace;
 
+	private final Function<String, Optional<AcquisitionQualifier>> qualifiers;
+
 	/**
 	 * The same recorder as the constructor, which now qualifies Claude one-shot sources
 	 * through the generic path. Kept until its callers migrate.
@@ -64,9 +67,19 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 	}
 
 	JournalExecutionRecorder(TerminalReceiver receiver, Path sourceRoot, String namespace) {
+		this(receiver, sourceRoot, namespace, AcquisitionQualifier::forProfile);
+	}
+
+	/**
+	 * Tests replace Journal's qualifier lookup; production uses
+	 * {@link AcquisitionQualifier#forProfile}.
+	 */
+	JournalExecutionRecorder(TerminalReceiver receiver, Path sourceRoot, String namespace,
+			Function<String, Optional<AcquisitionQualifier>> qualifiers) {
 		this.receiver = receiver;
 		this.sourceRoot = sourceRoot;
 		this.namespace = namespace;
+		this.qualifiers = qualifiers;
 	}
 
 	@Override
@@ -94,18 +107,26 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 		String refusal = integrity(sealed, decision);
 		if (refusal != null)
 			return evidenceOnly(decision, revision, NativeRecording.Outcome.REJECTED, profile, refusal);
-		var qualifier = AcquisitionQualifier.forProfile(profile);
+		var qualifier = this.qualifiers.apply(profile);
 		if (qualifier.isEmpty())
 			return evidenceOnly(decision, revision, NativeRecording.Outcome.UNQUALIFIED, profile,
 					"No Journal qualifier for acquisition profile " + profile);
 		if (!sealed.complete())
 			return evidenceOnly(decision, revision, NativeRecording.Outcome.REJECTED, profile,
 					"Native acquisition is incomplete" + (sealed.detail().isEmpty() ? "" : ": " + sealed.detail()));
+		return qualified(decision, revision, sealed, profile, qualifier.get());
+	}
+
+	/**
+	 * Qualify sealed, complete sources; any failure is a REJECTED, evidence-only record.
+	 */
+	private Prepared qualified(ExecutionDecision decision, String revision, NativeGeneration sealed, String profile,
+			AcquisitionQualifier qualifier) {
 		Path output = this.sourceRoot.resolve("native-" + decision.executionId());
 		NativeAssociation association;
 		try {
 			association = NativeAssociation.qualified(output, decision, revision, null,
-					qualifier.get().qualify(sealed.manifest(), output));
+					qualifier.qualify(sealed.manifest(), output));
 		}
 		catch (IllegalArgumentException ex) {
 			return evidenceOnly(decision, revision, NativeRecording.Outcome.REJECTED, profile,
@@ -115,7 +136,16 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 			return evidenceOnly(decision, revision, NativeRecording.Outcome.REJECTED, profile,
 					"Qualification could not read or write its inputs: " + ex);
 		}
-		String terminal = qualifier.get().terminalProfile();
+		catch (RuntimeException ex) {
+			// Review F1: any other qualifier failure is still a rejection, delivered
+			// evidence-only, never a recording failure without a binding.
+			return evidenceOnly(decision, revision, NativeRecording.Outcome.REJECTED, profile,
+					"Journal's " + profile + " qualifier failed: " + ex);
+		}
+		String changed = qualifiedBytesChanged(sealed, output);
+		if (changed != null)
+			return evidenceOnly(decision, revision, NativeRecording.Outcome.REJECTED, profile, changed);
+		String terminal = qualifier.terminalProfile();
 		return new Prepared(preparePayload(decision, revision, output, association.json(), terminal),
 				new NativeRecording(NativeRecording.Outcome.ATTACHED, Optional.of(profile), terminal, ""));
 	}
@@ -123,7 +153,7 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 	/** Ownership and the digest at sealing; null when both hold. */
 	private static String integrity(NativeGeneration sealed, ExecutionDecision decision) {
 		var member = new NativeGeneration.Member(decision.executionId(), decision.decisionId());
-		if (!sealed.members().equals(List.of(member))
+		if (!sealed.members().equals(List.of(member)) || !decision.sessionId().equals(sealed.sessionId())
 				|| !decision.connectionId().equals(Optional.of(sealed.connectionId())))
 			return "The generation does not belong to this one-shot decision";
 		try {
@@ -132,6 +162,23 @@ public final class JournalExecutionRecorder implements ExecutionRecorder {
 		}
 		catch (IOException ex) {
 			return "Acquisition manifest is unreadable: " + ex;
+		}
+		return null;
+	}
+
+	/**
+	 * Review F2: the qualifier keeps the manifest bytes it read as
+	 * {@code client-acquisition.json}. They must still have the digest recorded at
+	 * sealing, so a manifest changed between the check above and the qualifier's read is
+	 * rejected. Null when the bytes match.
+	 */
+	private static String qualifiedBytesChanged(NativeGeneration sealed, Path output) {
+		try {
+			if (!NativeGeneration.sha256(output.resolve("client-acquisition.json")).equals(sealed.manifestSha256()))
+				return "Acquisition manifest changed during qualification";
+		}
+		catch (IOException ex) {
+			return "Qualified acquisition manifest is unreadable: " + ex;
 		}
 		return null;
 	}

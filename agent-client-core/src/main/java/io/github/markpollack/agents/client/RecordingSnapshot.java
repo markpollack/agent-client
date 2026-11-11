@@ -13,6 +13,14 @@ import java.util.Optional;
  * One observation of an execution's secondary recording. {@link #nativeRecording()} is
  * empty until the recorder has prepared the initial binding, and for a recorder that does
  * not report it.
+ *
+ * <p>
+ * {@link #nativeRecording()} is set when the binding is prepared, before delivery, so
+ * {@code ATTACHED} can sit beside a {@link TerminalDelivery.Failed} delivery: the sources
+ * were qualified, but the binding never reached the archive. A caller that needs native
+ * sources in the archive checks both an {@code ATTACHED} outcome and a
+ * {@link TerminalDelivery.Completed} delivery. {@code Completed} alone also covers
+ * evidence-only outcomes.
  */
 public record RecordingSnapshot(String executionId, long revision, Instant observedAt, Optional<String> decisionId,
 		CaptureReceipt evidence, TerminalDelivery delivery, List<DeliveryAttempt> attempts,

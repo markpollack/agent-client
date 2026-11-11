@@ -13,6 +13,12 @@ fresh profile, close-time recording diagnostics, and the removal of the legacy C
   acquisition surface and the `reportedUsage`/`totalCostUsd` fields instead. Details:
   [docs/legacy-tracing-removed.md](docs/legacy-tracing-removed.md). japicmp against main reports these removals; they are
   intended.
+- **No Spring AI dependency.** `AgentOptions`, `AgentResponse`, `AgentGeneration`, `AgentResponseMetadata` and
+  `AgentGenerationMetadata` no longer implement Spring AI's `ModelOptions`, `ModelResponse`, `ModelResult`,
+  `ResponseMetadata` and `ResultMetadata`; every method stays. No `org.springframework.ai` artifact is on any module's
+  classpath, and the build fails if one returns. Code that typed these as Spring AI interfaces needs a source update.
+  `agent-model` now declares `reactor-core` and `agent-client-core` declares `spring-core`, both formerly transitive
+  through Spring AI.
 
 ## Compatibility
 
@@ -21,6 +27,12 @@ fresh profile, close-time recording diagnostics, and the removal of the legacy C
 - `SessionSnapshot` gained a `diagnostics` component (the five-argument constructor is kept): a closed session reports the
   provider's recording diagnostics, such as the Codex thread-manifest outcome.
   Record patterns deconstructing `SessionSnapshot` with five components need a source update (six components now).
+- `RecordingSnapshot` gained a `nativeRecording` component (the seven-argument constructor is kept), which changes its
+  record deconstruction shape and `equals`. Record patterns with seven components need a source update (eight now).
+- Closing a Client or session no longer refuses a recording still to be delivered. Close drains it within the cleanup
+  budget (`cleanupTimeout`, 10 s by default), so a caller that cancels or abandons a run and closes at once still gets its
+  archive. A recording that outlasts the budget is reported by close as unconfirmed cleanup (`recorder-executor`) and
+  finishes afterwards.
 
 ## Added
 

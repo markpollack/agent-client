@@ -278,4 +278,107 @@ class NativeRecorderTest {
 		return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
 	}
 
+	/**
+	 * Review F1: any unchecked failure inside Journal's qualifier is a REJECTED,
+	 * evidence-only record.
+	 */
+	@Test
+	void anUncheckedQualifierFailureIsRejectedNotARecordingFailure() throws Exception {
+		for (RuntimeException thrown : List.of(new java.io.UncheckedIOException(new java.io.IOException("unreadable")),
+				new ArithmeticException("overflow"))) {
+			try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+				var execution = client.goal("hello").runAsync();
+				execution.result();
+				var decision = execution.decision().orElseThrow();
+				var source = source(decision);
+				Path store = root.resolve("unchecked-" + thrown.getClass().getSimpleName());
+				var recorder = new JournalExecutionRecorder(new TerminalReceiver(store, "u", WriterOptions.defaults()),
+						store, "u", profile -> Optional.of(qualifier(() -> {
+							throw thrown;
+						})));
+				var prepared = recorder.prepareRecording(decision, Optional.of(generation(decision, source, true)));
+				assertRejected(prepared, store, decision, "qualifier failed");
+				assertThat(prepared.nativeRecording().detail()).contains(thrown.getClass().getName());
+			}
+		}
+	}
+
+	/** Review F2: the bytes the qualifier read must be the bytes that were sealed. */
+	@Test
+	void qualifiedBytesThatDifferFromTheSealedDigestAreRejected() throws Exception {
+		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+			var execution = client.goal("hello").runAsync();
+			execution.result();
+			var decision = execution.decision().orElseThrow();
+			var source = source(decision);
+			Path store = root.resolve("toctou");
+			var real = io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier.forProfile(CLAUDE)
+				.orElseThrow();
+			var recorder = new JournalExecutionRecorder(new TerminalReceiver(store, "t", WriterOptions.defaults()),
+					store, "t",
+					profile -> Optional.of(new io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier() {
+						@Override
+						public String acquisitionProfile() {
+							return real.acquisitionProfile();
+						}
+
+						@Override
+						public String terminalProfile() {
+							return real.terminalProfile();
+						}
+
+						@Override
+						public Qualified qualify(Path manifest, Path output) throws java.io.IOException {
+							var qualified = real.qualify(manifest, output);
+							// The manifest changed between the digest check and the
+							// qualifier's read.
+							Files.writeString(output.resolve("client-acquisition.json"), "{\"changed\":true}");
+							return qualified;
+						}
+					}));
+			var prepared = recorder.prepareRecording(decision, Optional.of(generation(decision, source, true)));
+			assertRejected(prepared, store, decision, "Acquisition manifest changed during qualification");
+		}
+	}
+
+	/**
+	 * Review F2: a generation from another Client session does not belong to the
+	 * decision.
+	 */
+	@Test
+	void aGenerationFromAnotherSessionIsRejected() throws Exception {
+		try (var client = AgentClient.create(JournalExecutionRecorderTest.provider("SUCCESS"))) {
+			var execution = client.goal("hello").runAsync();
+			execution.result();
+			var decision = execution.decision().orElseThrow();
+			var source = source(decision);
+			var sealed = generation(decision, source, true);
+			var foreign = new NativeGeneration.Sealed(sealed.acquisitionProfile(), "another-session",
+					sealed.connectionId(), sealed.members(), sealed.manifest(), sealed.manifestSha256(), true, "");
+			Path store = root.resolve("session");
+			var prepared = new JournalExecutionRecorder(store, "s").prepareRecording(decision, Optional.of(foreign));
+			assertRejected(prepared, store, decision, "does not belong");
+		}
+	}
+
+	private static io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier qualifier(Runnable qualify) {
+		return new io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier() {
+			@Override
+			public String acquisitionProfile() {
+				return CLAUDE;
+			}
+
+			@Override
+			public String terminalProfile() {
+				return TerminalReceiver.CLAUDE_PROFILE;
+			}
+
+			@Override
+			public Qualified qualify(Path manifest, Path output) {
+				qualify.run();
+				throw new AssertionError("unreachable");
+			}
+		};
+	}
+
 }

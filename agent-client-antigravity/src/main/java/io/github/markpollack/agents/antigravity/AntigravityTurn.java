@@ -73,8 +73,10 @@ final class AntigravityTurn implements AgentExecutionProvider.Turn {
 
 	/**
 	 * The one-shot generation. Journal has no Antigravity qualifier, so a recorder
-	 * reports it {@code UNQUALIFIED}: declared, with the sealed manifest kept beside the
-	 * evidence-only archive and no invented sources or usage.
+	 * reports it {@code UNQUALIFIED} and writes an evidence-only archive with no sources
+	 * or usage. That archive does not carry the manifest's path or digest: the sealed
+	 * manifest stays in this provider's acquisition directory, and the caller finds it
+	 * through the execution's {@code recording()} capture reference.
 	 */
 	@Override
 	public java.util.Optional<io.github.markpollack.agents.client.NativeGeneration> generation(
