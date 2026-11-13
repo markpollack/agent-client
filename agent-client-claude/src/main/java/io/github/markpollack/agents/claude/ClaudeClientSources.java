@@ -90,6 +90,23 @@ final class ClaudeClientSources {
 		return this.dropped == 0 ? null : this.limit.dropped(this.dropped);
 	}
 
+	/**
+	 * Where this execution's package goes and which native projects root it searches: the
+	 * configured one-shot root, recorded as given with the launch directory, or
+	 * {@code user.home/.claude/projects} with no added provenance.
+	 */
+	static ClaudeCaptureOptions captureOptions(ClaudeClientConfiguration config, java.nio.file.Path cwd,
+			String executionId) {
+		var directory = config.captureDirectory().resolve(executionId);
+		var projects = config.oneShotProjects();
+		if (projects == null)
+			return new ClaudeCaptureOptions(directory, executionId, config.cliVersion());
+		return new ClaudeCaptureOptions(directory, executionId, config.cliVersion(), projects,
+				Map.of("native_projects_root", projects.toString(), "native_cwd", cwd.toString(),
+						"native_location_basis",
+						"caller-configured root and launch directory, as given; not translated"));
+	}
+
 	ClaudeAcquisition seal(ClaudeClientGeneration generation, ClaudeExecutionResult result, String executionId,
 			String prompt) {
 		List<Chunk> copied;
@@ -102,8 +119,7 @@ final class ClaudeClientSources {
 			this.chunks.clear();
 			missing = this.dropped;
 		}
-		var options = new ClaudeCaptureOptions(generation.config.captureDirectory().resolve(executionId), executionId,
-				generation.config.cliVersion());
+		var options = captureOptions(generation.config, generation.directory, executionId);
 		var capture = new ClaudeCaptureSession(options, generation.id, this.started);
 		capture.observeProcess(this.process);
 		String failure = missing == 0 ? null : this.limit.dropped(missing);

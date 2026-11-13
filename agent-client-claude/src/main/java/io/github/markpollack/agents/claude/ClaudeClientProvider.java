@@ -19,7 +19,8 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 	private ClaudeClientProvider(Builder builder) {
 		this.config = new ClaudeClientConfiguration(builder.directory, builder.executable,
 				builder.tools == null ? null : List.copyOf(builder.tools), builder.captureDirectory, builder.cliVersion,
-				builder.maxBudgetUsd, List.copyOf(builder.hooks), builder.retainedTranscript, builder.freshProjects);
+				builder.maxBudgetUsd, List.copyOf(builder.hooks), builder.retainedTranscript, builder.freshProjects,
+				builder.oneShotProjects);
 	}
 
 	public static Builder builder() {
@@ -63,6 +64,8 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 		private Path retainedTranscript;
 
 		private Path freshProjects;
+
+		private Path oneShotProjects;
 
 		private String cliVersion = "unknown";
 
@@ -123,6 +126,27 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 			return this;
 		}
 
+		/**
+		 * Search this native Claude projects root, instead of
+		 * {@code user.home/.claude/projects}, for the exact observed session's transcript
+		 * when sealing a one-shot acquisition. Use it when the CLI runs with a different
+		 * home than this JVM, for example inside a sandbox: pass the host-visible path of
+		 * the sandbox's {@code .claude/projects}. Unset, one-shot acquisition searches
+		 * {@code user.home/.claude/projects} as before. This changes neither the child's
+		 * working directory nor its {@code HOME}; it only says where to look. Lookup
+		 * stays exact: one file named for the observed session, whose records name that
+		 * session, or the transcript is reported unavailable and the acquisition
+		 * incomplete. The root and the launch working directory are recorded, as given,
+		 * in the manifest's artifact provenance. Also configure an acquisitionDirectory.
+		 * Retained generations use {@link #retainedTranscript} or
+		 * {@link #freshTranscript} instead; this setting does not affect them.
+		 * @param nativeProjectsRoot host-visible native projects root the CLI writes to
+		 */
+		public Builder oneShotNativeProjects(Path nativeProjectsRoot) {
+			this.oneShotProjects = Objects.requireNonNull(nativeProjectsRoot).toAbsolutePath().normalize();
+			return this;
+		}
+
 		public Builder workingDirectory(Path directory) {
 			this.directory = Objects.requireNonNull(directory);
 			return this;
@@ -141,9 +165,15 @@ public final class ClaudeClientProvider implements AgentExecutionProvider {
 		public ClaudeClientProvider build() {
 			if (this.retainedTranscript != null && this.freshProjects != null)
 				throw new IllegalArgumentException("An exact retained transcript and a fresh start exclude each other");
-			if (this.freshProjects != null && this.captureDirectory == null)
-				throw new IllegalArgumentException("Fresh-start observation requires an acquisition directory");
+			requireAcquisition(this.freshProjects, "Fresh-start observation requires an acquisition directory");
+			requireAcquisition(this.oneShotProjects,
+					"A one-shot native projects root requires an acquisition directory");
 			return new ClaudeClientProvider(this);
+		}
+
+		private void requireAcquisition(Path setting, String message) {
+			if (setting != null && this.captureDirectory == null)
+				throw new IllegalArgumentException(message);
 		}
 
 	}
