@@ -88,7 +88,8 @@ class ClaudeOneShotNativeProjectsTest {
 		assertThat(Files.mismatch(original, packaged)).isEqualTo(-1L);
 		var provenance = manifest.path("run").path("launch_settings").path("artifact_provenance");
 		assertThat(provenance.path("native_projects_root").asText()).isEqualTo(this.sandboxProjects.toString());
-		assertThat(provenance.path("native_cwd").asText()).isEqualTo(this.author.toString());
+		assertThat(provenance.path("host_launch_directory").asText()).isEqualTo(this.author.toString());
+		assertThat(provenance.has("native_cwd")).isFalse();
 		assertThat(manifest.path("run").path("launch_settings").path("cwd").asText()).isEqualTo(this.author.toString());
 	}
 

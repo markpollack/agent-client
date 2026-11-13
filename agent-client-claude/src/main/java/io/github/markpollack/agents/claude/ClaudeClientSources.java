@@ -92,7 +92,7 @@ final class ClaudeClientSources {
 
 	/**
 	 * Where this execution's package goes and which native projects root it searches: the
-	 * configured one-shot root, recorded as given with the launch directory, or
+	 * configured one-shot root, recorded as given with the host launch directory, or
 	 * {@code user.home/.claude/projects} with no added provenance.
 	 */
 	static ClaudeCaptureOptions captureOptions(ClaudeClientConfiguration config, java.nio.file.Path cwd,
@@ -102,9 +102,9 @@ final class ClaudeClientSources {
 		if (projects == null)
 			return new ClaudeCaptureOptions(directory, executionId, config.cliVersion());
 		return new ClaudeCaptureOptions(directory, executionId, config.cliVersion(), projects,
-				Map.of("native_projects_root", projects.toString(), "native_cwd", cwd.toString(),
+				Map.of("native_projects_root", projects.toString(), "host_launch_directory", cwd.toString(),
 						"native_location_basis",
-						"caller-configured root and launch directory, as given; not translated"));
+						"caller-configured root and host launch directory, as given; not translated"));
 	}
 
 	ClaudeAcquisition seal(ClaudeClientGeneration generation, ClaudeExecutionResult result, String executionId,
