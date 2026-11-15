@@ -22,8 +22,8 @@
         <agent-client.spring.allowed>true</agent-client.spring.allowed>
         <pmd.maxAllowedViolations>0</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
-        <jacoco.minimum.line>0.38</jacoco.minimum.line>
-        <jacoco.minimum.branch>0.52</jacoco.minimum.branch>
+        <jacoco.minimum.line>0.94</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.86</jacoco.minimum.branch>
     </properties>
 
     <dependencies>
@@ -52,6 +52,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- The legacy providers whose auto-configuration lives here. Optional: an application
