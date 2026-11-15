@@ -47,10 +47,9 @@ failed execution; wait for termination and a terminal recording delivery before 
 
 Callback invocation alone is not proof of native enforcement. Older SDK hook serialization emitted
 null controls and flattened permission fields that the native CLI could reject while continuing tool
-work. The repaired SDK JAR SHA256 is
-`e995eeb0fb6c75797f1b06e76304b6e3a495ef5b4da37d11e92aa3f362b8e35a`
-at `io.github.markpollack:claude-code-sdk:1.8.0-SNAPSHOT`; a SNAPSHOT coordinate alone does not select
-these bytes. Independently verified one-shot readback uses Journal reader JAR SHA256
+work. The repair ships in `io.github.markpollack:claude-code-sdk:1.8.0`, which Client uses. It was
+verified on a pre-release 1.8.0-SNAPSHOT JAR with SHA256
+`e995eeb0fb6c75797f1b06e76304b6e3a495ef5b4da37d11e92aa3f362b8e35a`. Independently verified one-shot readback uses Journal reader JAR SHA256
 `6912a059a1f1758183854e9cbd5a3fa98ab05bf5d804d282a63875dd610de2e1` and writer
 `b166baa65b3c0b82d9f3394631ae915d7a8ff172b126c8edcd4b0db43c1c1cf9`
 at version `2.0.0-SNAPSHOT`. Archive verification and native permission enforcement remain separate.
