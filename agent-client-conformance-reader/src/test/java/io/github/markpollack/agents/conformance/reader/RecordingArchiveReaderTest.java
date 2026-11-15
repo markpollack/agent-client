@@ -23,8 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * A Journal archive whose recording has a child core: the child is read as part of its
  * recording, never as a candidate of its own, and the reader reports instead of throwing.
- * The archives are Journal's sealed cases: a real Claude sub-agent recording, accepted,
- * and synthetic cases, including a nested sub-agent without acquired session files that
+ * The archives are Journal's sealed real recordings: a sub-agent run, accepted; a run
+ * with no child, accepted; and a background sub-agent still running at capture, which
  * Journal's child-session rule reads as INCOMPLETE.
  */
 class RecordingArchiveReaderTest {
@@ -36,14 +36,18 @@ class RecordingArchiveReaderTest {
 	/** The real sub-agent recording's decision and its one {@code Agent} spawn. */
 	private static final String REAL_EXECUTION = "e52ccb3f-a65a-41b5-aaee-b8ca926d0452";
 
+	/** The real background sub-agent recording's decision and its still-running spawn. */
+	private static final String BACKGROUND_EXECUTION = "112cb044-70f3-415a-bd8f-b04fb9e473a3";
+
+	private static final String BACKGROUND_SPAWN = "toolu_01188QcnH2XjpZ9cF6knKaHy";
+
+	/** The real heartbeat recording's decision: a fresh-start run with no child. */
+	private static final String HEARTBEAT_EXECUTION = "f7b8944b-5b2a-4e5c-853a-2b1912d21e49";
+
 	private static final String SPAWN = "toolu_01KQMhaSZMrxp98fqQBkmHCC";
 
 	@TempDir
 	Path temp;
-
-	private ObjectNode read(Path store, Path assembly) throws IOException {
-		return read(store, assembly, "execution-1");
-	}
 
 	private ObjectNode read(Path store, Path assembly, String executionId) throws IOException {
 		var selector = new LinkedHashMap<String, String>();
@@ -51,10 +55,6 @@ class RecordingArchiveReaderTest {
 		selector.put("assembly", assembly.toString());
 		selector.put("export", this.temp.resolve("export-" + System.nanoTime() + ".jsonl").toString());
 		return RecordingArchiveReader.read(store.toAbsolutePath(), selector);
-	}
-
-	private ObjectNode readCase(String name) throws IOException {
-		return readCase(name, "execution-1");
 	}
 
 	private ObjectNode readCase(String name, String executionId) throws IOException {
@@ -83,36 +83,26 @@ class RecordingArchiveReaderTest {
 	}
 
 	/**
-	 * Negative control: the synthetic nested case acquires no session file for either
-	 * sub-agent, so Journal's child-session rule leaves it INCOMPLETE. The reader still
-	 * reads both child cores into the one recording and reports the verdict.
+	 * Negative control on a real recording: the background sub-agent was still running
+	 * when the parent's result was written, so its session file had not finished and
+	 * Journal's child-session rule leaves the recording INCOMPLETE. The reader still
+	 * reads the child core into the one recording and reports the verdict.
 	 */
 	@Test
-	void aNestedSubAgentWithoutAcquiredSessionFilesIsIncomplete() throws IOException {
-		ObjectNode report = readCase("claude-sub-agent-nested");
+	void aBackgroundSubAgentStillRunningAtCaptureIsIncomplete() throws IOException {
+		ObjectNode report = readCase("claude-sub-agent-background", BACKGROUND_EXECUTION);
 		assertThat(report.path("candidates").asInt()).as(report.toString()).isEqualTo(1);
 		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
-		assertThat(texts(report.path("cores"))).containsExactlyInAnyOrder("main", "child:toolu_AGENT",
-				"child:toolu_INNER");
+		assertThat(texts(report.path("cores"))).containsExactly("main", "child:" + BACKGROUND_SPAWN);
 		assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
 			.startsWith("INCOMPLETE");
 		assertThat(report.path("acceptanceDetail").asText())
-			.contains("COMPLETENESS acquisition.child_session [child:toolu_AGENT] UNRESOLVED")
-			.contains("COMPLETENESS acquisition.child_session [child:toolu_INNER] UNRESOLVED");
-	}
-
-	@Test
-	void aPhantomHeartbeatChildIsReportedAsJournalJudgesItNotThrown() throws IOException {
-		ObjectNode report = readCase("claude-heartbeat-bd04735");
-		assertThat(report.path("candidates").asInt()).as(report.toString()).isEqualTo(1);
-		assertThat(report.path("matches").asInt()).as(report.toString()).isEqualTo(1);
-		assertThat(texts(report.path("cores"))).containsExactly("main", "child:toolu_MCP");
-		assertThat(report.path("acceptance").asText()).startsWith("DEFECTIVE");
+			.contains("COMPLETENESS acquisition.child_session [child:" + BACKGROUND_SPAWN + "] UNRESOLVED");
 	}
 
 	@Test
 	void anArchiveWithoutAChildStillReadsAsOneRecording() throws IOException {
-		ObjectNode report = readCase("claude-heartbeat");
+		ObjectNode report = readCase("claude-heartbeat", HEARTBEAT_EXECUTION);
 		assertThat(report.path("candidates").asInt()).isEqualTo(1);
 		assertThat(report.path("matches").asInt()).isEqualTo(1);
 		assertThat(texts(report.path("cores"))).containsExactly("main");
@@ -146,7 +136,8 @@ class RecordingArchiveReaderTest {
 			}
 		}
 		Files.write(events, lines);
-		ObjectNode report = read(store, CASES.resolve("claude-heartbeat/assembly-expectation.json"));
+		ObjectNode report = read(store, CASES.resolve("claude-heartbeat/assembly-expectation.json"),
+				HEARTBEAT_EXECUTION);
 		assertThat(report.path("candidates").asInt()).isEqualTo(1);
 		assertThat(report.path("matches").asInt()).isZero();
 		assertThat(report.path("unreadable")).singleElement()

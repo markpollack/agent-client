@@ -67,11 +67,10 @@ class OneShotRecordingConformanceTest {
 			"output_tokens", 4, "reasoning_output_tokens", 0);
 
 	/**
-	 * Codex: the terminal profile Journal assigns a qualified one-shot. Earlier Journal
-	 * snapshots name the CLI version; later ones use the version-neutral exec profile.
+	 * Codex: the terminal profile Journal 2.0 assigns a qualified one-shot, the
+	 * version-neutral exec profile.
 	 */
-	private static final Set<String> CODEX_TERMINAL = Set.of("client-terminal-codex-0.166.0/1",
-			"client-terminal-codex-exec/1");
+	private static final Set<String> CODEX_TERMINAL = Set.of("client-terminal-codex-exec/1");
 
 	/**
 	 * Claude: the same quantities in Anthropic's shape. Claude reports no reasoning
@@ -81,11 +80,10 @@ class OneShotRecordingConformanceTest {
 			"output_tokens", 4);
 
 	/**
-	 * Claude: the terminal profile Journal assigns a qualified one-shot. Earlier Journal
-	 * snapshots name the CLI version; later ones use the version-neutral SDK profile.
+	 * Claude: the terminal profile Journal 2.0 assigns a qualified one-shot, the
+	 * version-neutral SDK profile.
 	 */
-	private static final Set<String> CLAUDE_TERMINAL = Set.of("client-terminal-claude-2.1.316/1",
-			"client-terminal-claude-sdk/1");
+	private static final Set<String> CLAUDE_TERMINAL = Set.of("client-terminal-claude-sdk/1");
 
 	enum Case {
 

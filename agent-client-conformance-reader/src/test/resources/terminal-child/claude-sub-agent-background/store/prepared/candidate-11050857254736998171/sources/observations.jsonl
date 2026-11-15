@@ -1,0 +1,6 @@
+{"offset":0,"bytes":125,"stream":"STDIN","observed_at":"2026-11-07T22:34:33.052423608Z","observation":"successful_write_not_consumption"}
+{"offset":0,"bytes":8192,"stream":"STDOUT","observed_at":"2026-11-07T22:34:33.052423608Z","observation":"read_before_decoding"}
+{"offset":8192,"bytes":8192,"stream":"STDOUT","observed_at":"2026-11-07T22:34:33.052423608Z","observation":"read_before_decoding"}
+{"offset":16384,"bytes":8192,"stream":"STDOUT","observed_at":"2026-11-07T22:34:33.052423608Z","observation":"read_before_decoding"}
+{"offset":24576,"bytes":8192,"stream":"STDOUT","observed_at":"2026-11-07T22:34:33.052423608Z","observation":"read_before_decoding"}
+{"offset":32768,"bytes":2473,"stream":"STDOUT","observed_at":"2026-11-07T22:34:33.052423608Z","observation":"read_before_decoding"}
