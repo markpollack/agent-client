@@ -11,10 +11,10 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import io.github.markpollack.agents.client.AgentClientRequest;
 import io.github.markpollack.agents.client.AgentClientResponse;
+import io.github.markpollack.agents.client.advisor.api.AgentAdvisor;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisor;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisorChain;
 import io.github.markpollack.agents.model.AgentResponse;
-import org.springframework.core.Ordered;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -31,10 +31,10 @@ class AdvisorOrderingTests {
 		List<String> executionOrder = new ArrayList<>();
 
 		// Create advisors with explicit order values
-		AgentCallAdvisor highPriority = createOrderedAdvisor("high", Ordered.HIGHEST_PRECEDENCE, executionOrder);
+		AgentCallAdvisor highPriority = createOrderedAdvisor("high", AgentAdvisor.HIGHEST_PRECEDENCE, executionOrder);
 		AgentCallAdvisor mediumPriority = createOrderedAdvisor("medium", 0, executionOrder);
-		AgentCallAdvisor lowPriority = createOrderedAdvisor("low", Ordered.LOWEST_PRECEDENCE - 1, executionOrder);
-		AgentCallAdvisor terminal = createOrderedAdvisor("terminal", Ordered.LOWEST_PRECEDENCE, executionOrder);
+		AgentCallAdvisor lowPriority = createOrderedAdvisor("low", AgentAdvisor.LOWEST_PRECEDENCE - 1, executionOrder);
+		AgentCallAdvisor terminal = createOrderedAdvisor("terminal", AgentAdvisor.LOWEST_PRECEDENCE, executionOrder);
 
 		// Add in random order to verify sorting
 		List<AgentCallAdvisor> advisors = List.of(lowPriority, terminal, highPriority, mediumPriority);
@@ -54,7 +54,7 @@ class AdvisorOrderingTests {
 		AgentCallAdvisor advisor1 = createOrderedAdvisor("first", 100, executionOrder);
 		AgentCallAdvisor advisor2 = createOrderedAdvisor("second", 100, executionOrder);
 		AgentCallAdvisor advisor3 = createOrderedAdvisor("third", 100, executionOrder);
-		AgentCallAdvisor terminal = createOrderedAdvisor("terminal", Ordered.LOWEST_PRECEDENCE, executionOrder);
+		AgentCallAdvisor terminal = createOrderedAdvisor("terminal", AgentAdvisor.LOWEST_PRECEDENCE, executionOrder);
 
 		// Add all at once (not push one by one)
 		List<AgentCallAdvisor> advisors = List.of(advisor1, advisor2, advisor3, terminal);
@@ -69,18 +69,17 @@ class AdvisorOrderingTests {
 
 	@Test
 	void defaultAgentPrecedenceOrderIsCorrect() {
-		// Verify the constant value matches Spring AI's pattern
-		assertThat(AgentCallAdvisor.DEFAULT_AGENT_PRECEDENCE_ORDER).isEqualTo(Ordered.HIGHEST_PRECEDENCE + 1000);
+		assertThat(AgentCallAdvisor.DEFAULT_AGENT_PRECEDENCE_ORDER).isEqualTo(AgentAdvisor.HIGHEST_PRECEDENCE + 1000);
 	}
 
 	@Test
 	void advisorsWithDefaultPrecedenceExecuteAfterHigherPriority() {
 		List<String> executionOrder = new ArrayList<>();
 
-		AgentCallAdvisor highPriority = createOrderedAdvisor("high", Ordered.HIGHEST_PRECEDENCE, executionOrder);
+		AgentCallAdvisor highPriority = createOrderedAdvisor("high", AgentAdvisor.HIGHEST_PRECEDENCE, executionOrder);
 		AgentCallAdvisor defaultPriority = createOrderedAdvisor("default",
 				AgentCallAdvisor.DEFAULT_AGENT_PRECEDENCE_ORDER, executionOrder);
-		AgentCallAdvisor terminal = createOrderedAdvisor("terminal", Ordered.LOWEST_PRECEDENCE, executionOrder);
+		AgentCallAdvisor terminal = createOrderedAdvisor("terminal", AgentAdvisor.LOWEST_PRECEDENCE, executionOrder);
 
 		List<AgentCallAdvisor> advisors = List.of(terminal, defaultPriority, highPriority);
 		DefaultAgentCallAdvisorChain chain = DefaultAgentCallAdvisorChain.builder().pushAll(advisors).build();
@@ -114,7 +113,7 @@ class AdvisorOrderingTests {
 			@Override
 			public AgentClientResponse adviseCall(AgentClientRequest request, AgentCallAdvisorChain chain) {
 				executionOrder.add(name);
-				if (order == Integer.MAX_VALUE || order == Ordered.LOWEST_PRECEDENCE) {
+				if (order == Integer.MAX_VALUE || order == AgentAdvisor.LOWEST_PRECEDENCE) {
 					// Terminal advisor
 					return new AgentClientResponse(mock(AgentResponse.class));
 				}

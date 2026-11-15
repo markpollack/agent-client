@@ -6,24 +6,20 @@
 package io.github.markpollack.agents.client.advisor;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 import io.github.markpollack.agents.client.AgentClientRequest;
 import io.github.markpollack.agents.client.AgentClientResponse;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisor;
 import io.github.markpollack.agents.client.advisor.api.AgentCallAdvisorChain;
-import org.springframework.core.OrderComparator;
-import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 
 /**
  * Default implementation of {@link AgentCallAdvisorChain} using a Deque-based
  * chain-of-responsibility pattern.
- *
- * <p>
- * Follows Spring AI's DefaultAroundAdvisorChain design for consistency.
  *
  * @author Mark Pollack
  * @since 0.1.0
@@ -35,7 +31,7 @@ public class DefaultAgentCallAdvisorChain implements AgentCallAdvisorChain {
 	private final Deque<AgentCallAdvisor> callAdvisors;
 
 	DefaultAgentCallAdvisorChain(Deque<AgentCallAdvisor> callAdvisors) {
-		Assert.notNull(callAdvisors, "the callAdvisors must be non-null");
+		requireNonNull(callAdvisors, "the callAdvisors must be non-null");
 		this.callAdvisors = callAdvisors;
 		this.originalCallAdvisors = List.copyOf(callAdvisors);
 	}
@@ -46,7 +42,7 @@ public class DefaultAgentCallAdvisorChain implements AgentCallAdvisorChain {
 
 	@Override
 	public AgentClientResponse nextCall(AgentClientRequest request) {
-		Assert.notNull(request, "the request cannot be null");
+		requireNonNull(request, "the request cannot be null");
 
 		if (this.callAdvisors.isEmpty()) {
 			throw new IllegalStateException("No AgentCallAdvisors available to execute");
@@ -70,14 +66,16 @@ public class DefaultAgentCallAdvisorChain implements AgentCallAdvisorChain {
 		}
 
 		public Builder push(AgentCallAdvisor advisor) {
-			Assert.notNull(advisor, "the advisor must be non-null");
+			requireNonNull(advisor, "the advisor must be non-null");
 			return this.pushAll(List.of(advisor));
 		}
 
 		public Builder pushAll(List<AgentCallAdvisor> advisors) {
-			Assert.notNull(advisors, "the advisors must be non-null");
-			Assert.noNullElements(advisors, "the advisors must not contain null elements");
-			if (!CollectionUtils.isEmpty(advisors)) {
+			requireNonNull(advisors, "the advisors must be non-null");
+			if (advisors.stream().anyMatch(Objects::isNull)) {
+				throw new IllegalArgumentException("the advisors must not contain null elements");
+			}
+			if (!advisors.isEmpty()) {
 				advisors.forEach(this.callAdvisors::push);
 				this.reOrder();
 			}
@@ -85,11 +83,12 @@ public class DefaultAgentCallAdvisorChain implements AgentCallAdvisorChain {
 		}
 
 		/**
-		 * (Re)orders the advisors in priority order based on their Ordered attribute.
+		 * (Re)orders the advisors by ascending {@link AgentCallAdvisor#getOrder()}. The
+		 * sort is stable, so advisors with equal order keep their relative position.
 		 */
 		private void reOrder() {
 			ArrayList<AgentCallAdvisor> callAdvisors = new ArrayList<>(this.callAdvisors);
-			OrderComparator.sort(callAdvisors);
+			callAdvisors.sort(Comparator.comparingInt(AgentCallAdvisor::getOrder));
 			this.callAdvisors.clear();
 			callAdvisors.forEach(this.callAdvisors::addLast);
 		}
@@ -98,6 +97,16 @@ public class DefaultAgentCallAdvisorChain implements AgentCallAdvisorChain {
 			return new DefaultAgentCallAdvisorChain(this.callAdvisors);
 		}
 
+	}
+
+	/**
+	 * Throws {@link IllegalArgumentException}, as the chain always has, when the value is
+	 * null.
+	 */
+	private static void requireNonNull(Object value, String message) {
+		if (value == null) {
+			throw new IllegalArgumentException(message);
+		}
 	}
 
 }
