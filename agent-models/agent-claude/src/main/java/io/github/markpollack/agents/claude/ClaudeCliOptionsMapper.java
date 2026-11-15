@@ -14,31 +14,37 @@ import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 import io.github.markpollack.claude.agent.sdk.mcp.McpServerConfig;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
 
-/** Maps effective Claude and portable request options to CLI options. */
-final class ClaudeCliOptionsMapper {
+/**
+ * Maps effective Claude and portable request options to CLI options.
+ * <p>
+ * Internal: public only so that {@code agent-client-claude} can use it from its own
+ * package. It is not a supported API and may change without notice.
+ */
+public final class ClaudeCliOptionsMapper {
 
 	private ClaudeCliOptionsMapper() {
 	}
 
-	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout) {
+	public static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout) {
 		return build(request, options, timeout, null);
 	}
 
-	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
+	public static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
 			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer) {
 		return build(request, options, timeout, observer, null);
 	}
 
-	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
+	public static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
 			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer, String resume) {
 		return build(request, options, timeout, observer, resume, null);
 	}
 
 	/**
+	 * Maps the options, with a requested fresh native session identity.
 	 * @param sessionId a caller-requested fresh native session identity
 	 * ({@code --session-id}), or null; never combined with resume
 	 */
-	static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
+	public static CLIOptions build(AgentTaskRequest request, ClaudeAgentOptions options, Duration timeout,
 			io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver observer, String resume,
 			String sessionId) {
 		if (resume != null && sessionId != null) {
@@ -234,7 +240,7 @@ final class ClaudeCliOptionsMapper {
 		}
 	}
 
-	static McpServerConfig toClaudeMcpServerConfig(McpServerDefinition definition) {
+	public static McpServerConfig toClaudeMcpServerConfig(McpServerDefinition definition) {
 		if (definition instanceof McpServerDefinition.StdioDefinition stdio) {
 			return new McpServerConfig.McpStdioServerConfig(stdio.command(), stdio.args(), stdio.env());
 		}

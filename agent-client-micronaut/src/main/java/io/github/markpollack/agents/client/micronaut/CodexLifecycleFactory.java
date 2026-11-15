@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.util.Locale;
 
 import io.github.markpollack.agents.codexsdk.types.SandboxMode;
-import io.github.markpollack.agents.codex.CodexClientProvider;
+import io.github.markpollack.agents.client.codex.CodexClientProvider;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Requires;

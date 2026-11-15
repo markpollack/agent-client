@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
 import io.github.markpollack.agents.antigravity.*;
+import io.github.markpollack.agents.client.antigravity.*;
 import io.github.markpollack.journal.ocsf.writer.*;
 import io.github.markpollack.journal.tck.ocsf.*;
 

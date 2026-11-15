@@ -17,8 +17,13 @@ import java.util.List;
 import java.util.Map;
 import io.github.markpollack.claude.agent.sdk.transport.TransportByteObserver;
 
-/** Synchronous original-byte retention; index ordering is observation, not causality. */
-final class ClaudeWireCapture implements AutoCloseable {
+/**
+ * Synchronous original-byte retention; index ordering is observation, not causality.
+ * <p>
+ * Internal: public only so that {@code agent-client-claude} can use it from its own
+ * package. It is not a supported API and may change without notice.
+ */
+public final class ClaudeWireCapture implements AutoCloseable {
 
 	private final Path directory;
 
@@ -53,7 +58,7 @@ final class ClaudeWireCapture implements AutoCloseable {
 		onBytes(stream, bytes, Instant.now());
 	}
 
-	synchronized void onBytes(TransportByteObserver.Stream stream, byte[] bytes, Instant observedAt)
+	public synchronized void onBytes(TransportByteObserver.Stream stream, byte[] bytes, Instant observedAt)
 			throws IOException {
 		try {
 			if (closed) {

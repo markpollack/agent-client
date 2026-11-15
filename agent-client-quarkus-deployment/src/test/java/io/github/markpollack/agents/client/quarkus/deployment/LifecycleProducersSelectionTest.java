@@ -22,8 +22,8 @@ class LifecycleProducersSelectionTest {
 	@Test
 	void anEnabledProviderWhoseModuleIsAbsentIsSkipped() {
 		Set<String> enabled = Set.of("agent-client.lifecycle.claude.enabled", "agent-client.lifecycle.codex.enabled");
-		Set<String> present = Set.of("io.github.markpollack.agents.codex.CodexClientProvider",
-				"io.github.markpollack.agents.antigravity.AntigravityClientProvider");
+		Set<String> present = Set.of("io.github.markpollack.agents.client.codex.CodexClientProvider",
+				"io.github.markpollack.agents.client.antigravity.AntigravityClientProvider");
 		assertThat(AgentClientProcessor.lifecycleProducers(enabled::contains, present::contains))
 			.containsExactly(PRODUCERS + "CodexLifecycleProducer");
 	}

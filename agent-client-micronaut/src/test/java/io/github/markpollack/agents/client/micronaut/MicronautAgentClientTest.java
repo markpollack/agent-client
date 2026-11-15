@@ -11,10 +11,10 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.github.markpollack.agents.antigravity.AntigravityClientProvider;
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.antigravity.AntigravityClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.github.markpollack.agents.client.AgentClient;
-import io.github.markpollack.agents.codex.CodexClientProvider;
+import io.github.markpollack.agents.client.codex.CodexClientProvider;
 import io.github.markpollack.agents.model.AgentApi;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.BeanInstantiationException;
@@ -80,9 +80,9 @@ class MicronautAgentClientTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource({ "claude, io.github.markpollack.agents.claude.ClaudeClientProvider",
-			"codex, io.github.markpollack.agents.codex.CodexClientProvider",
-			"antigravity, io.github.markpollack.agents.antigravity.AntigravityClientProvider" })
+	@CsvSource({ "claude, io.github.markpollack.agents.client.claude.ClaudeClientProvider",
+			"codex, io.github.markpollack.agents.client.codex.CodexClientProvider",
+			"antigravity, io.github.markpollack.agents.client.antigravity.AntigravityClientProvider" })
 	void everyPropertyIsAccepted(String provider, Class<?> type) {
 		String prefix = "agent-client.lifecycle." + provider;
 		Map<String, Object> properties = new HashMap<>(

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
 import io.github.markpollack.agents.claude.*;
+import io.github.markpollack.agents.client.claude.*;
 
 /** Two-turn installed Client + Journal decision-only proof. Local fixture, no model call. */
 public final class RetainedClaudeCapture {

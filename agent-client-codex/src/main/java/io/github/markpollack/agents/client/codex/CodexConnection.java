@@ -1,0 +1,142 @@
+/*
+ * Copyright (c) 2024-2026 Mark Pollack
+ * See LICENSE in the repository root for project-specific Business Source License terms.
+ */
+package io.github.markpollack.agents.client.codex;
+
+import java.nio.file.Path;
+import java.util.*;
+import io.github.markpollack.agents.client.*;
+import io.github.markpollack.agents.model.AgentOptions;
+
+/**
+ * One-shot: exactly one generation. Retained: each turn is a replacement process that
+ * resumes the exact thread identity emitted by the first dispatched turn. Any turn that
+ * does not end with a parsed successful terminal quarantines the thread; close is the
+ * only exit.
+ */
+final class CodexConnection implements AgentExecutionProvider.Connection {
+
+	private final CodexConfiguration configuration;
+
+	private final AgentOptions options;
+
+	private final boolean retained;
+
+	private final List<CodexGeneration> generations = new ArrayList<>();
+
+	private volatile CodexGeneration current;
+
+	private final CodexThread thread = new CodexThread();
+
+	private boolean closed;
+
+	private final List<String> diagnostics = new ArrayList<>();
+
+	CodexConnection(CodexConfiguration configuration, AgentOptions options, boolean retained) {
+		this.configuration = configuration;
+		this.options = options;
+		this.retained = retained;
+		this.current = new CodexGeneration(configuration, options, null, 0);
+		this.generations.add(this.current);
+	}
+
+	@Override
+	public synchronized AgentExecutionProvider.Turn prepare(String executionId) {
+		checkReady();
+		var generation = this.current.prepared ? replacement(this.current) : this.current;
+		generation.prepared = true;
+		return new CodexTurn(generation, executionId, this.thread, this.retained);
+	}
+
+	private void checkReady() {
+		if (this.closed)
+			throw new IllegalStateException("Connection is closed");
+		var quarantine = this.thread.quarantined();
+		if (quarantine.isPresent())
+			throw new IllegalStateException("Codex thread is quarantined: " + quarantine.get());
+	}
+
+	/**
+	 * A replacement process resumes the exact emitted thread; it never replays a prompt.
+	 */
+	private CodexGeneration replacement(CodexGeneration previous) {
+		if (!this.retained)
+			throw new IllegalStateException("One-shot connection cannot replay");
+		String nativeId = this.thread.nativeId().orElse(null);
+		if (previous.process.dispatched() && nativeId == null)
+			throw new IllegalStateException("Cannot resume a dispatched Codex turn without emitted thread identity");
+		if (previous.capture != null)
+			previous.capture.observeNative();
+		var generation = new CodexGeneration(this.configuration, this.options, nativeId,
+				nativeId == null ? 0 : this.generations.size());
+		this.generations.add(generation);
+		this.current = generation;
+		return generation;
+	}
+
+	@Override
+	public Optional<String> connectionId() {
+		return Optional.of(this.current.id);
+	}
+
+	@Override
+	public Optional<ProviderReference> providerReference() {
+		return this.thread.nativeId()
+			.map(n -> new ProviderReference("codex", this.current.options.getWorkingDirectory().toString(), n));
+	}
+
+	@Override
+	public void close() {
+		List<CodexGeneration> owned;
+		synchronized (this) {
+			this.closed = true;
+			owned = List.copyOf(this.generations);
+		}
+		RuntimeException failure = null;
+		for (var generation : owned) {
+			try {
+				generation.close();
+			}
+			catch (RuntimeException ex) {
+				failure = suppress(failure, ex);
+			}
+		}
+		if (this.retained && this.configuration.capture() != null)
+			threadManifestDiagnostic(CodexThreadManifest.write(this.configuration, this.thread, owned));
+		this.thread.quarantined().ifPresent(reason -> diagnostic("codex thread quarantined: " + reason));
+		if (failure != null)
+			throw failure;
+	}
+
+	/**
+	 * The thread manifest is secondary evidence; whether it was written is reported here
+	 * because every execution result has already been returned by the time it is known.
+	 */
+	private void threadManifestDiagnostic(Optional<Path> written) {
+		if (written.isPresent()) {
+			diagnostic("codex thread manifest written: " + written.get());
+			return;
+		}
+		diagnostic(this.thread.manifestFailure()
+			.map(reason -> "codex thread manifest not written: " + reason)
+			.orElse("codex thread manifest not applicable: no captured generation"));
+	}
+
+	private synchronized void diagnostic(String line) {
+		this.diagnostics.add(line);
+	}
+
+	@Override
+	public synchronized List<String> recordingDiagnostics() {
+		return List.copyOf(this.diagnostics);
+	}
+
+	private static RuntimeException suppress(RuntimeException failure, RuntimeException ex) {
+		if (failure == null)
+			return ex;
+		failure.addSuppressed(ex);
+		return failure;
+	}
+
+}

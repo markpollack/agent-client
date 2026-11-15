@@ -16,7 +16,7 @@ try (var client = AgentClient.builder(provider)
 ```
 
 Imports: `io.github.markpollack.agents.client.AgentClient`,
-`io.github.markpollack.agents.claude.ClaudeClientProvider`, `java.nio.file.Path`, `java.time.Duration`.
+`io.github.markpollack.agents.client.claude.ClaudeClientProvider`, `java.nio.file.Path`, `java.time.Duration`.
 `result(Duration)` bounds only the caller's wait. Set `executionTimeout` on a request to bound the
 actual task. The native spending cap is fixed per connection generation. Supply `preToolUse` hooks
 when the application needs to decide edit/tool permissions before execution.

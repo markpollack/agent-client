@@ -16,6 +16,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.claude.*;
+import io.github.markpollack.agents.client.claude.*;
 import io.github.markpollack.journal.ocsf.writer.*;
 import io.github.markpollack.journal.tck.ocsf.*;
 import static org.assertj.core.api.Assertions.*;

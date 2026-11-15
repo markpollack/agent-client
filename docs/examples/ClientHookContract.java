@@ -5,7 +5,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.markpollack.agents.client.*;
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.github.markpollack.claude.agent.sdk.types.control.HookOutput;
 
 /** Installed public Client subprocess contract. Uses a local fixture, never a native model. */

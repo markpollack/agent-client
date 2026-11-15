@@ -5,7 +5,7 @@
  */
 import java.nio.file.Path;
 
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.github.markpollack.agents.client.AgentClient;
 import io.github.markpollack.agents.client.ProviderReference;
 import org.junit.jupiter.api.Test;

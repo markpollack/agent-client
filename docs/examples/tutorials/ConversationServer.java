@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.github.markpollack.agents.client.AgentClient;
 import io.github.markpollack.agents.client.AgentExecution;
 import io.github.markpollack.agents.client.AgentExecutionProvider;

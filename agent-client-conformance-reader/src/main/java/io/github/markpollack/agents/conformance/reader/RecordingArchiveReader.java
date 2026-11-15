@@ -57,8 +57,8 @@ public final class RecordingArchiveReader {
 	/** Classes whose presence would mean the verdict is not independent. */
 	static final List<String> FORBIDDEN = List.of("io.github.markpollack.agents.client.AgentClient",
 			"io.github.markpollack.agents.client.journal.JournalExecutionRecorder",
-			"io.github.markpollack.agents.codex.CodexClientProvider",
-			"io.github.markpollack.agents.claude.ClaudeClientProvider",
+			"io.github.markpollack.agents.client.codex.CodexClientProvider",
+			"io.github.markpollack.agents.client.claude.ClaudeClientProvider",
 			"io.github.markpollack.journal.ocsf.writer.TerminalReceiver");
 
 	private static final Set<String> CORRELATION = Set.of("experimentId", "experimentRunId", "experimentInvocationId",

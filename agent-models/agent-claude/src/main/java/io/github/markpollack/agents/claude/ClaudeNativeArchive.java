@@ -13,13 +13,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Copies only the observed session's files; never chooses the newest transcript. */
-final class ClaudeNativeArchive {
+/**
+ * Copies only the observed session's files; never chooses the newest transcript.
+ * <p>
+ * Internal: public only so that {@code agent-client-claude} can use it from its own
+ * package. It is not a supported API and may change without notice.
+ */
+public final class ClaudeNativeArchive {
 
 	private ClaudeNativeArchive() {
 	}
 
-	static List<Map<String, Object>> acquire(ClaudeCaptureOptions options, String sessionId) throws IOException {
+	public static List<Map<String, Object>> acquire(ClaudeCaptureOptions options, String sessionId) throws IOException {
 		if (sessionId == null || !sessionId.matches("[A-Za-z0-9_-]+")) {
 			return List.of(CaptureFiles.missing("transcript.jsonl", "transcript", false,
 					"No safe observed native session identity"));

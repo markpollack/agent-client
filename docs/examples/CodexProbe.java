@@ -4,6 +4,7 @@ import java.util.*;
 import com.fasterxml.jackson.databind.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.codex.*;
+import io.github.markpollack.agents.client.codex.*;
 
 /**
  * Smallest real two-turn Codex probe: observes resume parsing, history continuity, emitted

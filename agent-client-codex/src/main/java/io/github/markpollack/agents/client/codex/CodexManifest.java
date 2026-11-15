@@ -1,0 +1,152 @@
+/*
+ * Copyright (c) 2024-2026 Mark Pollack
+ * See LICENSE in the repository root for project-specific Business Source License terms.
+ */
+package io.github.markpollack.agents.client.codex;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.time.Instant;
+import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+/**
+ * Caller observations for the independent Journal qualifier; no canonical interpretation.
+ */
+final class CodexManifest {
+
+	private CodexManifest() {
+	}
+
+	/**
+	 * The acquisition profile a one-shot manifest declares, named by the caller-observed
+	 * CLI version. The version is recorded here, not gated: Journal decides which
+	 * versions it qualifies.
+	 */
+	static String profile(String version) {
+		return "codex-cli-" + version + "-exec-stdio-rollout";
+	}
+
+	static String profileId(String version) {
+		return "codex-cli/" + version + "/exec-stdio+rollout";
+	}
+
+	record Context(CodexGeneration connection, String execution, Instant start, CodexNativeSource.Prefix previous) {
+	}
+
+	static String template(Context context, List<CodexAcquisition.Source> sources,
+			CodexNativeSource.Observed nativeSource, boolean complete, String detail) throws IOException {
+		var connection = context.connection();
+		String execution = context.execution();
+		String version = connection.configuration.version();
+		var root = object("kind", "agent-journal/acquired-execution", "version", "0.1", "profile", profile(version),
+				"profile_id", profileId(version), "acquisition_uid", execution, "complete", complete, "capture_errors",
+				complete ? List.of() : List.of(detail));
+		root.put("process", process(connection, sources, nativeSource));
+		root.put("run",
+				object("run_uid", execution, "session_uid", connection.nativeId, "capture_start",
+						context.start().toString(), "invocation_index", connection.turnIndex, "cli",
+						object("name", "Codex CLI", "vendor_name", "OpenAI", "version", version), "launch_settings",
+						object("route", "exec_stdio", "working_directory",
+								connection.options.getWorkingDirectory().toString())));
+		var entries = new ArrayList<Map<String, Object>>();
+		for (var source : sources)
+			entries.add(source(source, execution, connection.nativeId, nativeSource));
+		root.put("sources", entries);
+		var ends = new LinkedHashMap<String, Long>();
+		for (var source : sources)
+			if (!"native".equals(source.role()))
+				ends.put(source.role().toUpperCase(Locale.ROOT), source.bytes());
+		var turn = object("invocation_uid", execution, "decision_uid", null, "native_turn_uid",
+				nativeSource == null ? null : nativeSource.turnId(), "start_offsets",
+				Map.of("STDIN", 0, "STDOUT", 0, "STDERR", 0), "end_offsets", ends);
+		turn.put("identity_source", connection.identitySource);
+		turn.put("resume_thread_id", connection.resumeId);
+		turn.put("wire_usage", connection.wireUsage);
+		var previous = context.previous();
+		turn.put("native_prefix_before", previous == null
+				? object("state", "ABSENT", "observation", "before-first-dispatch")
+				: object("bytes", previous.bytes().length, "sha256", CodexNativeSource.sha256(previous.bytes())));
+		if (nativeSource != null)
+			nativeFacts(turn, nativeSource);
+		root.put("turns", List.of(turn));
+		return new ObjectMapper().writeValueAsString(root);
+	}
+
+	/** Region, locators and usage of one turn, as the rollout states them. */
+	static void nativeFacts(Map<String, Object> turn, CodexNativeSource.Observed nativeSource) throws IOException {
+		byte[] after = nativeSource.bytes();
+		turn.put("native_prefix_after", object("bytes", after.length, "sha256", CodexNativeSource.sha256(after)));
+		turn.put("native_records",
+				object("first_line", nativeSource.firstLine(), "last_line", nativeSource.lastLine(),
+						"region_start_byte", nativeSource.regionStart(), "records", nativeSource.records(), "shared",
+						nativeSource.shared()));
+		var cumulative = nativeSource.cumulativeUsage();
+		turn.put("cumulative_usage", cumulative);
+		var usage = nativeSource.turnUsage();
+		turn.put("turn_token_usage", usage.get("turn_token_usage"));
+		turn.put("thread_token_usage", usage.get("thread_token_usage"));
+		turn.put("total_token_usage", cumulative);
+	}
+
+	private static Map<String, Object> process(CodexGeneration connection, List<CodexAcquisition.Source> sources,
+			CodexNativeSource.Observed nativeSource) {
+		var process = connection.process;
+		return object("argv", process.argv(), "cwd", connection.options.getWorkingDirectory().toString(),
+				"connection_uid", connection.id, "client_session_uid", null, "exit_code", connection.exitCode, "sealed",
+				true, "fresh_session", connection.resumeId == null, "observed_pids", process.observedPids(),
+				"native_path_preexisting", nativeSource == null ? null : connection.resumeId != null,
+				"observed_resources_terminated", process.terminated(), "stdin_closed", ended(sources, "stdin"),
+				"stdout_natural_eof", ended(sources, "stdout"), "stderr_natural_eof", ended(sources, "stderr"),
+				"overflow", sources.stream().anyMatch(source -> source.observedBytes() > source.bytes()));
+	}
+
+	private static boolean ended(List<CodexAcquisition.Source> sources, String role) {
+		return sources.stream().anyMatch(source -> source.role().equals(role) && source.naturalEof());
+	}
+
+	private static Map<String, Object> source(CodexAcquisition.Source source, String execution, String nativeId,
+			CodexNativeSource.Observed nativeSource) throws IOException {
+		String role = role(source.role());
+		String file = source.path().getFileName().toString();
+		boolean wire = "stream".equals(role), nativeFile = "transcript".equals(role);
+		var result = object("role", role, "path", file, "artifact", file, "origin",
+				nativeFile ? nativeSource.path().toString() : "codex-" + source.role(), "required", true,
+				"archive_only", !wire && !nativeFile, "state", "acquired", "bytes", source.bytes(), "sha256",
+				source.sha256(), "observed", source.observedBytes(), "dropped", source.observedBytes() - source.bytes(),
+				"end", source.naturalEof() ? "EOF" : "UNKNOWN", "acquisition", execution);
+		if (wire || nativeFile) {
+			result.put("profile", wire ? "codex_stream" : "codex_rollout");
+			result.put("route", wire ? "stdout" : "native_session_file");
+			result.put("framing", "lines");
+			result.put("records", records(source));
+		}
+		if (nativeFile)
+			result.put("owner_session_uid", nativeId);
+		return result;
+	}
+
+	private static String role(String role) {
+		return switch (role) {
+			case "stdout" -> "stream";
+			case "native" -> "transcript";
+			default -> role;
+		};
+	}
+
+	private static long records(CodexAcquisition.Source source) throws IOException {
+		long records = 0;
+		for (byte value : Files.readAllBytes(source.path()))
+			if (value == '\n')
+				records++;
+		return records;
+	}
+
+	private static Map<String, Object> object(Object... pairs) {
+		var result = new LinkedHashMap<String, Object>();
+		for (int i = 0; i < pairs.length; i += 2)
+			result.put((String) pairs[i], pairs[i + 1]);
+		return result;
+	}
+
+}

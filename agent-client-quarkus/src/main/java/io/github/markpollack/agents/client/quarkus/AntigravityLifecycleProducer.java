@@ -8,7 +8,7 @@ package io.github.markpollack.agents.client.quarkus;
 import java.nio.file.Path;
 import java.util.Optional;
 
-import io.github.markpollack.agents.antigravity.AntigravityClientProvider;
+import io.github.markpollack.agents.client.antigravity.AntigravityClientProvider;
 import jakarta.inject.Singleton;
 import jakarta.enterprise.inject.Produces;
 import org.eclipse.microprofile.config.inject.ConfigProperty;

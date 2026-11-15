@@ -112,6 +112,15 @@ Against 0.32.0:
 
 Only for code written against the 0.32.1 development snapshots (the lifecycle route is new since 0.32.0):
 
+- **The lifecycle provider modules have their own packages.** `agent-client-claude`, `agent-client-codex` and
+  `agent-client-antigravity` moved from `io.github.markpollack.agents.claude`, `.codex` and `.antigravity`, which they
+  shared with the legacy providers, to `io.github.markpollack.agents.client.claude`, `.client.codex` and
+  `.client.antigravity`. For example, `ClaudeClientProvider` is now
+  `io.github.markpollack.agents.client.claude.ClaudeClientProvider`; update the imports. The shared packages broke the
+  Java module system and Quarkus dev and test mode, where the two jars can load in different class loaders. Six
+  `agent-claude` classes that the Claude lifecycle module uses are now public and marked internal: `CaptureFiles`,
+  `ClaudeCaptureSession`, `ClaudeCliOptionsMapper`, `ClaudeExecutionResult`, `ClaudeNativeArchive` and
+  `ClaudeWireCapture`. They are not a supported API.
 - Closing a Client or session no longer refuses a recording still to be delivered. Close drains it within the cleanup
   budget (`cleanupTimeout`, 10 s by default), so a caller that cancels or abandons a run and closes at once still gets its
   archive. A recording that outlasts the budget is reported by close as unconfirmed cleanup (`recorder-executor`) and

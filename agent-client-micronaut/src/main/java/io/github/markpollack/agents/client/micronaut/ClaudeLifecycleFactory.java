@@ -7,7 +7,7 @@ package io.github.markpollack.agents.client.micronaut;
 
 import java.nio.file.Path;
 
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Requires;

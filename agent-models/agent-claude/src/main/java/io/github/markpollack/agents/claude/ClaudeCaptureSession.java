@@ -15,8 +15,13 @@ import java.util.Map;
 import java.util.UUID;
 import io.github.markpollack.claude.agent.sdk.transport.CLIOptions;
 
-/** One invocation's acquisition lifetime. Sealing follows SDK client close. */
-final class ClaudeCaptureSession {
+/**
+ * One invocation's acquisition lifetime. Sealing follows SDK client close.
+ * <p>
+ * Internal: public only so that {@code agent-client-claude} can use it from its own
+ * package. It is not a supported API and may change without notice.
+ */
+public final class ClaudeCaptureSession {
 
 	private final ClaudeCaptureOptions options;
 
@@ -28,15 +33,15 @@ final class ClaudeCaptureSession {
 
 	private volatile Map<String, Object> observedProcess = Map.of();
 
-	ClaudeCaptureSession(ClaudeCaptureOptions options) {
+	public ClaudeCaptureSession(ClaudeCaptureOptions options) {
 		this(options, UUID.randomUUID().toString());
 	}
 
-	ClaudeCaptureSession(ClaudeCaptureOptions options, String connection) {
+	public ClaudeCaptureSession(ClaudeCaptureOptions options, String connection) {
 		this(options, connection, Instant.now());
 	}
 
-	ClaudeCaptureSession(ClaudeCaptureOptions options, String connection, Instant started) {
+	public ClaudeCaptureSession(ClaudeCaptureOptions options, String connection, Instant started) {
 		this.started = started;
 		this.connection = connection;
 		this.options = options;
@@ -54,15 +59,15 @@ final class ClaudeCaptureSession {
 		}
 	}
 
-	ClaudeWireCapture wire() {
+	public ClaudeWireCapture wire() {
 		return wire;
 	}
 
-	synchronized void observeProcess(Map<String, Object> process) {
+	public synchronized void observeProcess(Map<String, Object> process) {
 		this.observedProcess = Map.copyOf(process);
 	}
 
-	synchronized void observeProcess() {
+	public synchronized void observeProcess() {
 		if (!observedProcess.isEmpty()) {
 			return;
 		}
@@ -85,11 +90,12 @@ final class ClaudeCaptureSession {
 		}
 	}
 
-	ClaudeAcquisition seal(ClaudeExecutionResult result, String failure, CLIOptions cli, Path cwd, String prompt) {
+	public ClaudeAcquisition seal(ClaudeExecutionResult result, String failure, CLIOptions cli, Path cwd,
+			String prompt) {
 		return seal(result, failure, cli, cwd, prompt, false);
 	}
 
-	ClaudeAcquisition seal(ClaudeExecutionResult result, String failure, CLIOptions cli, Path cwd, String prompt,
+	public ClaudeAcquisition seal(ClaudeExecutionResult result, String failure, CLIOptions cli, Path cwd, String prompt,
 			boolean requireTranscript) {
 		wire.close();
 		List<String> errors = new ArrayList<>(wire.failures());

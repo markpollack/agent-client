@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.claude.*;
+import io.github.markpollack.agents.client.claude.*;
 
 /**
  * Deterministic fresh-start two-turn generation: the Client names the native session, witnesses the

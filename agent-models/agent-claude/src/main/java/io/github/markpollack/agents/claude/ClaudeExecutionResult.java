@@ -23,8 +23,11 @@ import io.github.markpollack.claude.agent.sdk.types.SystemMessage;
 
 /**
  * Extracts only execution response facts from SDK types. Journal interprets the evidence.
+ * <p>
+ * Internal: public only so that {@code agent-client-claude} can use it from its own
+ * package. It is not a supported API and may change without notice.
  */
-final class ClaudeExecutionResult {
+public final class ClaudeExecutionResult {
 
 	private final StringBuilder text = new StringBuilder();
 
@@ -32,7 +35,7 @@ final class ClaudeExecutionResult {
 
 	private String sessionId;
 
-	void accept(ParsedMessage parsed) {
+	public void accept(ParsedMessage parsed) {
 		if (!parsed.isRegularMessage()) {
 			return;
 		}
@@ -62,7 +65,7 @@ final class ClaudeExecutionResult {
 		sessionId = id;
 	}
 
-	static ClaudeExecutionResult read(Iterator<ParsedMessage> messages, Consumer<ParsedMessage> listener) {
+	public static ClaudeExecutionResult read(Iterator<ParsedMessage> messages, Consumer<ParsedMessage> listener) {
 		var response = new ClaudeExecutionResult();
 		while (messages.hasNext()) {
 			var parsed = messages.next();
@@ -74,19 +77,19 @@ final class ClaudeExecutionResult {
 		return response;
 	}
 
-	String sessionId() {
+	public String sessionId() {
 		return sessionId;
 	}
 
-	boolean terminalReceived() {
+	public boolean terminalReceived() {
 		return result != null;
 	}
 
-	boolean successful() {
+	public boolean successful() {
 		return result != null && !result.isError();
 	}
 
-	AgentResponse response(String model, Duration duration, ClaudeAcquisition acquisition, String failure) {
+	public AgentResponse response(String model, Duration duration, ClaudeAcquisition acquisition, String failure) {
 		Map<String, Object> fields = new HashMap<>();
 		fields.put("terminalReceived", terminalReceived());
 		if (acquisition != null) {

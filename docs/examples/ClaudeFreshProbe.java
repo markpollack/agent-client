@@ -5,6 +5,7 @@ import java.util.concurrent.*;
 import com.fasterxml.jackson.databind.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.claude.*;
+import io.github.markpollack.agents.client.claude.*;
 
 /**
  * Smallest real Claude fresh-start two-turn probe: the Client names the native session

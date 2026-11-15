@@ -5,10 +5,10 @@
 
 package io.github.markpollack.agents.client.quarkus.deployment;
 
-import io.github.markpollack.agents.antigravity.AntigravityClientProvider;
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.antigravity.AntigravityClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.github.markpollack.agents.client.AgentClient;
-import io.github.markpollack.agents.codex.CodexClientProvider;
+import io.github.markpollack.agents.client.codex.CodexClientProvider;
 import io.github.markpollack.agents.model.AgentApi;
 import io.quarkus.test.QuarkusUnitTest;
 import jakarta.enterprise.inject.Instance;

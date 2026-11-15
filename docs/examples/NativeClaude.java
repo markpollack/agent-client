@@ -3,7 +3,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import io.github.markpollack.agents.client.*;
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
 import io.github.markpollack.claude.agent.sdk.types.control.HookInput;
 import io.github.markpollack.claude.agent.sdk.types.control.HookOutput;

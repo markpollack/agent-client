@@ -16,14 +16,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-final class CaptureFiles {
+/**
+ * Shared file helpers for Claude capture: hashes, record counts and source entries.
+ * <p>
+ * Internal: public only so that {@code agent-client-claude} can use it from its own
+ * package. It is not a supported API and may change without notice.
+ */
+public final class CaptureFiles {
 
-	static final ObjectMapper JSON = new ObjectMapper();
+	public static final ObjectMapper JSON = new ObjectMapper();
 
 	private CaptureFiles() {
 	}
 
-	static String hash(Path path) throws IOException {
+	public static String hash(Path path) throws IOException {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
 			try (InputStream input = Files.newInputStream(path)) {
@@ -44,7 +50,7 @@ final class CaptureFiles {
 	 * Counts LF-framed records, including an unterminated final fragment, without
 	 * decoding.
 	 */
-	static long records(Path path) throws IOException {
+	public static long records(Path path) throws IOException {
 		long records = 0;
 		int last = -1;
 		try (InputStream input = new BufferedInputStream(Files.newInputStream(path))) {
@@ -57,7 +63,7 @@ final class CaptureFiles {
 		return records + (last == -1 || last == '\n' ? 0 : 1);
 	}
 
-	static Map<String, Object> source(Path directory, Path file, String artifact, String role, String origin,
+	public static Map<String, Object> source(Path directory, Path file, String artifact, String role, String origin,
 			String acquisition) throws IOException {
 		Map<String, Object> source = new LinkedHashMap<>();
 		source.put("artifact", artifact);
@@ -71,7 +77,7 @@ final class CaptureFiles {
 		return source;
 	}
 
-	static Map<String, Object> missing(String artifact, String role, boolean required, String reason) {
+	public static Map<String, Object> missing(String artifact, String role, boolean required, String reason) {
 		return Map.of("artifact", artifact, "role", role, "state", "missing", "required", required, "reason", reason);
 	}
 

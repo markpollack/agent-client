@@ -10,7 +10,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import io.github.markpollack.agents.codexsdk.types.SandboxMode;
-import io.github.markpollack.agents.codex.CodexClientProvider;
+import io.github.markpollack.agents.client.codex.CodexClientProvider;
 import jakarta.inject.Singleton;
 import jakarta.enterprise.inject.Produces;
 import org.eclipse.microprofile.config.inject.ConfigProperty;

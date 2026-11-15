@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.codex.*;
+import io.github.markpollack.agents.client.codex.*;
 
 /**
  * Installed public retained Codex caller: two turns on one session through the public

@@ -35,12 +35,12 @@ class AgentClientProcessor {
 	 * names, so a producer whose provider is absent is never loaded.
 	 */
 	private static final Map<String, Lifecycle> LIFECYCLE_PRODUCERS = Map.of("claude",
-			new Lifecycle(
-					"io.github.markpollack.agents.claude.ClaudeClientProvider", PRODUCERS + "ClaudeLifecycleProducer"),
+			new Lifecycle("io.github.markpollack.agents.client.claude.ClaudeClientProvider",
+					PRODUCERS + "ClaudeLifecycleProducer"),
 			"codex",
-			new Lifecycle("io.github.markpollack.agents.codex.CodexClientProvider",
+			new Lifecycle("io.github.markpollack.agents.client.codex.CodexClientProvider",
 					PRODUCERS + "CodexLifecycleProducer"),
-			"antigravity", new Lifecycle("io.github.markpollack.agents.antigravity.AntigravityClientProvider",
+			"antigravity", new Lifecycle("io.github.markpollack.agents.client.antigravity.AntigravityClientProvider",
 					PRODUCERS + "AntigravityLifecycleProducer"));
 
 	/** A lifecycle provider class and the producer that creates it. */

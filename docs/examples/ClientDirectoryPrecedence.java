@@ -2,7 +2,7 @@ import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
 import io.github.markpollack.agents.client.*;
-import io.github.markpollack.agents.claude.ClaudeClientProvider;
+import io.github.markpollack.agents.client.claude.ClaudeClientProvider;
 
 /** Installed public directory regression. Child fixture only; never invokes a model. */
 public final class ClientDirectoryPrecedence {

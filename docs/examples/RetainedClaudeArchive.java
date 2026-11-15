@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.*;
 import io.github.markpollack.agents.client.*;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
 import io.github.markpollack.agents.claude.*;
+import io.github.markpollack.agents.client.claude.*;
 
 /** Deterministic installed two-turn archive proof. No native CLI/model is invoked. */
 public final class RetainedClaudeArchive {

@@ -13,6 +13,8 @@
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-core</artifactId><version>${project.version}</version></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>codex-cli-sdk</artifactId><version>${project.version}</version></dependency>
   <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+  <!-- Only for NoSplitPackageTest: this module must share no package with it. -->
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-codex</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
   <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
  </dependencies>
