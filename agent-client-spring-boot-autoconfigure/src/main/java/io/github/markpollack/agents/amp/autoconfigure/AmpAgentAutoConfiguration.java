@@ -5,6 +5,8 @@
 
 package io.github.markpollack.agents.amp.autoconfigure;
 
+import java.nio.file.Paths;
+
 import io.github.markpollack.agents.amp.AmpAgentModel;
 import io.github.markpollack.agents.amp.AmpAgentOptions;
 import io.github.markpollack.agents.ampsdk.AmpClient;
@@ -42,7 +44,9 @@ public class AmpAgentAutoConfiguration {
 			.timeout(properties.getTimeout())
 			.build();
 
-		return AmpClient.create(options);
+		// The configured executable path, when set, is used as is; otherwise the client
+		// discovers the CLI.
+		return AmpClient.create(options, Paths.get(System.getProperty("user.dir")), properties.getExecutablePath());
 	}
 
 	/**

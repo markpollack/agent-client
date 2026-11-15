@@ -19,6 +19,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Spring Boot auto-configuration for Codex agent model.
@@ -44,7 +45,9 @@ public class CodexAgentAutoConfiguration {
 			.additionalDirectories(properties.getAdditionalDirectories().stream().map(Path::of).toList())
 			.build();
 
-		return CodexClient.create(options);
+		// The configured executable path, when set, is used as is; otherwise the client
+		// discovers the CLI.
+		return CodexClient.create(options, Paths.get(System.getProperty("user.dir")), properties.getExecutablePath());
 	}
 
 	@Bean
