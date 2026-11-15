@@ -24,8 +24,8 @@
 
     <properties>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
-        <jacoco.minimum.line>0.63</jacoco.minimum.line>
-        <jacoco.minimum.branch>0.69</jacoco.minimum.branch>
+        <jacoco.minimum.line>0.88</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.73</jacoco.minimum.branch>
     </properties>
 
     <dependencies>

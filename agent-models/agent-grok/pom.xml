@@ -25,8 +25,8 @@
     <properties>
         <pmd.maxAllowedViolations>0</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
-        <jacoco.minimum.line>0.55</jacoco.minimum.line>
-        <jacoco.minimum.branch>0.38</jacoco.minimum.branch>
+        <jacoco.minimum.line>0.70</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.41</jacoco.minimum.branch>
     </properties>
 
     <dependencies>
