@@ -104,22 +104,24 @@ class AmpAgentModelTest {
 
 	private AmpClient client(int exitCode) throws IOException {
 		Path executable = this.directory.resolve("fake-amp");
-		Files.writeString(executable, """
-				#!/bin/sh
-				if [ "$1" = "--version" ]; then
-				  echo 'fixture amp'
-				  exit 0
-				fi
-				printf '%s\\n' "$@" > argv
-				prev=''
-				for arg in "$@"; do
-				  if [ "$prev" = "--mcp-config" ]; then cat "$arg" > mcp-config; ls -l "$arg" | cut -c1-10 > mcp-config-mode; fi
-				  prev="$arg"
-				done
-				cat > stdin
-				echo 'fixture response'
-				exit EXIT_CODE
-				""".replace("EXIT_CODE", Integer.toString(exitCode)));
+		Files.writeString(executable,
+				"""
+						#!/bin/sh
+						if [ "$1" = "--version" ]; then
+						  echo 'fixture amp'
+						  exit 0
+						fi
+						printf '%s\\n' "$@" > argv
+						prev=''
+						for arg in "$@"; do
+						  if [ "$prev" = "--mcp-config" ]; then cat "$arg" > mcp-config; ls -l "$arg" | cut -c1-10 > mcp-config-mode; fi
+						  prev="$arg"
+						done
+						cat > stdin
+						echo 'fixture response'
+						exit EXIT_CODE
+						"""
+					.replace("EXIT_CODE", Integer.toString(exitCode)));
 		assertThat(executable.toFile().setExecutable(true)).isTrue();
 		return AmpClient.create(ExecuteOptions.defaultOptions(), this.directory, executable.toString());
 	}

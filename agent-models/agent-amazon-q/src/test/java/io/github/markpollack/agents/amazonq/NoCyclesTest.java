@@ -49,10 +49,18 @@ class NoCyclesTest {
 				"no classes imported for io.github.markpollack.agents.amazonq: is the test running from the module directory with main classes compiled?");
 	}
 
-	/** Every package under the root is a slice; a cycle between any two fails. */
+	/**
+	 * Every package under the root is a slice; a cycle between any two fails. This module
+	 * has one package since its Spring Boot classes moved out, so the rule finds no slice
+	 * today and is allowed to be empty; it applies again once a subpackage exists.
+	 */
 	@Test
 	void noPackageCycles() {
-		slices().matching("io.github.markpollack.agents.amazonq.(**)").should().beFreeOfCycles().check(CLASSES);
+		slices().matching("io.github.markpollack.agents.amazonq.(**)")
+			.should()
+			.beFreeOfCycles()
+			.allowEmptyShould(true)
+			.check(CLASSES);
 	}
 
 	/** A cycle between classes of one package fails. */

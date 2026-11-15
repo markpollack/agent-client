@@ -106,36 +106,6 @@
                 <groupId>io.spring.javaformat</groupId>
                 <artifactId>spring-javaformat-maven-plugin</artifactId>
             </plugin>
-            <!-- The core API is Spring-free: no Spring artifact may reach its compile or runtime
-                 classpath, directly or transitively. Test-scope providers may still bring Spring. -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>ban-spring-in-core</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <bannedDependencies>
-                                    <excludes>
-                                        <exclude>org.springframework:*:*:*:compile</exclude>
-                                        <exclude>org.springframework:*:*:*:runtime</exclude>
-                                        <exclude>org.springframework:*:*:*:provided</exclude>
-                                        <exclude>org.springframework.boot:*:*:*:compile</exclude>
-                                        <exclude>org.springframework.boot:*:*:*:runtime</exclude>
-                                        <exclude>org.springframework.boot:*:*:*:provided</exclude>
-                                    </excludes>
-                                    <message>agent-client-core must not depend on Spring (org.springframework, org.springframework.boot) outside test scope.</message>
-                                </bannedDependencies>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 </project>

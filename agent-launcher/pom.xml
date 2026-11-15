@@ -39,9 +39,15 @@
         </dependency>
 
         <!-- Spring Boot logging for JBang usage -->
+        <!-- What spring-boot-starter-logging provided (it has no classes of its own), declared
+             directly so the launcher needs no Spring artifact. Versions from the Boot BOM. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-logging</artifactId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
         </dependency>
 
         <!-- Consumer-visible floors for runtime families otherwise governed only by the parent. -->

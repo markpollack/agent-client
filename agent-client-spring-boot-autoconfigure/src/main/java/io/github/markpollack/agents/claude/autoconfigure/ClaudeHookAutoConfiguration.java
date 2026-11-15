@@ -6,7 +6,6 @@
 package io.github.markpollack.agents.claude.autoconfigure;
 
 import io.github.markpollack.agents.claude.ClaudeAgentModel;
-import io.github.markpollack.agents.claude.annotation.ClaudeHookBeanPostProcessor;
 import io.github.markpollack.claude.agent.sdk.hooks.HookRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

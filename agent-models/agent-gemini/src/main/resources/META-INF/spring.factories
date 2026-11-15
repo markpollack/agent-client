@@ -1,3 +1,0 @@
-# Auto-configuration
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-io.github.markpollack.agents.gemini.autoconfigure.GeminiAgentAutoConfiguration

@@ -12,8 +12,8 @@ import io.github.markpollack.agents.model.mcp.McpServerDefinition;
 
 /**
  * Refuses MCP servers for an agent that Client cannot pass them to. An {@link AgentModel}
- * for such an agent calls {@link #refuse(String, AgentOptions)} before it
- * launches anything, so a configured server is reported instead of silently dropped.
+ * for such an agent calls {@link #refuse(String, AgentOptions)} before it launches
+ * anything, so a configured server is reported instead of silently dropped.
  *
  * @since 0.32.1
  */

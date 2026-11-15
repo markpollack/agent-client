@@ -22,6 +22,8 @@
     <description>Spring Boot Starters for Spring AI Agents</description>
 
     <properties>
+        <!-- Spring Boot starters. -->
+        <agent-client.spring.allowed>true</agent-client.spring.allowed>
         <!-- Dependency-only starter modules have no bytecode to analyze. -->
         <spotbugs.skip>true</spotbugs.skip>
     </properties>

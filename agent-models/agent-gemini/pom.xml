@@ -37,11 +37,6 @@
             <artifactId>gemini-cli-sdk</artifactId>
         </dependency>
 
-        <!-- Spring Boot AutoConfiguration -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-        </dependency>
 
         <!-- Slf4j API -->
         <dependency>

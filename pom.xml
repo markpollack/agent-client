@@ -313,6 +313,7 @@
 
 
         <!-- Core dependency versions -->
+        <agent-client.spring.allowed>false</agent-client.spring.allowed>
         <spring-boot.version>4.1.1</spring-boot.version>
         <slf4j.version>2.0.18</slf4j.version>
 
@@ -649,6 +650,32 @@
                                         <exclude>org.springframework.ai:*</exclude>
                                     </excludes>
                                     <message>Agent Client must not depend on Spring AI (org.springframework.ai).</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <!-- Spring only where it belongs: the Spring Boot integration and the starters.
+                         Every other module is framework-free; a module that must use Spring sets
+                         agent-client.spring.allowed to true and says why. -->
+                    <execution>
+                        <id>ban-spring</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${agent-client.spring.allowed}</skip>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.springframework:*:*:*:compile</exclude>
+                                        <exclude>org.springframework:*:*:*:runtime</exclude>
+                                        <exclude>org.springframework:*:*:*:provided</exclude>
+                                        <exclude>org.springframework.boot:*:*:*:compile</exclude>
+                                        <exclude>org.springframework.boot:*:*:*:runtime</exclude>
+                                        <exclude>org.springframework.boot:*:*:*:provided</exclude>
+                                    </excludes>
+                                    <message>This module must not depend on Spring outside test scope. Spring belongs in agent-client-spring-boot-autoconfigure and the starters.</message>
                                 </bannedDependencies>
                             </rules>
                         </configuration>

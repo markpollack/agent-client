@@ -1,2 +1,0 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-io.github.markpollack.agents.claude.autoconfigure.ClaudeAgentAutoConfiguration

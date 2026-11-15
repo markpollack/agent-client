@@ -140,8 +140,8 @@ class GeminiWorkspaceSettingsTest {
 		var model = new GeminiAgentModel(this.client,
 				GeminiAgentOptions.builder().model("gemini-2.5-flash").timeout(Duration.ofSeconds(30)).build(),
 				sandbox);
-		Map<String, McpServerDefinition> servers = Map.of("files", new McpServerDefinition.StdioDefinition("npx",
-				List.of("-y", "files-server"), Map.of("TOKEN", SECRET)));
+		Map<String, McpServerDefinition> servers = Map.of("files",
+				new McpServerDefinition.StdioDefinition("npx", List.of("-y", "files-server"), Map.of("TOKEN", SECRET)));
 		return model.call(AgentTaskRequest.builder("Use the files server", this.workspace)
 			.options(new PortableMcpAgentOptions(servers))
 			.build());

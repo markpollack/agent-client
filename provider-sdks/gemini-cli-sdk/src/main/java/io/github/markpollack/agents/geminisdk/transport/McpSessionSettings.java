@@ -98,8 +98,8 @@ public final class McpSessionSettings implements AutoCloseable {
 	 * servers
 	 */
 	public Map<String, String> environment() {
-		return (this.directory != null) ? Map.of(SYSTEM_SETTINGS_ENV, this.directory.resolve("settings.json").toString())
-				: Map.of();
+		return (this.directory != null)
+				? Map.of(SYSTEM_SETTINGS_ENV, this.directory.resolve("settings.json").toString()) : Map.of();
 	}
 
 	@Override

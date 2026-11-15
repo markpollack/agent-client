@@ -42,11 +42,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring Boot AutoConfiguration -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-        </dependency>
 
         <!-- Testing -->
         <dependency>

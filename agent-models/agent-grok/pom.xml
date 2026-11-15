@@ -56,11 +56,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Spring Boot AutoConfiguration -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-        </dependency>
 
         <!-- Jackson 2 (explicit; was transitive via Spring AI, which moved to Jackson 3 at 2.0 GA) -->
         <dependency>

@@ -59,6 +59,19 @@ New modules:
   needs a source update. A class that implements both `AgentAdvisor` and Spring's `Ordered` must qualify
   `HIGHEST_PRECEDENCE` and `LOWEST_PRECEDENCE`, which both interfaces now declare. The advisor chain sorts with a stable
   plain-Java comparator and keeps its `IllegalArgumentException` null checks.
+- **Provider modules are framework-free; their Spring Boot code moved to `agent-client-spring-boot-autoconfigure`.**
+  The nine legacy providers (`agent-amazon-q`, `-amp`, `-antigravity`, `-claude`, `-codex`, `-gemini`, `-grok`,
+  `-junie`, `-qwen-code`) no longer depend on `spring-boot-autoconfigure` or carry auto-configuration. Their
+  `*AgentAutoConfiguration` and `*AgentProperties` classes, `ClaudeHookAutoConfiguration`,
+  `ClaudeAgentMcpProperties` and `ClaudePropertyOptionsMapper` keep their package and class names in
+  `agent-client-spring-boot-autoconfigure`, so `exclude = ...` and property names are unchanged. The starters are
+  unchanged and bring everything as before. An application that used a provider module without its starter and relied
+  on its auto-configuration must add the starter (or `agent-client-spring-boot-autoconfigure`).
+  `ClaudeHookBeanPostProcessor` moved from `io.github.markpollack.agents.claude.annotation` to
+  `io.github.markpollack.agents.claude.autoconfigure`; the hook annotations stay in `agent-claude`. `agent-launcher`
+  declares `logback-classic` and `jul-to-slf4j` directly instead of `spring-boot-starter-logging`, which only grouped
+  them. The build now fails if any module other than the Spring Boot integration and the starters depends on Spring
+  outside test scope.
 - **MCP servers a provider cannot use are refused** (`90f37a9f`). On the ACP route (Grok, Junie) configured MCP servers
   were silently dropped. They are now sent in `session/new`: stdio servers always, HTTP and SSE servers when the agent
   advertised that transport. A server whose transport the agent did not advertise is refused with

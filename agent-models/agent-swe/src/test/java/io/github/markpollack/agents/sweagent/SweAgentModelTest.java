@@ -173,7 +173,8 @@ class SweAgentModelTest {
 	}
 
 	private static final java.util.Map<String, McpServerDefinition> MCP_SERVERS = java.util.Map.of("files",
-			new McpServerDefinition.StdioDefinition("npx", java.util.List.of("-y", "files-server"), java.util.Map.of()));
+			new McpServerDefinition.StdioDefinition("npx", java.util.List.of("-y", "files-server"),
+					java.util.Map.of()));
 
 	@Test
 	void refusesConfiguredMcpServersWithoutLaunchingSweAgent() throws Exception {

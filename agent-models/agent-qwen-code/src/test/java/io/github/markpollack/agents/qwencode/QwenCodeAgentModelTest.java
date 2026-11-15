@@ -151,8 +151,8 @@ class QwenCodeAgentModelTest {
 
 			@Override
 			public Map<String, McpServerDefinition> getMcpServerDefinitions() {
-				return Map.of("files", new McpServerDefinition.StdioDefinition("npx", List.of("-y", "files-server"),
-						Map.of()));
+				return Map.of("files",
+						new McpServerDefinition.StdioDefinition("npx", List.of("-y", "files-server"), Map.of()));
 			}
 		};
 		AgentResponse response = model

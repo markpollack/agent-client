@@ -18,6 +18,8 @@
     <description>Spring Boot auto-configuration for AgentClient — provides AgentClient.Builder bean</description>
 
     <properties>
+        <!-- The Spring Boot integration. -->
+        <agent-client.spring.allowed>true</agent-client.spring.allowed>
         <pmd.maxAllowedViolations>0</pmd.maxAllowedViolations>
         <!-- Own-module coverage floors: measured minus two percentage points. -->
         <jacoco.minimum.line>0.98</jacoco.minimum.line>
@@ -52,60 +54,61 @@
             <artifactId>spring-boot-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Provider autoconfigurations, for the ordering tests -->
+        <!-- The legacy providers whose auto-configuration lives here. Optional: an application
+             brings the providers it uses, normally through their starters. -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-amazon-q</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-amp</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-antigravity</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-claude</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-codex</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-gemini</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-grok</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-junie</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-qwen-code</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

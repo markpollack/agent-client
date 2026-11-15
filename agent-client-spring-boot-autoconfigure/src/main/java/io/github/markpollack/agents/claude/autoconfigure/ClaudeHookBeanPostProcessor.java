@@ -3,8 +3,12 @@
  * See LICENSE in the repository root for project-specific Business Source License terms.
  */
 
-package io.github.markpollack.agents.claude.annotation;
+package io.github.markpollack.agents.claude.autoconfigure;
 
+import io.github.markpollack.agents.claude.annotation.PreToolUse;
+import io.github.markpollack.agents.claude.annotation.PostToolUse;
+import io.github.markpollack.agents.claude.annotation.UserPromptSubmit;
+import io.github.markpollack.agents.claude.annotation.Stop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.github.markpollack.claude.agent.sdk.hooks.HookCallback;
