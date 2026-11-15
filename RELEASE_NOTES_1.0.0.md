@@ -124,6 +124,15 @@ Only for code written against the 0.32.1 development snapshots (the lifecycle ro
 
 ## Added
 
+- **Micronaut and Quarkus integrations.** `agent-client-micronaut` (Micronaut platform 4.10.20, core 4.10.30), and the
+  Quarkus extension `agent-client-quarkus` with `agent-client-quarkus-deployment` (Quarkus 3.40.1). Each provides an
+  `AgentClient.Builder` bean for the application's `AgentApi`, a new builder per injection point as in the Spring Boot
+  integration. Each also provides the lifecycle providers whose module is on the classpath and that are enabled:
+  `agent-client.lifecycle.<claude|codex|antigravity>.enabled=true`, with `working-directory`, `executable`,
+  `acquisition-directory` with `cli-version`, and `sandbox` (Codex and Antigravity). In Quarkus, `enabled` is a
+  build-time property. Both import the Jackson BOM ahead of their framework BOM, since both frameworks manage Jackson
+  2.21.x, below 2.22.3.
+
 - Codex retained sessions resume the exact emitted thread with a replacement process per turn; per-turn originals and a
   thread-level manifest (`journal-codex-retained-generation/1`).
 - Claude fresh-start observation capture (`ClaudeClientProvider.Builder.freshTranscript`) producing

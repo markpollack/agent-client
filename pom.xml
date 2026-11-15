@@ -48,6 +48,9 @@
         <module>agent-client-conformance</module>
         <module>agent-client-tutorials</module>
         <module>agent-client-spring-boot-autoconfigure</module>
+        <module>agent-client-micronaut</module>
+        <module>agent-client-quarkus</module>
+        <module>agent-client-quarkus-deployment</module>
 
         <!-- SDK modules -->
         <module>provider-sdks/gemini-cli-sdk</module>

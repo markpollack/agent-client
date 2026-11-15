@@ -1,0 +1,10 @@
+name: "Agent Client"
+metadata:
+  short-name: "agent-client"
+  keywords:
+    - "agent"
+    - "claude"
+    - "codex"
+  categories:
+    - "miscellaneous"
+  status: "preview"
