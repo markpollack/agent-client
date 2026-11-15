@@ -5,6 +5,8 @@
 
 package io.github.markpollack.agents.client.advisor.api;
 
+import io.github.markpollack.agents.client.Ordered;
+
 /**
  * Parent interface for all agent advisors.
  *
@@ -19,26 +21,15 @@ package io.github.markpollack.agents.client.advisor.api;
  * </ul>
  *
  * <p>
- * Advisors run in ascending {@link #getOrder()} order: a lower value runs earlier, and
- * advisors with the same value keep the order in which they were added. The ordering
- * contract is Agent Client's own and needs no Spring type. Its constants keep the values
- * of Spring's {@code Ordered}, so existing order values mean the same thing.
+ * Advisors run in ascending {@link #getOrder()} order, as defined by Client's own
+ * {@link Ordered}: a lower value runs earlier, and advisors with the same value keep the
+ * order in which they were added.
  *
  * @author Mark Pollack
  * @since 0.1.0
  * @see AgentCallAdvisor
  */
-public interface AgentAdvisor {
-
-	/**
-	 * The highest precedence: an advisor with this order runs first.
-	 */
-	int HIGHEST_PRECEDENCE = Integer.MIN_VALUE;
-
-	/**
-	 * The lowest precedence: an advisor with this order runs last.
-	 */
-	int LOWEST_PRECEDENCE = Integer.MAX_VALUE;
+public interface AgentAdvisor extends Ordered {
 
 	/**
 	 * Default precedence order for agent advisors, leaving room (1000 slots) for custom
@@ -51,13 +42,5 @@ public interface AgentAdvisor {
 	 * @return the advisor name
 	 */
 	String getName();
-
-	/**
-	 * Return this advisor's order. Lower values run earlier.
-	 * @return the order value
-	 * @see #HIGHEST_PRECEDENCE
-	 * @see #LOWEST_PRECEDENCE
-	 */
-	int getOrder();
 
 }
