@@ -107,6 +107,9 @@ above (refused MCP servers, ACP capabilities, Gemini settings) are listed by han
 
 Against 0.32.0:
 
+- **Gemini and Amazon Q no longer require a `Sandbox` bean.** With Spring Boot, their agents take a `Sandbox` bean
+  when the application defines one, as the other providers do. Before, an application without a `Sandbox` bean failed
+  to start.
 - Public interfaces `AgentClient`, `AgentClient.AgentClientRequestSpec` and `AgentClient.Builder` gained methods with
   defaults, so implementations compiled against 0.32.0 keep working; the lifecycle-only options refuse explicitly.
 
@@ -132,6 +135,10 @@ Only for code written against the 0.32.1 development snapshots (the lifecycle ro
   record deconstruction shape and `equals`. Record patterns with seven components need a source update (eight now).
 
 ## Added
+
+- **Spring Boot 3.5 and 4.** The Spring Boot integration and starters work on Spring Boot 3.5 and 4. CI runs the
+  integration's tests on 3.5.16 as well as on the 4.1 line the build uses. `DeprecatedPropertyMigrator` registers as
+  `org.springframework.boot.env.EnvironmentPostProcessor`, the type both lines load.
 
 - **Micronaut and Quarkus integrations.** `agent-client-micronaut` (Micronaut platform 4.10.20, core 4.10.30), and the
   Quarkus extension `agent-client-quarkus` with `agent-client-quarkus-deployment` (Quarkus 3.40.1). Each provides an

@@ -1,2 +1,2 @@
-org.springframework.boot.EnvironmentPostProcessor=\
+org.springframework.boot.env.EnvironmentPostProcessor=\
   io.github.markpollack.agents.client.autoconfigure.DeprecatedPropertyMigrator

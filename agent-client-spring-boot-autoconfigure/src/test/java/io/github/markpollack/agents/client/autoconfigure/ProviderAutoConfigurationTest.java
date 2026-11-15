@@ -146,7 +146,7 @@ class ProviderAutoConfigurationTest {
 	}
 
 	private static ApplicationContextRunner runner(Provider provider) {
-		// Gemini's agent requires a Sandbox bean; the others take one if present.
+		// Every provider takes a Sandbox bean when one is present.
 		return new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(provider.configuration()))
 			.withBean(Sandbox.class, () -> mock(Sandbox.class));
 	}
@@ -194,6 +194,17 @@ class ProviderAutoConfigurationTest {
 	void absentWithoutTheProvider(Provider provider) {
 		runner(provider).withClassLoader(new FilteredClassLoader(provider.marker()))
 			.run(context -> assertThat(context).doesNotHaveBean(AgentApi.class));
+	}
+
+	@ParameterizedTest(name = "{0}")
+	@MethodSource("providers")
+	void startsWithoutASandboxBean(Provider provider) {
+		new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(provider.configuration()))
+			.withPropertyValues(provider.properties().get().toArray(String[]::new))
+			.run(context -> {
+				assertThat(context).hasNotFailed();
+				assertThat(context).hasSingleBean(provider.agentType());
+			});
 	}
 
 	@SuppressWarnings("unchecked")

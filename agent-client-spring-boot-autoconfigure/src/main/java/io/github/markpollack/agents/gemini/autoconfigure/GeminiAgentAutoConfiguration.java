@@ -6,6 +6,7 @@ package io.github.markpollack.agents.gemini.autoconfigure;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -91,16 +92,17 @@ public class GeminiAgentAutoConfiguration {
 	 * injection with Sandbox.
 	 * @param geminiClient the Gemini CLI client
 	 * @param geminiAgentOptions the agent options
-	 * @param sandbox the sandbox for execution
+	 * @param sandboxProvider the sandbox, when the application defines one; without it
+	 * Gemini runs directly
 	 * @return configured GeminiAgentModel
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public GeminiAgentModel geminiAgentModel(GeminiClient geminiClient, GeminiAgentOptions geminiAgentOptions,
-			Sandbox sandbox) {
-
-		logger.debug("Creating GeminiAgentModel with sandbox: {}", sandbox.getClass().getSimpleName());
-
+			ObjectProvider<Sandbox> sandboxProvider) {
+		Sandbox sandbox = sandboxProvider.getIfAvailable();
+		logger.debug("Creating GeminiAgentModel with sandbox: {}",
+				sandbox != null ? sandbox.getClass().getSimpleName() : "none (direct execution)");
 		return new GeminiAgentModel(geminiClient, geminiAgentOptions, sandbox);
 	}
 

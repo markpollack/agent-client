@@ -9,6 +9,7 @@ import io.github.markpollack.agents.amazonq.AmazonQAgentModel;
 import io.github.markpollack.agents.amazonq.AmazonQAgentOptions;
 import io.github.markpollack.agents.amazonqsdk.AmazonQClient;
 import io.github.markpollack.sandbox.Sandbox;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -54,8 +55,8 @@ public class AmazonQAgentAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public AmazonQAgentModel amazonQAgentModel(AmazonQClient amazonQClient, AmazonQAgentOptions amazonQAgentOptions,
-			Sandbox sandbox) {
-		return new AmazonQAgentModel(amazonQClient, amazonQAgentOptions, sandbox);
+			ObjectProvider<Sandbox> sandboxProvider) {
+		return new AmazonQAgentModel(amazonQClient, amazonQAgentOptions, sandboxProvider.getIfAvailable());
 	}
 
 }

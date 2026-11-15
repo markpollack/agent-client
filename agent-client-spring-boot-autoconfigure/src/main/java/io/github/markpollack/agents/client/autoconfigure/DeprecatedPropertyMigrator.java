@@ -11,7 +11,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.EnumerablePropertySource;
@@ -28,6 +28,11 @@ import org.springframework.core.env.MutablePropertySources;
  * @author Spring AI Community
  * @since 0.16.0
  */
+// org.springframework.boot.env.EnvironmentPostProcessor is the type both Spring Boot 3.5
+// and 4 load from spring.factories. Boot 4 moved it to org.springframework.boot and marks
+// the old one for removal; when a supported Boot drops it, register both or split this
+// class.
+@SuppressWarnings("removal")
 public class DeprecatedPropertyMigrator implements EnvironmentPostProcessor {
 
 	private static final Logger logger = LoggerFactory.getLogger(DeprecatedPropertyMigrator.class);

@@ -36,6 +36,15 @@ jobs:
           cache: maven
       - name: Build with Maven
         run: ./mvnw clean verify -B
+      # Publish Snapshot deploys after verify without clean; this repeats that path, so a
+      # build that only fails on a second compile fails here too. It also installs the jars
+      # the Spring Boot 3.5 step below tests against.
+      - name: Rebuild without clean, as Publish does
+        run: ./mvnw install -B -DskipTests
+      # Spring Boot 3.5 and 4 are supported. The Boot integration's tests run again on
+      # Boot 3.5's managed versions, against the jars built above.
+      - name: Spring Boot 3.5 compatibility
+        run: ./mvnw verify -B -pl agent-client-spring-boot-autoconfigure -Dspring-boot.version=3.5.16
       # The published-consumer gate applies to point releases only (tag pushes v*).
       # Development snapshots on main keep the normal verification above; the gate
       # itself is unchanged.

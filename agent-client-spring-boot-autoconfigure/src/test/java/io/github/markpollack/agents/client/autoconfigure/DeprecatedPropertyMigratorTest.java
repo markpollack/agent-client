@@ -16,6 +16,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DeprecatedPropertyMigratorTest {
 
+	/**
+	 * Registered through {@code spring.factories}, the migrator runs in a real
+	 * {@code SpringApplication}, on Spring Boot 3.5 and on 4.
+	 */
+	@Test
+	void runsInASpringApplication() {
+		var application = new org.springframework.boot.SpringApplication(Object.class);
+		application.setWebApplicationType(org.springframework.boot.WebApplicationType.NONE);
+		application.setDefaultProperties(Map.of("spring.ai.agents.codex.model", "legacy-model"));
+		try (var context = application.run()) {
+			assertThat(context.getEnvironment().getProperty("agent-client.codex.model")).isEqualTo("legacy-model");
+		}
+	}
+
 	@Test
 	void migratesLegacyProviderPropertiesAndMode() {
 		var environment = environment(Map.of("spring.ai.agents.claude-code.model", "test-model",
