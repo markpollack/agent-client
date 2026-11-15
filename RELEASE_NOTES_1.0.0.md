@@ -107,6 +107,14 @@ above (refused MCP servers, ACP capabilities, Gemini settings) are listed by han
 
 Against 0.32.0:
 
+- **A timed-out ACP turn is stopped with `session/cancel`** (Grok, Junie). At the run's timeout Client now sends
+  `session/cancel`, as ACP intends, and waits for the agent's answer, normally stop reason `cancelled`, before it closes
+  the connection. The SDK's prompt timeout ends the turn 10 s later if the agent does not answer. Before, the timeout
+  only disposed the request; its `$/cancel_request` went out asynchronously and was lost in about a third of runs, so
+  the agent never learned that its turn was cancelled.
+- **The Amp and Codex Spring Boot auto-configurations honour `executable-path`** when they create their client. Before,
+  the path reached only the agent options, and an application whose CLI was not on `PATH` failed to start.
+- **Released dependencies:** Claude Agent SDK 1.8.0 and Agent Sandbox 1.0.0.
 - **Gemini and Amazon Q no longer require a `Sandbox` bean.** With Spring Boot, their agents take a `Sandbox` bean
   when the application defines one, as the other providers do. Before, an application without a `Sandbox` bean failed
   to start.
