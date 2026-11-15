@@ -1,15 +1,19 @@
 #!/usr/bin/python3
 # Offline ACP agent fixture. It never calls a model.
-# argv: <record-file> <http-advertised: true|false> [converse|hang]
+# argv: <record-file> <http-advertised: true|false> [converse|hang|deaf]
 # Answers initialize, records each session/new params line to <record-file>, and ends each prompt.
 # With 'converse', a prompt first streams session updates (one of a kind no SDK models), asks
 # permission, records the client's answer to <record-file>, and only then ends the prompt.
-# With 'hang', a prompt never ends; a '$/cancel_request' is recorded to <record-file>.
+# With 'hang', a prompt ends only on 'session/cancel', which is recorded to <record-file> and
+# answered with stop reason 'cancelled'; a '$/cancel_request' is recorded too. 'deaf' hangs the
+# same way but ignores 'session/cancel', so only the client's own prompt timeout ends the turn.
 import json, sys
 record, http = sys.argv[1], sys.argv[2] == 'true'
 converse = len(sys.argv) > 3 and sys.argv[3] == 'converse'
-hang = len(sys.argv) > 3 and sys.argv[3] == 'hang'
+hang = len(sys.argv) > 3 and sys.argv[3] in ('hang', 'deaf')
+deaf = len(sys.argv) > 3 and sys.argv[3] == 'deaf'
 pending_prompt = None
+hanging_prompt = None
 def update(session, body):
     send({'jsonrpc': '2.0', 'method': 'session/update', 'params': {'sessionId': session, 'update': body}})
 def send(message):
@@ -23,6 +27,12 @@ for line in sys.stdin:
     if method == '$/cancel_request':
         with open(record, 'a') as f:
             f.write(json.dumps({'cancelled': message.get('params')}) + '\n')
+    if method == 'session/cancel':
+        with open(record, 'a') as f:
+            f.write(json.dumps({'sessionCancel': message.get('params')}) + '\n')
+        if hanging_prompt is not None and not deaf:
+            send({'jsonrpc': '2.0', 'id': hanging_prompt, 'result': {'stopReason': 'cancelled'}})
+            hanging_prompt = None
     if ident is None:
         continue
     if method is None and ident == 'perm-1':
@@ -52,7 +62,7 @@ for line in sys.stdin:
             'options': [{'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
                         {'optionId': 'yes', 'name': 'Allow', 'kind': 'allow_once'}]}})
     elif method == 'session/prompt' and hang:
-        pass
+        hanging_prompt = ident
     elif method == 'session/prompt':
         send({'jsonrpc': '2.0', 'id': ident, 'result': {'stopReason': 'end_turn'}})
     else:

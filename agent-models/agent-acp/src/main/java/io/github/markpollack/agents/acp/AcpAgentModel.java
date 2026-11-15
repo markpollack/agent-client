@@ -15,10 +15,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.agentclientprotocol.sdk.client.AcpClient;
 import com.agentclientprotocol.sdk.client.AcpSyncClient;
+import com.agentclientprotocol.sdk.client.CancellationSignal;
 import com.agentclientprotocol.sdk.client.transport.AgentParameters;
 import com.agentclientprotocol.sdk.client.transport.StdioAcpClientTransport;
 import com.agentclientprotocol.sdk.spec.AcpSchema;
@@ -78,6 +82,17 @@ public class AcpAgentModel implements AgentApi {
 	private static final Logger logger = LoggerFactory.getLogger(AcpAgentModel.class);
 
 	private static final Duration DEFAULT_TIMEOUT = Duration.ofMinutes(10);
+
+	/**
+	 * How long after a run's timeout the SDK's own prompt timeout ends a turn whose agent
+	 * never answered session/cancel.
+	 */
+	private static final Duration CANCEL_GRACE = Duration.ofSeconds(10);
+
+	/**
+	 * Fires each run's session/cancel at its timeout. Daemon, so it never holds the JVM.
+	 */
+	private static final ScheduledExecutorService CANCEL_TIMER = cancelTimer();
 
 	/**
 	 * Turns the SDK's typed session update back into its wire shape for
@@ -183,8 +198,28 @@ public class AcpAgentModel implements AgentApi {
 			String sessionId = session.sessionId();
 			logger.info("{} ACP session {}", this.profile.providerKey(), sessionId);
 
-			AcpSchema.PromptResponse prompt = client
-				.prompt(new AcpSchema.PromptRequest(sessionId, List.of(textContent(goal))));
+			// At the run's timeout, stop the turn the way ACP intends: session/cancel,
+			// then
+			// wait for the agent's answer (normally stop reason "cancelled"). A timeout
+			// that
+			// only disposed the request sent $/cancel_request asynchronously, and closing
+			// the
+			// connection right after could lose it, so the agent never learned of the
+			// cancel.
+			CancellationSignal stop = new CancellationSignal();
+			ScheduledFuture<?> deadline = CANCEL_TIMER.schedule(stop::cancel, runTimeout(options).toMillis(),
+					TimeUnit.MILLISECONDS);
+			AcpSchema.PromptResponse prompt;
+			try {
+				prompt = client.prompt(new AcpSchema.PromptRequest(sessionId, List.of(textContent(goal))), stop);
+			}
+			finally {
+				deadline.cancel(false);
+			}
+			if (stop.isCancelled()) {
+				logger.warn("{} ACP turn reached its timeout and was cancelled with session/cancel",
+						this.profile.providerKey());
+			}
 
 			Duration duration = Duration.between(startedAt, Instant.now());
 			Path trajectory = locateTrajectory(sessionId, workingDirectory, startedAt);
@@ -213,6 +248,20 @@ public class AcpAgentModel implements AgentApi {
 	 * {@code terminal/*} method, and ACP SDK 0.81 refuses to build a client that
 	 * advertises one without its handlers.
 	 */
+	private static ScheduledExecutorService cancelTimer() {
+		var timer = new ScheduledThreadPoolExecutor(1, runnable -> {
+			Thread thread = new Thread(runnable, "acp-run-timeout");
+			thread.setDaemon(true);
+			return thread;
+		});
+		timer.setRemoveOnCancelPolicy(true);
+		return timer;
+	}
+
+	private static Duration runTimeout(AgentOptions options) {
+		return (options != null && options.getTimeout() != null) ? options.getTimeout() : DEFAULT_TIMEOUT;
+	}
+
 	private AcpSyncClient createClient(Path workingDirectory, AgentOptions options, AcpUpdateFold fold) {
 		AgentParameters.Builder params = AgentParameters.builder(this.command)
 			.args(this.profile.launchArgs(workingDirectory, options));
@@ -221,12 +270,15 @@ public class AcpAgentModel implements AgentApi {
 		AcpSchema.ClientCapabilities capabilities = new AcpSchema.ClientCapabilities(
 				new AcpSchema.FileSystemCapability(true, true), false);
 
-		// Since ACP SDK 0.80 the request timeout no longer bounds a prompt turn, so the
-		// run's timeout is set on both.
-		Duration timeout = (options != null && options.getTimeout() != null) ? options.getTimeout() : DEFAULT_TIMEOUT;
+		// Since ACP SDK 0.80 the request timeout no longer bounds a prompt turn. The
+		// run's
+		// timeout ends a prompt with session/cancel (executePrompt); the prompt timeout
+		// is a
+		// backstop CANCEL_GRACE later, for an agent that never answers the cancel.
+		Duration timeout = runTimeout(options);
 		return AcpClient.sync(new StdioAcpClientTransport(params.build()))
 			.requestTimeout(timeout)
-			.promptTimeout(timeout)
+			.promptTimeout(timeout.plus(CANCEL_GRACE))
 			.clientCapabilities(capabilities)
 			.readTextFileHandler(AcpAgentModel::readTextFile)
 			.writeTextFileHandler(AcpAgentModel::writeTextFile)

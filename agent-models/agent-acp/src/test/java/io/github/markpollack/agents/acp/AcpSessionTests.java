@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -149,8 +150,26 @@ class AcpSessionTests {
 	@Timeout(30)
 	void theRunTimeoutStillBoundsAPromptTurn() throws Exception {
 		AgentResponse response = model("hang").call(request(this.root, Duration.ofSeconds(2)));
+		assertThat(response.getMetadata().getProviderFields()).containsEntry("successful", false)
+			.containsEntry("stopReason", "cancelled");
+		// session/cancel is how ACP stops a prompt turn; the agent answers it before
+		// Client
+		// closes the connection, so the agent always learns the turn was cancelled.
+		assertThat(recorded()).as("the turn is cancelled at the agent with session/cancel")
+			.anyMatch(node -> node.has("sessionCancel"));
+	}
+
+	/**
+	 * An agent that ignores session/cancel still has its turn ended: the SDK's prompt
+	 * timeout, a grace period after the run's timeout, is the backstop.
+	 */
+	@Test
+	void anAgentThatIgnoresTheCancelIsStillStoppedByTheBackstop() throws Exception {
+		Instant start = Instant.now();
+		AgentResponse response = model("deaf").call(request(this.root, Duration.ofSeconds(1)));
 		assertThat(response.getMetadata().getProviderFields()).containsEntry("successful", false);
-		assertThat(recorded()).as("the turn is cancelled at the agent").anyMatch(node -> node.has("cancelled"));
+		assertThat(Duration.between(start, Instant.now())).isLessThan(Duration.ofSeconds(25));
+		assertThat(recorded()).anyMatch(node -> node.has("sessionCancel"));
 	}
 
 }
