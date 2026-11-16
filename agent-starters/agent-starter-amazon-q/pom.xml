@@ -29,7 +29,7 @@
             <version>${project.parent.version}</version>
         </dependency>
 
-        <!-- Amazon Q Agent Model (includes autoconfiguration) -->
+        <!-- Amazon Q Agent Model -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-amazon-q</artifactId>

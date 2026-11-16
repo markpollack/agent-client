@@ -1,8 +1,9 @@
 # Agent Client 1.0.0 (draft)
 
 **An asynchronous lifecycle API for running agent CLIs: start a turn, wait, cancel, time out, close, and keep a
-recording of every run. Claude Code and Codex run on it today, as one-shot calls and as retained multi-turn sessions,
-and each run can be recorded through Agent Journal. Also: no Spring AI, and a Spring-free core.**
+recording of every run. Claude Code, Codex and Antigravity run on it today, Claude Code and Codex also as retained
+multi-turn sessions, and each run can be recorded through Agent Journal. Junie and every other provider stay supported
+on the synchronous route. Also: no Spring AI, and a Spring-free core.**
 
 Agent Client moves from 0.32.0 to 1.0.0 with this release. Versions do not follow semantic versioning: a deliberate
 breaking change moves the major version, and older releases are not maintained. The breaking changes against 0.32.0
@@ -34,6 +35,18 @@ New modules:
 | `agent-client-conformance` | no | Recording conformance rows: fixture providers through the shipped recorder |
 | `agent-client-conformance-reader` | no | An independent reader JVM whose only dependency is Journal's |
 | `agent-client-tutorials` | no | Compiles and runs the tutorials and how-tos under `docs/examples` |
+
+## Provider scope
+
+| Route | Providers in 1.0.0 |
+|-------|--------------------|
+| Lifecycle (asynchronous): `runAsync()`, `AgentExecution`, retained sessions | Claude Code and Codex (one-shot and retained); Antigravity (one-shot only) |
+| Synchronous: `AgentApi` / `AgentModel` | Claude Code, Codex, Antigravity, Junie, Grok, Gemini, Amazon Q, Amp, Qwen Code, SWE-agent |
+
+**Junie** is supported in 1.0.0 on the synchronous route over ACP, as it has been since 0.30.0, with its Spring Boot
+starter. Junie on the lifecycle route is not part of 1.0.0. The changes below that touch Junie are shared with other
+providers: auto-configuration moved, unusable MCP servers refused, ACP 0.81.0, and `session/cancel` on timeout. Grok,
+Gemini and the other synchronous providers keep their 0.32.0 behaviour except for the changes listed below.
 
 ## Breaking
 

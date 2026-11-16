@@ -25,7 +25,7 @@
             <version>${project.parent.version}</version>
         </dependency>
 
-        <!-- Qwen Code Agent Model (includes autoconfiguration) -->
+        <!-- Qwen Code Agent Model -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-qwen-code</artifactId>

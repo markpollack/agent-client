@@ -25,7 +25,7 @@
             <version>${project.parent.version}</version>
         </dependency>
 
-        <!-- Antigravity Agent Model (includes autoconfiguration) -->
+        <!-- Antigravity Agent Model -->
         <dependency>
             <groupId>io.github.markpollack</groupId>
             <artifactId>agent-antigravity</artifactId>
