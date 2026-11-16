@@ -135,9 +135,8 @@ class JunieJournalRecordingIT {
 	/**
 	 * Journal's verdict for a Junie 3813.7 session today: INCOMPLETE with no defect, and
 	 * the only open reason the unresolved meaning of {@code modelUsage/*}{@code /time} in
-	 * the frozen session-events specification (with the roll-up line that the
-	 * independent comparison ran). Any defect, unsupported item or other unresolved
-	 * reason fails. When the Owner settles that meaning, Journal's verdict becomes
+	 * the frozen session-events specification. Any defect, unsupported item or other
+	 * unresolved reason fails. When the Owner settles that meaning, Journal's verdict becomes
 	 * ACCEPTED and this tightens to it.
 	 */
 	private static void assertVerdict(JsonNode report) {
@@ -151,7 +150,7 @@ class JunieJournalRecordingIT {
 		assertThat(reasons).as(detail)
 			.filteredOn(line -> line.contains("] UNRESOLVED: "))
 			.isNotEmpty()
-			.allMatch(line -> line.contains("/modelUsage/*/time: ") || line.contains(" combination.policy "));
+			.allMatch(line -> line.contains("/modelUsage/*/time: "));
 		assertThat(reasons).anyMatch(line -> line.contains("/modelUsage/*/time: "));
 		assertThat(report.path("acceptance").asText()).as(detail).startsWith("INCOMPLETE");
 	}
