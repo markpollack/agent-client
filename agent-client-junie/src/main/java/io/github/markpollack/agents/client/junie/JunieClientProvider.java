@@ -17,7 +17,8 @@ import io.github.markpollack.agents.model.AgentOptions;
  * Junie on the Client lifecycle: each execution is one fresh synchronous Junie ACP
  * session, run through the same {@code AcpAgentModel} and {@code JunieAcpProfile} as
  * {@code JunieAgentModel}. Use it with {@code AgentClient.create(provider)} and
- * {@code goal(..).run()}; retained sessions are refused.
+ * {@code goal(..).run()}: Junie is synchronous only, so {@code runAsync()} and retained
+ * sessions are refused.
  *
  * <p>
  * With an {@link Builder#acquisitionDirectory(Path) acquisition directory}, each accepted
@@ -56,7 +57,8 @@ public final class JunieClientProvider implements AgentExecutionProvider {
 	@Override
 	public SessionCapabilities capabilities() {
 		var no = new Capability(false, Optional.of("Only one fresh Junie execution per session is supported"));
-		return new SessionCapabilities(no, no, no);
+		return new SessionCapabilities(no, no, no,
+				new Capability(false, Optional.of("Junie is synchronous only; run it with run()")));
 	}
 
 	public static final class Builder {

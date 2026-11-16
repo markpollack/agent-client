@@ -12,9 +12,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +21,6 @@ import io.github.markpollack.agents.client.AgentClient;
 import io.github.markpollack.agents.client.AgentClientResponse;
 import io.github.markpollack.agents.client.DefaultAgentOptions;
 import io.github.markpollack.agents.client.ExecutionDecision;
-import io.github.markpollack.agents.client.ExecutionRecorder;
 import io.github.markpollack.agents.client.NativeGeneration;
 import io.github.markpollack.agents.client.NativeRecording;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
@@ -78,7 +75,7 @@ class JunieJournalRecordingIT {
 		Path sessions = (home != null ? home : Path.of(System.getProperty("user.home"))).resolve(".junie")
 			.resolve("sessions");
 		Path store = evidence.resolve("archive");
-		var recorder = new Capturing(new JournalExecutionRecorder(store, "junie-live"));
+		var recorder = new CapturingRecorder(new JournalExecutionRecorder(store, "junie-live"));
 		var provider = JunieClientProvider.builder()
 			.executable(executable)
 			.workingDirectory(project)
@@ -223,42 +220,6 @@ class JunieJournalRecordingIT {
 	private static String env(String name, String fallback) {
 		String value = System.getenv(name);
 		return value == null || value.isBlank() ? fallback : value;
-	}
-
-	/** The shipped recorder, with what it was given and what it decided kept for the test. */
-	static final class Capturing implements ExecutionRecorder {
-
-		final CompletableFuture<ExecutionDecision> decision = new CompletableFuture<>();
-
-		final CompletableFuture<Optional<NativeGeneration>> generation = new CompletableFuture<>();
-
-		final CompletableFuture<NativeRecording> recording = new CompletableFuture<>();
-
-		private final JournalExecutionRecorder delegate;
-
-		Capturing(JournalExecutionRecorder delegate) {
-			this.delegate = delegate;
-		}
-
-		@Override
-		public Supplier<String> prepare(ExecutionDecision decision) {
-			return this.delegate.prepare(decision);
-		}
-
-		@Override
-		public boolean takesNativeGeneration() {
-			return this.delegate.takesNativeGeneration();
-		}
-
-		@Override
-		public Prepared prepareRecording(ExecutionDecision decision, Optional<NativeGeneration> generation) {
-			this.decision.complete(decision);
-			this.generation.complete(generation);
-			var prepared = this.delegate.prepareRecording(decision, generation);
-			this.recording.complete(prepared.nativeRecording());
-			return prepared;
-		}
-
 	}
 
 }

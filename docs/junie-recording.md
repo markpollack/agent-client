@@ -2,7 +2,9 @@
 
 `agent-client-junie` runs JetBrains Junie on the Client lifecycle and seals each run's native session for Agent
 Journal. Each execution is one fresh Junie ACP session, driven through the same `AcpAgentModel` and `JunieAcpProfile`
-as `JunieAgentModel`. The supported path is a synchronous `AgentClient.run()`. Retained sessions are refused.
+as `JunieAgentModel`. Junie is synchronous only: the supported path is `AgentClient.run()`. The provider declares
+no asynchronous capability, so `runAsync()` fails fast with `UnsupportedOperationException`. Retained sessions are
+refused too.
 
 ```java
 var provider = JunieClientProvider.builder()

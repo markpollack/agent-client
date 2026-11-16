@@ -353,6 +353,10 @@ public class DefaultAgentClient implements AgentClient {
 
 		@Override
 		public AgentExecution runAsync() {
+			var asynchronous = lifecycleProvider().capabilities().asynchronous();
+			if (!asynchronous.supported())
+				throw new UnsupportedOperationException("Provider refuses asynchronous executions"
+						+ asynchronous.reason().map(reason -> ": " + reason).orElse("") + "; use run()");
 			return submit();
 		}
 

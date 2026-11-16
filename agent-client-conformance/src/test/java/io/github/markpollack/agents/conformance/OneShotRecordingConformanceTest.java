@@ -167,7 +167,26 @@ class OneShotRecordingConformanceTest {
 			.environmentVariables(Map.of("FIXTURE_SESSIONS", this.root.resolve("sessions").toString()));
 		ExecutionDecision decision;
 		String terminalProfile;
-		try (var client = AgentClient.builder(provider)
+		if (c == Case.JUNIE_ONE_SHOT) {
+			// Junie is synchronous only: run(), with the decision and recording read from
+			// the shipped recorder; close drains the delivery.
+			var capturing = new CapturingRecorder(recorder);
+			try (var client = AgentClient.builder(provider)
+				.defaultOptions(options.build())
+				.defaultWorkingDirectory(this.root)
+				.executionRecorder(capturing)
+				.build()) {
+				assertThat(client.goal("success").correlation(CORRELATION).run().getResult())
+					.isEqualTo("answer:success");
+			}
+			decision = capturing.decision.get(20, TimeUnit.SECONDS);
+			var observed = capturing.recording.get(20, TimeUnit.SECONDS);
+			assertThat(observed.outcome()).as(observed.detail()).isEqualTo(expected(c));
+			assertThat(observed.terminalProfile()).isIn(c.profiles);
+			terminalProfile = observed.terminalProfile();
+		}
+		else
+			try (var client = AgentClient.builder(provider)
 			.defaultOptions(options.build())
 			.defaultWorkingDirectory(this.root)
 			.executionRecorder(recorder)

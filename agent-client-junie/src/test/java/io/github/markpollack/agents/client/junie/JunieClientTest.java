@@ -146,7 +146,7 @@ class JunieClientTest {
 	@Test
 	void journalsRecorderAttachesTheRunOnlyWithJournalsJunieQualifier() throws Exception {
 		Path store = this.root.resolve("archive");
-		var recorder = new JournalExecutionRecorder(store, "junie-test");
+		var recorder = new CapturingRecorder(new JournalExecutionRecorder(store, "junie-test"));
 		boolean qualifier = io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier
 			.forProfile("junie-3813.7-acp-session-files")
 			.isPresent();
@@ -155,11 +155,10 @@ class JunieClientTest {
 			.defaultWorkingDirectory(this.project)
 			.executionRecorder(recorder)
 			.build()) {
-			var execution = client.goal("hello").runAsync();
-			assertThat(execution.result().getResult()).isEqualTo("answer:hello");
-			await(() -> execution.recording().nativeRecording().isPresent()
-					&& execution.recording().delivery() instanceof io.github.markpollack.agents.client.TerminalDelivery.Completed);
-			var observed = execution.recording().nativeRecording().orElseThrow();
+			assertThat(client.goal("hello").run().getResult()).isEqualTo("answer:hello");
+			var observed = recorder.recording.get(20, TimeUnit.SECONDS);
+			assertThat(recorder.generation.get().orElseThrow().complete()).isTrue();
+			assertThat(recorder.decision.get().outcome()).isInstanceOf(ExecutionOutcome.Success.class);
 			if (qualifier) {
 				assertThat(observed.outcome()).as(observed.detail()).isEqualTo(NativeRecording.Outcome.ATTACHED);
 				assertThat(observed.terminalProfile()).isEqualTo("client-terminal-junie-acp/1");
@@ -169,9 +168,6 @@ class JunieClientTest {
 				assertThat(observed.detail())
 					.isEqualTo("No Journal qualifier for acquisition profile junie-3813.7-acp-session-files");
 			}
-			assertThat(execution.recording().evidence().acquisition()).isEqualTo(CaptureAcquisition.COMPLETED);
-			assertThat(execution.awaitTermination(Duration.ofSeconds(10)).cleanupConfirmed()).isTrue();
-			assertThat(execution.decision().orElseThrow().outcome()).isInstanceOf(ExecutionOutcome.Success.class);
 		}
 	}
 
@@ -266,22 +262,39 @@ class JunieClientTest {
 		assertThat(JunieLaunchProfile.credentialShaped("PATH")).isFalse();
 	}
 
+	/**
+	 * Client stops a turn through {@code Turn.stop} (a synchronous caller interrupted, a
+	 * timeout, close): Junie gets session/cancel, and the seal records its stop reason.
+	 */
 	@Test
 	void aStoppedTurnSendsSessionCancelAndSealsItsStopReason() throws Exception {
-		var probe = new GenerationProbe();
-		try (var client = client(provider("hang", true), probe)) {
-			var execution = client.goal("hello").runAsync();
-			await(() -> Files.exists(this.root.resolve("prompted")));
-			execution.cancel(false);
-			assertThat(execution.awaitTermination(Duration.ofSeconds(20)).cleanupConfirmed()).isTrue();
-			assertThat(execution.decision().orElseThrow().outcome()).isInstanceOf(ExecutionOutcome.Cancelled.class);
+		var connection = (JunieConnection) provider("hang", true).open(options());
+		var turn = (JunieTurn) connection.prepare("e1");
+		var request = io.github.markpollack.agents.model.AgentTaskRequest.builder("hello", this.project)
+			.options(options())
+			.build();
+		var call = java.util.concurrent.CompletableFuture.supplyAsync(() -> turn.call(request));
+		await(() -> Files.exists(this.root.resolve("prompted")));
+		turn.stop(false);
+		var response = call.get(20, TimeUnit.SECONDS);
+		assertThat(response.getMetadata().getProviderFields()).containsEntry("stopReason", "cancelled");
+		connection.close();
+		var acquisition = JunieAcquisition.seal(this.captures, "e1", connection.id, this.project, List.of("junie"),
+				turn.observation());
+		assertThat(acquisition.complete()).isFalse();
+		assertThat(acquisition.detail()).contains("ACP stop reason cancelled, not end_turn");
+		assertThat(acquisition.terminated()).isTrue();
+		assertThat(turn.captureAcquisition()).isEqualTo(CaptureAcquisition.PENDING);
+	}
+
+	@Test
+	void runAsyncIsRefusedBecauseJunieIsSynchronousOnly() throws Exception {
+		try (var client = client(provider("ok", true), new GenerationProbe())) {
+			assertThatThrownBy(() -> client.goal("hello").runAsync()).isInstanceOf(UnsupportedOperationException.class)
+				.hasMessage("Provider refuses asynchronous executions: Junie is synchronous only; run it with run(); use run()");
+			assertThat(client.goal("hello").run().getResult()).isEqualTo("answer:hello");
 		}
-		NativeGeneration generation = probe.sealed.get(20, TimeUnit.SECONDS).orElseThrow();
-		assertThat(generation.complete()).isFalse();
-		assertThat(generation.detail()).contains("ACP stop reason cancelled, not end_turn");
-		JsonNode manifest = JSON.readTree(generation.manifest().toFile());
-		assertThat(manifest.path("process").path("acp_stop_reason").asText()).isEqualTo("cancelled");
-		assertThat(manifest.path("process").path("observed_resources_terminated").asBoolean()).isTrue();
+		assertThat(JunieClientProvider.builder().build().capabilities().asynchronous().supported()).isFalse();
 	}
 
 	@Test
@@ -295,12 +308,13 @@ class JunieClientTest {
 	@Test
 	void withoutAnAcquisitionDirectoryNothingIsSealed() throws Exception {
 		var probe = new GenerationProbe();
-		try (var client = client(provider("ok", false), probe)) {
-			var execution = client.goal("hello").runAsync();
-			assertThat(execution.result().getResult()).isEqualTo("answer:hello");
+		var provider = provider("ok", false);
+		try (var client = client(provider, probe)) {
+			assertThat(client.goal("hello").run().getResult()).isEqualTo("answer:hello");
 			assertThat(probe.sealed.get(10, TimeUnit.SECONDS)).isEmpty();
-			assertThat(execution.recording().evidence().acquisition()).isEqualTo(CaptureAcquisition.UNAVAILABLE);
 		}
+		var turn = provider.open(options()).prepare("e1");
+		assertThat(turn.captureAcquisition()).isEqualTo(CaptureAcquisition.UNAVAILABLE);
 	}
 
 	@Test
