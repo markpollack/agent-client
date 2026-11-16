@@ -115,7 +115,8 @@ class OneShotRecordingConformanceTest {
 
 		/**
 		 * Synchronous Junie over ACP, sealed under Journal's
-		 * {@code junie-3813.7-acp-session-files}. Journal 2.0.0 has no Junie qualifier, so
+		 * {@code junie-3813.7-acp-session-files}; the fixture replays a sanitized live
+		 * session, so it meets the live verdict. Journal 2.0.0 has no Junie qualifier, so
 		 * it is archived evidence-only and UNQUALIFIED; with Journal's qualifier on the
 		 * classpath the same row must attach (see {@link #expected(Case)}).
 		 */
@@ -221,8 +222,12 @@ class OneShotRecordingConformanceTest {
 				assertThat(tampered.path("assemblyMatchesRecorder").asBoolean()).isFalse();
 				assertThat(tampered.path("acceptance").asText()).isEqualTo("ACCEPTED");
 			}
-			assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
-				.isEqualTo("ACCEPTED");
+			if (c == Case.JUNIE_ONE_SHOT)
+				// The replayed live session meets the same verdict as the live IT.
+				JunieVerdict.assertVerdict(report);
+			else
+				assertThat(report.path("acceptance").asText()).as(report.path("acceptanceDetail").asText())
+					.isEqualTo("ACCEPTED");
 		}
 		else {
 			assertThat(report.path("acquisition").asText()).isEqualTo("UNAVAILABLE");
@@ -264,9 +269,12 @@ class OneShotRecordingConformanceTest {
 	/** An offline Junie ACP fixture that writes its native session directory under the root. */
 	private AgentExecutionProvider junie() throws IOException {
 		Path child = copy("fake-junie-acp.py", "fake-junie-acp.py");
+		Files.createDirectories(this.root.resolve("junie-acp-3813.7-live"));
+		for (String file : List.of("summary.json", "events.jsonl"))
+			copy("junie-acp-3813.7-live/" + file, "junie-acp-3813.7-live/" + file);
 		Path sessions = Files.createDirectories(this.root.resolve("junie-sessions"));
 		Path wrapper = this.root.resolve("junie");
-		Files.writeString(wrapper, "#!/bin/sh\nexec python3 '" + child + "' '" + sessions + "' ok \"$@\"\n",
+		Files.writeString(wrapper, "#!/bin/sh\nexec python3 '" + child + "' '" + sessions + "' replay \"$@\"\n",
 				StandardCharsets.UTF_8);
 		Files.setPosixFilePermissions(wrapper, PosixFilePermissions.fromString("rwx------"));
 		return JunieClientProvider.builder()

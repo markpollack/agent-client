@@ -4,7 +4,8 @@
 # It answers initialize as Junie 3813.7 does, names its session directory with the session/new id,
 # and on session/prompt writes that directory's summary.json and events.jsonl, then ends the turn.
 # Modes change one fact: no-version, no-summary, no-events, other-id, other-project, truncated,
-# two-tasks, extra-session, preexisting, env (records its launch environment), error, hang (ends only on session/cancel, stop reason
+# two-tasks, extra-session, preexisting, env (records its launch environment), replay (writes the sanitized
+# live 3813.7 session beside this script, junie-acp-3813.7-live/, as its own), error, hang (ends only on session/cancel, stop reason
 # cancelled) and zero (zero cost, no token counts).
 import json, os, sys, time
 sessions, mode = sys.argv[1], sys.argv[2]
@@ -19,9 +20,24 @@ def answer(message):
     blocks = message.get('params', {}).get('prompt', [])
     return 'answer:' + ''.join(b.get('text', '') for b in blocks)
 
+LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'junie-acp-3813.7-live')
+
+def replay_session(directory):
+    # A real sanitized 3813.7 session: only its session id and project directory change.
+    for name in ('summary.json', 'events.jsonl'):
+        with open(os.path.join(LIVE, name)) as f:
+            text = f.read()
+        text = text.replace('session-261116-181916-vwh1', session_id)
+        text = text.replace('"/work"', json.dumps(project)).replace('"/work/', json.dumps(project + '/')[:-1])
+        with open(os.path.join(directory, name), 'w') as f:
+            f.write(text)
+
 def write_session():
     directory = os.path.join(sessions, session_id)
     os.makedirs(directory, exist_ok=True)
+    if mode == 'replay':
+        replay_session(directory)
+        return
     now = int(time.time() * 1000)
     task = 'task-261116-120000-abcd'
     events = [{'kind': 'TaskStartedEvent', 'taskId': task, 'timestampMs': now}]

@@ -113,6 +113,27 @@ class JunieClientTest {
 		source(manifest, "session", "events.jsonl", "junie_session_events", "lines", 2, session, generation);
 	}
 
+	/** A sanitized live 3813.7 session, replayed: its real shape seals complete. */
+	@Test
+	void aReplayedLiveSessionSealsComplete() throws Exception {
+		Path live = Files.createDirectories(this.root.resolve("junie-acp-3813.7-live"));
+		for (String file : List.of("summary.json", "events.jsonl"))
+			try (InputStream in = getClass().getResourceAsStream("/junie-acp-3813.7-live/" + file)) {
+				Files.copy(in, live.resolve(file));
+			}
+		var probe = new GenerationProbe();
+		try (var client = client(provider("replay", true), probe)) {
+			client.goal("hello").run();
+		}
+		NativeGeneration generation = probe.sealed.get(10, TimeUnit.SECONDS).orElseThrow();
+		assertThat(generation.complete()).as(generation.detail()).isTrue();
+		JsonNode manifest = JSON.readTree(generation.manifest().toFile());
+		String session = manifest.path("process").path("acp_session_id").asText();
+		source(manifest, "summary", "summary.json", "junie_summary", "document", 1, session, generation);
+		source(manifest, "session", "events.jsonl", "junie_session_events", "lines", 72, session, generation);
+		assertThat(manifest.path("turns").get(0).path("native_task_uid").asText()).isEqualTo("task-261116-181916-1hly");
+	}
+
 	private void source(JsonNode manifest, String role, String artifact, String profile, String framing, int records,
 			String session, NativeGeneration generation) throws IOException {
 		JsonNode source = null;

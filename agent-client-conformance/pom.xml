@@ -25,7 +25,7 @@
   <testResources>
    <testResource><directory>src/test/resources</directory></testResource>
    <testResource><directory>../agent-client-antigravity/src/test/resources</directory><includes><include>antigravity-child.py</include></includes></testResource>
-   <testResource><directory>../agent-client-junie/src/test/resources</directory><includes><include>fake-junie-acp.py</include></includes></testResource>
+   <testResource><directory>../agent-client-junie/src/test/resources</directory><includes><include>fake-junie-acp.py</include><include>junie-acp-3813.7-live/*</include></includes></testResource>
    <testResource><directory>../agent-client-codex/src/test/resources</directory><includes><include>codex-child.py</include><include>codex-native-template.jsonl</include></includes></testResource>
   </testResources>
   <plugins>
