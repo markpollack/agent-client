@@ -34,6 +34,7 @@ import io.github.markpollack.agents.client.NativeRecording;
 import io.github.markpollack.agents.client.TerminalDelivery;
 import io.github.markpollack.agents.client.journal.JournalExecutionRecorder;
 import io.github.markpollack.agents.client.codex.CodexClientProvider;
+import io.github.markpollack.agents.client.junie.JunieClientProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -85,6 +86,11 @@ class OneShotRecordingConformanceTest {
 	 */
 	private static final Set<String> CLAUDE_TERMINAL = Set.of("client-terminal-claude-sdk/1");
 
+	/** Junie: the terminal profile Journal's Junie qualifier assigns. */
+	static final String JUNIE_TERMINAL = "client-terminal-junie-acp/1";
+
+	static final String JUNIE_PROFILE = "junie-3813.7-acp-session-files";
+
 	enum Case {
 
 		CODEX_ONE_SHOT(CODEX_TERMINAL, CODEX_USAGE, NativeRecording.Outcome.ATTACHED),
@@ -105,7 +111,16 @@ class OneShotRecordingConformanceTest {
 		 * seals an incomplete acquisition; the call is archived evidence-only and
 		 * REJECTED, end to end through {@code recording()} and the reader.
 		 */
-		CLAUDE_NO_TRANSCRIPT(Set.of("client-terminal-evidence-only/1"), Map.of(), NativeRecording.Outcome.REJECTED);
+		CLAUDE_NO_TRANSCRIPT(Set.of("client-terminal-evidence-only/1"), Map.of(), NativeRecording.Outcome.REJECTED),
+
+		/**
+		 * Synchronous Junie over ACP, sealed under Journal's
+		 * {@code junie-3813.7-acp-session-files}. Journal 2.0.0 has no Junie qualifier, so
+		 * it is archived evidence-only and UNQUALIFIED; with Journal's qualifier on the
+		 * classpath the same row must attach (see {@link #expected(Case)}).
+		 */
+		JUNIE_ONE_SHOT(Set.of("client-terminal-evidence-only/1", JUNIE_TERMINAL), Map.of(),
+				NativeRecording.Outcome.UNQUALIFIED);
 
 		/** Journal names the terminal profile; the CLI version is recorded, not gated. */
 		final Set<String> profiles;
@@ -128,7 +143,7 @@ class OneShotRecordingConformanceTest {
 	@Test
 	void matrixIsFixed() {
 		assertThat(Arrays.stream(Case.values()).map(Enum::name)).containsExactly("CODEX_ONE_SHOT", "CLAUDE_ONE_SHOT",
-				"CLAUDE_ONE_SHOT_FACTORY", "ANTIGRAVITY_ONE_SHOT", "CLAUDE_NO_TRANSCRIPT");
+				"CLAUDE_ONE_SHOT_FACTORY", "ANTIGRAVITY_ONE_SHOT", "CLAUDE_NO_TRANSCRIPT", "JUNIE_ONE_SHOT");
 	}
 
 	@ParameterizedTest
@@ -142,6 +157,7 @@ class OneShotRecordingConformanceTest {
 			case CODEX_ONE_SHOT -> codex();
 			case ANTIGRAVITY_ONE_SHOT -> antigravity();
 			case CLAUDE_NO_TRANSCRIPT -> claude(false);
+			case JUNIE_ONE_SHOT -> junie();
 			default -> claude(true);
 		};
 		var options = DefaultAgentOptions.builder()
@@ -162,7 +178,7 @@ class OneShotRecordingConformanceTest {
 			assertThat(execution.awaitTermination(Duration.ofSeconds(10)).cleanupConfirmed()).isTrue();
 			decision = execution.decision().orElseThrow();
 			var observed = execution.recording().nativeRecording().orElseThrow();
-			assertThat(observed.outcome()).as(observed.detail()).isEqualTo(c.outcome);
+			assertThat(observed.outcome()).as(observed.detail()).isEqualTo(expected(c));
 			assertThat(observed.terminalProfile()).isIn(c.profiles);
 			terminalProfile = observed.terminalProfile();
 		}
@@ -171,7 +187,7 @@ class OneShotRecordingConformanceTest {
 		assertThat(report.path("matches").asInt()).as("archives for the execution").isEqualTo(1);
 		assertThat(report.path("seriousDiagnostics")).as("reader defects").isEmpty();
 		assertThat(report.path("profile").asText()).as("terminal profile").isEqualTo(terminalProfile);
-		if (c.outcome == NativeRecording.Outcome.ATTACHED) {
+		if (expected(c) == NativeRecording.Outcome.ATTACHED) {
 			assertThat(report.path("acquisition").asText()).isEqualTo("COMPLETED");
 			// Review F9: the expectation comes from Journal's TCK, not the recorder's
 			// copy.
@@ -198,6 +214,8 @@ class OneShotRecordingConformanceTest {
 			if (c == Case.ANTIGRAVITY_ONE_SHOT)
 				assertThat(reason).isEqualTo(
 						"UNQUALIFIED: No Journal qualifier for acquisition profile antigravity-acquisition-v0.1");
+			else if (c == Case.JUNIE_ONE_SHOT)
+				assertThat(reason).isEqualTo("UNQUALIFIED: No Journal qualifier for acquisition profile " + JUNIE_PROFILE);
 			else
 				assertThat(reason).startsWith("REJECTED: Native acquisition is incomplete");
 			assertThat(report.path("usage")).as("no invented usage").isEmpty();
@@ -211,7 +229,33 @@ class OneShotRecordingConformanceTest {
 				.anySatisfy(usage -> c.usage.forEach(
 						(key, value) -> assertThat(usage.path(key).isInt() ? usage.path(key).asInt() : null).as(key)
 							.isEqualTo(value)));
-		assertThat(report.path("costMembers")).as("cost members in the canonical export").isEmpty();
+		if (c != Case.JUNIE_ONE_SHOT)
+			assertThat(report.path("costMembers")).as("cost members in the canonical export").isEmpty();
+	}
+
+	/** The Junie row attaches only when Journal's Junie qualifier is on the classpath. */
+	static NativeRecording.Outcome expected(Case c) {
+		if (c == Case.JUNIE_ONE_SHOT && io.github.markpollack.journal.tck.ocsf.inventory.AcquisitionQualifier
+			.forProfile(JUNIE_PROFILE)
+			.isPresent())
+			return NativeRecording.Outcome.ATTACHED;
+		return c.outcome;
+	}
+
+	/** An offline Junie ACP fixture that writes its native session directory under the root. */
+	private AgentExecutionProvider junie() throws IOException {
+		Path child = copy("fake-junie-acp.py", "fake-junie-acp.py");
+		Path sessions = Files.createDirectories(this.root.resolve("junie-sessions"));
+		Path wrapper = this.root.resolve("junie");
+		Files.writeString(wrapper, "#!/bin/sh\nexec python3 '" + child + "' '" + sessions + "' ok \"$@\"\n",
+				StandardCharsets.UTF_8);
+		Files.setPosixFilePermissions(wrapper, PosixFilePermissions.fromString("rwx------"));
+		return JunieClientProvider.builder()
+			.executable(wrapper.toString())
+			.workingDirectory(this.root)
+			.nativeSessionsDirectory(sessions)
+			.acquisitionDirectory(this.root.resolve("captures"))
+			.build();
 	}
 
 	private AgentExecutionProvider antigravity() throws IOException {

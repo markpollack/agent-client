@@ -77,6 +77,16 @@ public interface AcpAgentProfile {
 	}
 
 	/**
+	 * Whether the launched process inherits this JVM's environment before
+	 * {@link #environment(AgentOptions)} is applied. A profile whose agent records its
+	 * environment into evidence returns false and names every variable itself.
+	 * @return true to inherit, the default
+	 */
+	default boolean inheritEnvironment() {
+		return true;
+	}
+
+	/**
 	 * Which advertised authentication method to invoke before opening a session, if any.
 	 *
 	 * <p>

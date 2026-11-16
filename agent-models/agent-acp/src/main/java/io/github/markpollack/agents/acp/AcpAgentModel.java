@@ -135,6 +135,39 @@ public class AcpAgentModel implements AgentApi {
 
 	@Override
 	public AgentResponse call(AgentTaskRequest request) {
+		return call(request, new CancellationSignal(), (sessionId, agentVersion) -> {
+		});
+	}
+
+	/** Told what {@code initialize} and {@code session/new} established, before the prompt. */
+	@FunctionalInterface
+	public interface SessionListener {
+
+		/**
+		 * The session is open and its prompt not yet sent.
+		 * @param sessionId the {@code session/new} id
+		 * @param agentVersion the version {@code initialize} reported, or null
+		 */
+		void sessionOpened(String sessionId, String agentVersion);
+
+	}
+
+	/**
+	 * Run one prompt turn that the caller can stop. Cancelling {@code stop} ends the turn
+	 * as the run's timeout does: {@code session/cancel}, then the agent's answer. A
+	 * signal already cancelled before {@code session/new} launches no prompt.
+	 * {@code sessionOpened} receives the {@code session/new} id and the reported agent
+	 * version before the prompt is sent, so a caller can bind them even when the turn
+	 * later fails.
+	 * @param request the task
+	 * @param stop the caller's stop signal; the run's timeout cancels it too
+	 * @param sessionOpened told the ACP session id and agent version once
+	 * {@code session/new} answers
+	 * @return the response, or an error response when the turn failed
+	 */
+	public AgentResponse call(AgentTaskRequest request, CancellationSignal stop, SessionListener sessionOpened) {
+		java.util.Objects.requireNonNull(stop, "stop");
+		java.util.Objects.requireNonNull(sessionOpened, "sessionOpened");
 		AgentOptions options = AcpMergedOptions.merge(request.options(), this.defaultOptions);
 		Path workingDirectory = resolveWorkingDirectory(request, options);
 		String goal = prepareGoal(request, options);
@@ -144,7 +177,7 @@ public class AcpAgentModel implements AgentApi {
 
 		Instant startedAt = Instant.now();
 		try {
-			AcpRunRecord run = executePrompt(goal, workingDirectory, options, startedAt);
+			AcpRunRecord run = executePrompt(goal, workingDirectory, options, startedAt, stop, sessionOpened);
 			return toAgentResponse(run, options);
 		}
 		catch (Exception ex) {
@@ -177,7 +210,8 @@ public class AcpAgentModel implements AgentApi {
 	// ACP lifecycle
 	// ---------------------------------------------------------------------
 
-	private AcpRunRecord executePrompt(String goal, Path workingDirectory, AgentOptions options, Instant startedAt) {
+	private AcpRunRecord executePrompt(String goal, Path workingDirectory, AgentOptions options, Instant startedAt,
+			CancellationSignal stop, SessionListener sessionOpened) {
 		AcpUpdateFold fold = new AcpUpdateFold();
 		AcpSyncClient client = createClient(workingDirectory, options, fold);
 		try {
@@ -197,6 +231,10 @@ public class AcpAgentModel implements AgentApi {
 					workingDirectory.toAbsolutePath().toString(), mcpServers, null, null));
 			String sessionId = session.sessionId();
 			logger.info("{} ACP session {}", this.profile.providerKey(), sessionId);
+			sessionOpened.sessionOpened(sessionId, agentVersion(initialize));
+			if (stop.isCancelled())
+				throw new java.util.concurrent.CancellationException(
+						"Stopped before the prompt of ACP session " + sessionId);
 
 			// At the run's timeout, stop the turn the way ACP intends: session/cancel,
 			// then
@@ -206,7 +244,6 @@ public class AcpAgentModel implements AgentApi {
 			// the
 			// connection right after could lose it, so the agent never learned of the
 			// cancel.
-			CancellationSignal stop = new CancellationSignal();
 			ScheduledFuture<?> deadline = CANCEL_TIMER.schedule(stop::cancel, runTimeout(options).toMillis(),
 					TimeUnit.MILLISECONDS);
 			AcpSchema.PromptResponse prompt;
@@ -217,7 +254,7 @@ public class AcpAgentModel implements AgentApi {
 				deadline.cancel(false);
 			}
 			if (stop.isCancelled()) {
-				logger.warn("{} ACP turn reached its timeout and was cancelled with session/cancel",
+				logger.warn("{} ACP turn was stopped with session/cancel, at its timeout or by its caller",
 						this.profile.providerKey());
 			}
 
@@ -266,6 +303,7 @@ public class AcpAgentModel implements AgentApi {
 		AgentParameters.Builder params = AgentParameters.builder(this.command)
 			.args(this.profile.launchArgs(workingDirectory, options));
 		params.env(this.profile.environment(options));
+		params.inheritEnvironment(this.profile.inheritEnvironment());
 
 		AcpSchema.ClientCapabilities capabilities = new AcpSchema.ClientCapabilities(
 				new AcpSchema.FileSystemCapability(true, true), false);

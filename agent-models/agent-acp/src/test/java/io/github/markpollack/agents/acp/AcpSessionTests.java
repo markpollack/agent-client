@@ -172,4 +172,34 @@ class AcpSessionTests {
 		assertThat(recorded()).anyMatch(node -> node.has("sessionCancel"));
 	}
 
+
+	/** A caller's stop ends the turn the same way: session/cancel, then the agent's answer. */
+	@Test
+	@Timeout(30)
+	void aCallersStopEndsTheTurnWithSessionCancel() throws Exception {
+		var stop = new com.agentclientprotocol.sdk.client.CancellationSignal();
+		var opened = new java.util.concurrent.CompletableFuture<String>();
+		var worker = java.util.concurrent.CompletableFuture.supplyAsync(() -> model("hang").call(request(this.root),
+				stop, (session, version) -> opened.complete(session)));
+		assertThat(opened.get(20, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo("fake-session");
+		stop.cancel();
+		AgentResponse response = worker.get(20, java.util.concurrent.TimeUnit.SECONDS);
+		assertThat(response.getMetadata().getProviderFields()).containsEntry("stopReason", "cancelled");
+		assertThat(recorded()).anyMatch(node -> node.has("sessionCancel"));
+	}
+
+	/** A stop before the prompt sends no prompt; the opened session is still reported. */
+	@Test
+	void aStopBeforeThePromptSendsNone() throws Exception {
+		var stop = new com.agentclientprotocol.sdk.client.CancellationSignal();
+		stop.cancel();
+		var opened = new java.util.ArrayList<String>();
+		AgentResponse response = model("hang").call(request(this.root), stop,
+				(session, version) -> opened.add(session));
+		assertThat(opened).containsExactly("fake-session");
+		assertThat(response.getMetadata().getProviderFields()).containsEntry("successful", false);
+		assertThat(response.getText()).contains("Stopped before the prompt of ACP session fake-session");
+		assertThat(recorded()).noneMatch(node -> node.has("sessionCancel"));
+	}
+
 }

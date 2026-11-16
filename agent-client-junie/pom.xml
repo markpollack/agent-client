@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+ <modelVersion>4.0.0</modelVersion><parent><groupId>io.github.markpollack</groupId><artifactId>agent-client-parent</artifactId><version>0.32.1-SNAPSHOT</version></parent>
+ <artifactId>agent-client-junie</artifactId><name>Agent Client Junie Lifecycle</name>
+ <description>Junie on the Client lifecycle: one fresh synchronous ACP session per execution, with its native
+  session directory sealed for Agent Journal 2.0.</description>
+ <properties>
+  <!-- Measured line 90.80%, branch 82.18%; floors minus two points. -->
+  <jacoco.minimum.line>0.88</jacoco.minimum.line>
+  <jacoco.minimum.branch>0.80</jacoco.minimum.branch>
+ </properties>
+ <dependencies>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-core</artifactId><version>${project.version}</version></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-junie</artifactId><version>${project.version}</version></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-acp</artifactId><version>${project.version}</version></dependency>
+  <dependency><groupId>com.agentclientprotocol</groupId><artifactId>acp-core</artifactId><version>${acp.version}</version></dependency>
+  <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-journal</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit</artifactId><version>${archunit.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>org.assertj</groupId><artifactId>assertj-core</artifactId><scope>test</scope></dependency>
+  <dependency><groupId>ch.qos.logback</groupId><artifactId>logback-classic</artifactId><scope>test</scope></dependency>
+ </dependencies>
+</project>

@@ -13,6 +13,7 @@
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-codex</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-claude</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-antigravity</artifactId><version>${project.version}</version><scope>test</scope></dependency>
+  <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-junie</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <!-- Build order only: the reader runs in its own JVM and is kept off this classpath below. -->
   <dependency><groupId>io.github.markpollack</groupId><artifactId>agent-client-conformance-reader</artifactId><version>${project.version}</version><scope>test</scope></dependency>
   <dependency><groupId>org.zeroturnaround</groupId><artifactId>zt-exec</artifactId><scope>test</scope></dependency>
@@ -24,6 +25,7 @@
   <testResources>
    <testResource><directory>src/test/resources</directory></testResource>
    <testResource><directory>../agent-client-antigravity/src/test/resources</directory><includes><include>antigravity-child.py</include></includes></testResource>
+   <testResource><directory>../agent-client-junie/src/test/resources</directory><includes><include>fake-junie-acp.py</include></includes></testResource>
    <testResource><directory>../agent-client-codex/src/test/resources</directory><includes><include>codex-child.py</include><include>codex-native-template.jsonl</include></includes></testResource>
   </testResources>
   <plugins>
@@ -34,6 +36,19 @@
      <systemPropertyVariables>
       <!-- One-shot Claude capture reads native transcripts under user.home; keep the fixture's out of the real home. -->
       <user.home>${project.build.directory}/fixture-home</user.home>
+      <conformance.reader.classes>${project.basedir}/../agent-client-conformance-reader/target/classes</conformance.reader.classes>
+      <conformance.reader.classpath>${project.basedir}/../agent-client-conformance-reader/target/reader-classpath.txt</conformance.reader.classpath>
+     </systemPropertyVariables>
+    </configuration>
+   </plugin>
+   <plugin>
+    <!-- Live ITs (-Pfailsafe) read archives with the same separate reader JVM; they keep the real home. -->
+    <groupId>org.apache.maven.plugins</groupId><artifactId>maven-failsafe-plugin</artifactId><version>3.1.2</version>
+    <configuration>
+     <!-- A live recording run is one real session: never rerun it automatically. -->
+     <rerunFailingTestsCount>0</rerunFailingTestsCount>
+     <classpathDependencyExcludes><classpathDependencyExclude>io.github.markpollack:agent-client-conformance-reader</classpathDependencyExclude></classpathDependencyExcludes>
+     <systemPropertyVariables>
       <conformance.reader.classes>${project.basedir}/../agent-client-conformance-reader/target/classes</conformance.reader.classes>
       <conformance.reader.classpath>${project.basedir}/../agent-client-conformance-reader/target/reader-classpath.txt</conformance.reader.classpath>
      </systemPropertyVariables>

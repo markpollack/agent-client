@@ -44,6 +44,7 @@
         <module>agent-client-claude</module>
         <module>agent-client-codex</module>
         <module>agent-client-antigravity</module>
+        <module>agent-client-junie</module>
         <module>agent-client-conformance-reader</module>
         <module>agent-client-conformance</module>
         <module>agent-client-tutorials</module>
