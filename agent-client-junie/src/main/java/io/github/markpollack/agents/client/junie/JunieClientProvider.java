@@ -58,7 +58,7 @@ public final class JunieClientProvider implements AgentExecutionProvider {
 	public SessionCapabilities capabilities() {
 		var no = new Capability(false, Optional.of("Only one fresh Junie execution per session is supported"));
 		return new SessionCapabilities(no, no, no,
-				new Capability(false, Optional.of("Junie is synchronous only; run it with run()")));
+				new Capability(false, Optional.of("Junie is synchronous only")));
 	}
 
 	public static final class Builder {

@@ -291,7 +291,7 @@ class JunieClientTest {
 	void runAsyncIsRefusedBecauseJunieIsSynchronousOnly() throws Exception {
 		try (var client = client(provider("ok", true), new GenerationProbe())) {
 			assertThatThrownBy(() -> client.goal("hello").runAsync()).isInstanceOf(UnsupportedOperationException.class)
-				.hasMessage("Provider refuses asynchronous executions: Junie is synchronous only; run it with run(); use run()");
+				.hasMessage("Provider refuses asynchronous executions: Junie is synchronous only; use run()");
 			assertThat(client.goal("hello").run().getResult()).isEqualTo("answer:hello");
 		}
 		assertThat(JunieClientProvider.builder().build().capabilities().asynchronous().supported()).isFalse();
