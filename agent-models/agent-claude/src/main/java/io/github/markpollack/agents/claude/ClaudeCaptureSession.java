@@ -164,7 +164,7 @@ public final class ClaudeCaptureSession {
 		launch.put("permission_mode", cli.getPermissionMode().getValue());
 		launch.put("caller_input", Map.of("prompt", prompt, "provenance", "caller-supplied"));
 		launch.put("artifact_provenance", options.provenance());
-		launch.put("sdk_version", "1.8.0-SNAPSHOT");
+		launch.put("sdk_version", ClaudeArtifactVersion.sdkVersion());
 		launch.put("client_version", ClaudeArtifactVersion.version());
 		Map<String, Object> run = new LinkedHashMap<>();
 		run.put("run_uid", options.invocationId());

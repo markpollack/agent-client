@@ -134,6 +134,10 @@ Against 0.32.0:
   the connection. The SDK's prompt timeout ends the turn 10 s later if the agent does not answer. Before, the timeout
   only disposed the request; its `$/cancel_request` went out asynchronously and was lost in about a third of runs, so
   the agent never learned that its turn was cancelled.
+- **Claude recordings state the SDK version that ran.** The capture's `launch_settings.sdk_version` now comes from the
+  loaded Claude Agent SDK jar: its Maven metadata, or else its manifest. Before, it was a fixed `1.8.0-SNAPSHOT`
+  whatever SDK was on the classpath. A test now fails the build if any file under a module's `src/main` names a
+  `-SNAPSHOT` version.
 - **The Amp and Codex Spring Boot auto-configurations honour `executable-path`** when they create their client. Before,
   the path reached only the agent options, and an application whose CLI was not on `PATH` failed to start.
 - **Released dependencies:** Claude Agent SDK 1.8.0 and Agent Sandbox 1.0.0.

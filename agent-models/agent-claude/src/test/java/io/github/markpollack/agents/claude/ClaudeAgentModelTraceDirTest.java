@@ -68,6 +68,10 @@ class ClaudeAgentModelTraceDirTest {
 		var manifest = CaptureFiles.JSON.readTree(acquisition.manifest().toFile());
 		assertThat(manifest.path("run").path("session_uid").asText()).isEqualTo("session-a");
 		assertThat(manifest.path("run").path("launch_settings").path("client_version").asText()).isEqualTo("unknown");
+		// The SDK version is the loaded SDK jar's own, never a literal.
+		assertThat(manifest.path("run").path("launch_settings").path("sdk_version").asText())
+			.isEqualTo(io.github.markpollack.claude.agent.sdk.transport.CLIOptions.class.getPackage()
+				.getImplementationVersion());
 		assertThat(manifest.path("process").path("exit_code").isNull()).isTrue();
 		assertThat(manifest.path("sources").size()).isEqualTo(7);
 		assertThat(Files.readString(temp.resolve("package/native/transcript.jsonl"))).contains("session-a");
