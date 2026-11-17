@@ -113,7 +113,16 @@ intended removals above:
   the matching getters and setters on `ClaudeAgentProperties`.
 - **Gemini workspace MCP helpers removed:** `CLITransport.writeMcpSettings` and `cleanupMcpSettings`.
 
-The other 18 published modules report no incompatible change. japicmp checks signatures only. The behaviour changes
+The other 18 published modules reported no incompatible change in that run. A recheck of
+`agent-client-spring-boot-autoconfigure` on 2026-11-17 found one change made after it, with Spring Boot 3.5 support
+(`7051158e`). The change is binary- and source-incompatible:
+
+- **`DeprecatedPropertyMigrator` implements `org.springframework.boot.env.EnvironmentPostProcessor`**, the type that
+  Spring Boot 3.5 and 4 both load, in place of Spring Boot 4's `org.springframework.boot.EnvironmentPostProcessor`. It
+  is registered through `spring.factories`, so applications are unaffected. Only code that refers to it as Boot 4's
+  type needs a change.
+
+japicmp checks signatures only. The behaviour changes
 above (refused MCP servers, ACP capabilities, Gemini settings) are listed by hand.
 
 ## Compatibility
