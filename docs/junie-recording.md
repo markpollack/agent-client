@@ -89,17 +89,19 @@ of 4,096 tokens truncates it.
 
 ## Reproducing the live proof from main
 
-No snapshots are published, so build the three projects from their `main` branches into a scratch Maven repository.
-Keep `~/.m2` out of it. The proof uses Journal's Junie qualifier, which is on Journal's `main` (`56795dc3` or later).
+Client's `main` builds against the `main` snapshots of the other AgentWorks projects, and no snapshots are
+published. Install each upstream's `main` into your local Maven repository first, in this order, and then Client.
+The proof needs Journal's Junie qualifier, which is on Journal's `main` (`56795dc3` or later).
 
 ```bash
-R=$(mktemp -d)/repo          # scratch Maven repository
-W=$(mktemp -d)               # sources
-for p in agent-journal agent-workflow agent-client; do
+W=$(mktemp -d)
+for p in claude-agent-sdk-java agent-sandbox agent-journal agent-workflow agent-client; do
   git clone -q https://github.com/markpollack/$p $W/$p
-  (cd $W/$p && ./mvnw -B -Dmaven.repo.local=$R install -DskipTests)
+  (cd $W/$p && ./mvnw -B install -DskipTests)
 done
 ```
+
+Add `-Dmaven.repo.local=<dir>` to every command to keep the build out of `~/.m2`.
 
 Last verified on 2026-11-17 with Journal `56795dc3`, Workflow `32e60d2` (`1.1.0-SNAPSHOT`) and Client `a90f2e7a`.
 
@@ -112,17 +114,16 @@ export JUNIE_IT_EXECUTABLE=$HOME/.local/share/junie/versions/3813.7/junie   # or
 export JUNIE_IT_MODEL_LOCATION=$M JUNIE_IT_MODEL=custom:<name>
 
 # Client run() -> Junie -> Journal recorder -> FinalAssembly -> AssemblyOracle in a separate reader JVM
-JUNIE_IT_EVIDENCE=$(mktemp -d) ./mvnw -B -Dmaven.repo.local=$R -Pfailsafe verify \
+JUNIE_IT_EVIDENCE=$(mktemp -d) ./mvnw -B -Pfailsafe verify \
   -pl agent-client-conformance -Dit.test=JunieJournalRecordingIT -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
 
 # The same chain, started by a durable Agent Workflow run through AgentClientStep
-JUNIE_IT_EVIDENCE=$(mktemp -d) ./mvnw -B -Dmaven.repo.local=$R -Pfailsafe,workflow-proof \
-  -Dagent-workflow.version=1.1.0-SNAPSHOT verify \
+JUNIE_IT_EVIDENCE=$(mktemp -d) ./mvnw -B -Pfailsafe,workflow-proof verify \
   -pl agent-client-conformance -Dit.test=JunieWorkflowRecordingIT -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
-The `workflow-proof` profile defaults to Workflow `1.0.0`. To use that version, install Workflow's tag `v1.0.0`
-instead of `main` and omit `-Dagent-workflow.version`.
+The `workflow-proof` profile uses Workflow's `main` snapshot. To run it against the certified Workflow `1.0.0`
+instead, install Workflow's tag `v1.0.0` and add `-Dagent-workflow.version=1.0.0`.
 
 Each test writes `evidence-index.json`, `reader-report.json`, the sealed capture and the Journal archive into its
 `JUNIE_IT_EVIDENCE` folder. The Workflow test also writes `workflow-context.json`, which holds the run, invocation

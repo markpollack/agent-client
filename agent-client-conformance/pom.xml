@@ -62,11 +62,11 @@
   <profile>
    <!--
     The Workflow-level Junie proof (-Pfailsafe,workflow-proof): a durable Agent Workflow run whose AgentClientStep
-    calls Agent Client. Opt-in only, because Agent Workflow 1.0.0 is not on Central yet; the default, CI, publish and
-    release builds never see this dependency or src/workflow-proof.
+    calls Agent Client. It tracks Agent Workflow's main snapshot. Opt-in only: the default, CI, publish and release
+    builds never see this dependency or src/workflow-proof.
    -->
    <id>workflow-proof</id>
-   <properties><agent-workflow.version>1.0.0</agent-workflow.version></properties>
+   <properties><agent-workflow.version>1.1.0-SNAPSHOT</agent-workflow.version></properties>
    <dependencies>
     <dependency><groupId>io.github.markpollack</groupId><artifactId>workflow-batch</artifactId><version>${agent-workflow.version}</version><scope>test</scope></dependency>
    </dependencies>
