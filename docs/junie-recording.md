@@ -83,19 +83,17 @@ of 4,096 tokens truncates it.
 - `OneShotRecordingConformanceTest`, row `JUNIE_ONE_SHOT`: the shipped recorder and the independent reader.
 - `JunieJournalRecordingIT`, live, run with `-Pfailsafe` and skipped without a Junie CLI. Its environment variables
   name the executable, the model and the model folder.
-- `JunieWorkflowRecordingIT`, live, run with `-Pfailsafe,workflow-proof`: a durable Agent Workflow run whose
-  `AgentClientStep` calls Client `run()` through a test-only adapter. The profile is off by default, so the normal
-  build never resolves Agent Workflow.
 
 ## Reproducing the live proof from main
 
 Client's `main` builds against the `main` snapshots of the other AgentWorks projects, and no snapshots are
 published. Install each upstream's `main` into your local Maven repository first, in this order, and then Client.
-The proof needs Journal's Junie qualifier, which is on Journal's `main` (`56795dc3` or later).
+The proof needs Journal's `main` at `01bc552d` or later. That commit has the Junie qualifier, the settled `modelUsage`
+time meaning and the whole-second time fix.
 
 ```bash
 W=$(mktemp -d)
-for p in claude-agent-sdk-java agent-sandbox agent-journal agent-workflow agent-client; do
+for p in claude-agent-sdk-java agent-sandbox agent-journal agent-client; do
   git clone -q https://github.com/markpollack/$p $W/$p
   (cd $W/$p && ./mvnw -B install -DskipTests)
 done
@@ -103,9 +101,9 @@ done
 
 Add `-Dmaven.repo.local=<dir>` to every command to keep the build out of `~/.m2`.
 
-Last verified on 2026-11-17 with Journal `56795dc3`, Workflow `32e60d2` (`1.1.0-SNAPSHOT`) and Client `a90f2e7a`.
+Last verified on 2026-11-17 with Journal `01bc552d` and Client `c3e8f84e`.
 
-Then run both live tests from `$W/agent-client`. They need a Junie CLI and a model. The example uses a local
+Then run the live test from `$W/agent-client`. It needs a Junie CLI and a model. The example uses a local
 OpenAI-compatible server through a custom model profile in `$M` (see [Local models](#local-models)), which costs nothing:
 
 ```bash
@@ -116,16 +114,17 @@ export JUNIE_IT_MODEL_LOCATION=$M JUNIE_IT_MODEL=custom:<name>
 # Client run() -> Junie -> Journal recorder -> FinalAssembly -> AssemblyOracle in a separate reader JVM
 JUNIE_IT_EVIDENCE=$(mktemp -d) ./mvnw -B -Pfailsafe verify \
   -pl agent-client-conformance -Dit.test=JunieJournalRecordingIT -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
-
-# The same chain, started by a durable Agent Workflow run through AgentClientStep
-JUNIE_IT_EVIDENCE=$(mktemp -d) ./mvnw -B -Pfailsafe,workflow-proof verify \
-  -pl agent-client-conformance -Dit.test=JunieWorkflowRecordingIT -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
-The `workflow-proof` profile uses Workflow's `main` snapshot. To run it against the certified Workflow `1.0.0`
-instead, install Workflow's tag `v1.0.0` and add `-Dagent-workflow.version=1.0.0`.
+The test writes `evidence-index.json`, `reader-report.json`, the sealed capture and the Journal archive into its
+`JUNIE_IT_EVIDENCE` folder. It asserts the recording is `ATTACHED` and checks the reader's verdict with
+`JunieVerdict`, the same assertion as the offline conformance row: ACCEPTED, with nothing open.
 
-Each test writes `evidence-index.json`, `reader-report.json`, the sealed capture and the Journal archive into its
-`JUNIE_IT_EVIDENCE` folder. The Workflow test also writes `workflow-context.json`, which holds the run, invocation
-and attempt ids that Journal records as correlation. Both tests assert the recording is `ATTACHED` and check the
-reader's verdict with `JunieVerdict`, the same assertion as the offline conformance row.
+## From an Agent Workflow
+
+Agent Workflow's `workflow-agent-client` module runs an Agent Client from a Workflow step: its `WorkflowAgentClient`
+implements Workflow's `AgentClient` step interface, so each `AgentClientStep` invocation is one synchronous `run()`,
+correlated with the step's Workflow run, invocation and attempt. It lives in Agent Workflow, which depends on Agent
+Client; Agent Client depends on no Workflow artifact. The live Workflow-level proof, `JunieWorkflowRecordingIT`, a
+durable Workflow run through that adapter to Junie and Journal, is in Agent Workflow too: see
+[`workflow-agent-client/README.md`](https://github.com/markpollack/agent-workflow/blob/main/workflow-agent-client/README.md).
