@@ -15,26 +15,20 @@ final class JunieVerdict {
 	}
 
 	/**
-	 * Journal's verdict for a Junie 3813.7 session today: INCOMPLETE with no defect, and
-	 * the only open reason the unresolved meaning of {@code modelUsage/*}{@code /time} in
-	 * the frozen session-events specification. Any defect, unsupported item or other
-	 * unresolved reason fails. When the Owner settles that meaning, Journal's verdict becomes
-	 * ACCEPTED and this tightens to it.
+	 * Journal's verdict for a Junie 3813.7 session: ACCEPTED, with no defect, no
+	 * unsupported item and no unresolved reason. The meaning of
+	 * {@code modelUsage/*}{@code /time} is settled (client-measured wall-clock
+	 * milliseconds, recorded as is), so any open reason fails.
 	 */
 	static void assertVerdict(JsonNode report) {
 		String detail = report.path("acceptanceDetail").asText();
-		var counts = java.util.regex.Pattern.compile("\"(DEFECTIVE|UNSUPPORTED)\" : (\\d+)").matcher(detail);
+		var counts = java.util.regex.Pattern.compile("\"(DEFECTIVE|UNSUPPORTED|UNRESOLVED)\" : (\\d+)")
+			.matcher(detail);
 		while (counts.find())
 			assertThat(Integer.parseInt(counts.group(2))).as(counts.group(1) + " in " + detail).isZero();
-		var reasons = detail.lines().filter(line -> line.matches(".*\\] (DEFECTIVE|UNSUPPORTED|UNRESOLVED): .*")).toList();
-		assertThat(reasons).as(detail)
-			.noneMatch(line -> line.contains("] DEFECTIVE: ") || line.contains("] UNSUPPORTED: "));
-		assertThat(reasons).as(detail)
-			.filteredOn(line -> line.contains("] UNRESOLVED: "))
-			.isNotEmpty()
-			.allMatch(line -> line.contains("/modelUsage/*/time: "));
-		assertThat(reasons).anyMatch(line -> line.contains("/modelUsage/*/time: "));
-		assertThat(report.path("acceptance").asText()).as(detail).startsWith("INCOMPLETE");
+		assertThat(detail.lines()).as(detail)
+			.noneMatch(line -> line.matches(".*\\] (DEFECTIVE|UNSUPPORTED|UNRESOLVED): .*"));
+		assertThat(report.path("acceptance").asText()).as(detail).isEqualTo("ACCEPTED");
 	}
 
 }
