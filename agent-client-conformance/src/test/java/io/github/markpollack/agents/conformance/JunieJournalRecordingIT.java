@@ -62,7 +62,7 @@ class JunieJournalRecordingIT {
 
 	private static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
-	private static final String PROFILE = "junie-3813.7-acp-session-files";
+	static final String PROFILE = "junie-3813.7-acp-session-files";
 
 	@Test
 	void aFreshSynchronousJunieSessionIsAttachedAssembledAndReadBack() throws Exception {
@@ -136,7 +136,7 @@ class JunieJournalRecordingIT {
 	 * Every usage member the export carries is one the summary reports, with the same
 	 * value; nothing is added. A cost of zero is a valid report.
 	 */
-	private static void assertUsageAsReported(Path summaryFile, JsonNode report) throws IOException {
+	static void assertUsageAsReported(Path summaryFile, JsonNode report) throws IOException {
 		JsonNode summary = JSON.readTree(summaryFile.toFile());
 		for (JsonNode entry : summary.path("mainAgent").path("modelUsage")) {
 			if (entry.has("cost"))
@@ -149,7 +149,7 @@ class JunieJournalRecordingIT {
 		}));
 	}
 
-	private static DefaultAgentOptions options(Path project, Path home) {
+	static DefaultAgentOptions options(Path project, Path home) {
 		var extras = new LinkedHashMap<String, Object>();
 		extras.put("skip-update-check", true);
 		extras.put("share-anonymous-statistics", "false");
@@ -166,7 +166,7 @@ class JunieJournalRecordingIT {
 		return builder.build();
 	}
 
-	private static void writeEvidence(Path evidence, AgentClientResponse response, ExecutionDecision decision,
+	static void writeEvidence(Path evidence, AgentClientResponse response, ExecutionDecision decision,
 			NativeGeneration generation, JsonNode manifest, NativeRecording observed, JsonNode report,
 			boolean qualifier) throws IOException {
 		var index = new LinkedHashMap<String, Object>();
@@ -194,14 +194,14 @@ class JunieJournalRecordingIT {
 				StandardCharsets.UTF_8);
 	}
 
-	private static Path evidence() throws IOException {
+	static Path evidence() throws IOException {
 		String kept = System.getenv("JUNIE_IT_EVIDENCE");
 		if (kept != null)
 			return Files.createDirectories(Path.of(kept));
 		return Files.createTempDirectory("junie-journal-it");
 	}
 
-	private static boolean available(String executable) {
+	static boolean available(String executable) {
 		try {
 			Process process = new ProcessBuilder(executable, "--version").redirectErrorStream(true).start();
 			process.getInputStream().readAllBytes();
@@ -216,7 +216,7 @@ class JunieJournalRecordingIT {
 		}
 	}
 
-	private static String env(String name, String fallback) {
+	static String env(String name, String fallback) {
 		String value = System.getenv(name);
 		return value == null || value.isBlank() ? fallback : value;
 	}

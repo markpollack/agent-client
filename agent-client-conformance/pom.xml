@@ -58,4 +58,29 @@
    <plugin><groupId>org.sonatype.central</groupId><artifactId>central-publishing-maven-plugin</artifactId><configuration><skipPublishing>true</skipPublishing></configuration></plugin>
   </plugins>
  </build>
+ <profiles>
+  <profile>
+   <!--
+    The Workflow-level Junie proof (-Pfailsafe,workflow-proof): a durable Agent Workflow run whose AgentClientStep
+    calls Agent Client. Opt-in only, because Agent Workflow 1.0.0 is not on Central yet; the default, CI, publish and
+    release builds never see this dependency or src/workflow-proof.
+   -->
+   <id>workflow-proof</id>
+   <properties><agent-workflow.version>1.0.0</agent-workflow.version></properties>
+   <dependencies>
+    <dependency><groupId>io.github.markpollack</groupId><artifactId>workflow-batch</artifactId><version>${agent-workflow.version}</version><scope>test</scope></dependency>
+   </dependencies>
+   <build>
+    <plugins>
+     <plugin>
+      <groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId><version>3.6.1</version>
+      <executions>
+       <execution><id>workflow-proof-sources</id><phase>generate-test-sources</phase><goals><goal>add-test-source</goal></goals>
+        <configuration><sources><source>src/workflow-proof/java</source></sources></configuration></execution>
+      </executions>
+     </plugin>
+    </plugins>
+   </build>
+  </profile>
+ </profiles>
 </project>
