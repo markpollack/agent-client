@@ -4,7 +4,7 @@
 # Answers initialize, records each session/new params line to <record-file>, and ends each prompt.
 # With 'converse', a prompt first streams session updates (one of a kind no SDK models), asks
 # permission, records the client's answer to <record-file>, and only then ends the prompt.
-# With 'hang', a prompt ends only on 'session/cancel', which is recorded to <record-file> and
+# With 'hang', a prompt is recorded to <record-file> on arrival and ends only on 'session/cancel', which is recorded and
 # answered with stop reason 'cancelled'; a '$/cancel_request' is recorded too. 'deaf' hangs the
 # same way but ignores 'session/cancel', so only the client's own prompt timeout ends the turn.
 import json, sys
@@ -63,6 +63,8 @@ for line in sys.stdin:
                         {'optionId': 'yes', 'name': 'Allow', 'kind': 'allow_once'}]}})
     elif method == 'session/prompt' and hang:
         hanging_prompt = ident
+        with open(record, 'a') as f:
+            f.write(json.dumps({'promptHanging': ident}) + '\n')
     elif method == 'session/prompt':
         send({'jsonrpc': '2.0', 'id': ident, 'result': {'stopReason': 'end_turn'}})
     else:

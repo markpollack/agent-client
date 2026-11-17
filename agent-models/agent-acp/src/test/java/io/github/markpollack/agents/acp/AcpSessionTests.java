@@ -182,6 +182,13 @@ class AcpSessionTests {
 		var worker = java.util.concurrent.CompletableFuture.supplyAsync(() -> model("hang").call(request(this.root),
 				stop, (session, version) -> opened.complete(session)));
 		assertThat(opened.get(20, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo("fake-session");
+		// The session opens before the prompt is sent; stop only once the prompt is in
+		// flight, or the stop takes the before-the-prompt path instead.
+		Instant deadline = Instant.now().plusSeconds(20);
+		while (!Files.readString(this.record).contains("\"promptHanging\"")) {
+			assertThat(Instant.now()).as("the prompt reaches the agent").isBefore(deadline);
+			Thread.sleep(10);
+		}
 		stop.cancel();
 		AgentResponse response = worker.get(20, java.util.concurrent.TimeUnit.SECONDS);
 		assertThat(response.getMetadata().getProviderFields()).containsEntry("stopReason", "cancelled");
@@ -200,6 +207,7 @@ class AcpSessionTests {
 		assertThat(response.getMetadata().getProviderFields()).containsEntry("successful", false);
 		assertThat(response.getText()).contains("Stopped before the prompt of ACP session fake-session");
 		assertThat(recorded()).noneMatch(node -> node.has("sessionCancel"));
+		assertThat(recorded()).noneMatch(node -> node.has("promptHanging"));
 	}
 
 }
